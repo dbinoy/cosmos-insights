@@ -1,0 +1,14 @@
+/* assets/custom.css */
+.nav-link {
+    color: #ffffff !important;
+    font-size: 16px;
+}
+.nav-link:hover {
+    background-color: #495057 !important;
+    border-radius: 5px;
+}
+.nav-link.active {
+    background-color: #0d6efd !important;
+    color: #ffffff !important;
+    border-radius: 5px;
+}

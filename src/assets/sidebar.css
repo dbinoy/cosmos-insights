@@ -1,0 +1,62 @@
+/* assets/sidebar.css */
+
+/* Make the whole app sit nicely against the dark sidebar */
+body {
+  background-color: #0b0c10; /* optional, tweak as needed */
+}
+
+/* Sidebar container */
+.sidebar {
+  /* keeps it full height via vh-100 in your layout */
+}
+
+/* Nav links: flex layout for icon / label / chevron */
+.sidebar .nav-link {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  color: #cfd3da;               /* subtle light */
+  padding: .65rem .75rem;
+  border-radius: .5rem;
+  transition: background-color .15s ease, color .15s ease;
+}
+
+/* Hover and focus */
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus {
+  color: #ffffff;
+  background-color: rgba(255,255,255, .08);
+  text-decoration: none;
+}
+
+/* Active state—highlight and left accent bar */
+.sidebar .nav-link.active {
+  color: #ffffff !important;
+  background-color: rgba(var(--bs-primary-rgb, 13,110,253), .15);
+  box-shadow: inset 3px 0 0 var(--bs-primary, #0d6efd);
+}
+
+/* Icon on the left */
+.sidebar .sidebar-icon {
+  font-size: 1.1rem; /* adjust size */
+  line-height: 1;
+  opacity: .95;
+}
+
+/* Label flexes to take remaining space */
+.sidebar .sidebar-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Chevron on the right; rotate when active */
+.sidebar .sidebar-arrow {
+  margin-left: auto;
+  transition: transform .2s ease;
+  opacity: .9;
+}
+.sidebar .nav-link.active .sidebar-arrow {
+  transform: rotate(90deg);
+}
