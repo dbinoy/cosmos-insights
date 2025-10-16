@@ -14,7 +14,7 @@ def welcome_layout():
                         ),
                         html.Hr(),
                         html.P(
-                            "Use the sidebar navigation to switch between Compliance, Workflow, and Training dashboards.",
+                            "Use the sidebar navigation to switch between Comply, Assist, and Instruct dashboards.",
                             className="text-muted"
                         ),
                     ],

@@ -49,7 +49,7 @@ sidebar = dbc.Col(
             [
                 dbc.NavLink(
                     [
-                        html.Span("Compliance Dashboard", className="sidebar-label"),
+                        html.Span("Comply Dashboard", className="sidebar-label"),
                         html.I(className="bi bi-person-check sidebar-icon me-2", **{"aria-hidden": "true"}),
                         html.I(className="bi bi-chevron-right sidebar-arrow", **{"aria-hidden": "true"}),
                     ],
@@ -59,7 +59,7 @@ sidebar = dbc.Col(
                 ),
                 dbc.NavLink(
                     [
-                        html.Span("Workflow Dashboard", className="sidebar-label"),                        
+                        html.Span("Assist Dashboard", className="sidebar-label"),                        
                         html.I(className="bi bi-heart sidebar-icon me-2", **{"aria-hidden": "true"}),
                         html.I(className="bi bi-chevron-right sidebar-arrow", **{"aria-hidden": "true"}),
                     ],
@@ -69,7 +69,7 @@ sidebar = dbc.Col(
                 ),
                 dbc.NavLink(
                     [
-                        html.Span("Training Dashboard", className="sidebar-label"),
+                        html.Span("Instruct Dashboard", className="sidebar-label"),
                         html.I(className="bi bi-mortarboard sidebar-icon me-2", **{"aria-hidden": "true"}),                        
                         html.I(className="bi bi-chevron-right sidebar-arrow", **{"aria-hidden": "true"}),
                     ],
@@ -85,7 +85,7 @@ sidebar = dbc.Col(
         ),
     ],
     width=2,
-    className="bg-dark vh-100 p-3 sidebar"
+    className="bg-dark vh-100 p-2 sidebar"
 )
 
 # Main content placeholder
