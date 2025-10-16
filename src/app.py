@@ -33,7 +33,6 @@ with server.app_context():
     cache.clear()
 
 # Sidebar layout
-
 sidebar = dbc.Col(
     [
         html.H2(
@@ -82,54 +81,9 @@ sidebar = dbc.Col(
     width=2,
     className="bg-dark vh-100 p-3 sidebar"
 )
-# sidebar = dbc.Col(
-#     [
-#         html.H2(
-#             html.A("Menu", href="/", className="text-light text-decoration-none"),
-#             className="mb-4"
-#         ),
-#         dbc.Nav(
-#             [
-#                 dbc.NavLink(
-#                     [   html.Span("Compliance Dashboard", className="sidebar-label"),
-#                         html.I(className="bi bi-chevron-right sidebar-arrow"),
-#                         html.I(className="bi bi-person-check sidebar-icon")
-#                     ],
-#                     href="/compliance-dashboard",
-#                     active="exact",
-#                     className="text-light"
-#                 ),
-#                 dbc.NavLink(
-#                     [   html.Span("Workflow Dashboard", className="sidebar-label"),
-#                         html.I(className="bi bi-chevron-right sidebar-arrow"),
-#                         html.I(className="bi bi-heart sidebar-icon")
-#                     ],
-#                     href="/workflow-dashboard",
-#                     active="exact",
-#                     className="text-light"
-#                 ), 
-#                 dbc.NavLink(
-#                     [   html.Span("Training Dashboard", className="sidebar-label"),
-#                         html.I(className="bi bi-chevron-right sidebar-arrow"),
-#                         html.I(className="bi bi-mortarboard sidebar-icon")
-#                     ],
-#                     href="/training-dashboard",
-#                     active="exact",
-#                     className="text-light"
-#                 )                            
-#             ],
-#             vertical=True,
-#             pills=True,
-#             className="flex-column"
-#         ),
-#     ],
-#     width=2,
-#     className="bg-dark vh-100 p-3"
-# )
-
 
 # Main content placeholder
-content = dbc.Col(id="page-content", width=10, className="p-4")
+content = dbc.Col(id="page-content", width=10, className="p-4 main-content")
 
 # App layout with URL routing
 app.layout = dbc.Container(
