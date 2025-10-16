@@ -45,3 +45,88 @@
 .sidebar {
     background: #292c36 !important;
 }
+
+/* Default sidebar styles (already present) */
+/* ...existing styles... */
+
+/* Responsive adjustments for screens <= 1400px */
+@media (max-width: 1400px) {
+    .sidebar-logo img {
+        width: 120px !important;
+        margin: 16px auto 24px auto !important;
+    }
+    .sidebar-label {
+        font-size: 0.98rem !important;
+    }
+    .sidebar-link {
+        padding: 12px 18px 12px 18px !important;
+    }
+    .sidebar-icon, .sidebar-arrow {
+        font-size: 1.05em !important;
+    }
+}
+
+/* Responsive adjustments for screens <= 992px */
+/* Responsive adjustments for screens <= 992px */
+@media (max-width: 992px) {
+    .sidebar {
+        min-width: 120px !important;
+        max-width: 120px !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+    .sidebar-logo img {
+        width: 48px !important;
+        margin: 4px auto 8px auto !important;
+    }
+    .sidebar-label {
+        font-size: 0.72rem !important;
+    }
+    .sidebar-link, .nav-link {
+        width: 100% !important;
+        padding: 4px 8px 4px 8px !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+    }
+    .sidebar-icon, .sidebar-arrow {
+        font-size: 0.65em !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+}
+
+/* Optional: Hide sidebar or collapse for very small screens */
+@media (max-width: 768px) {
+    .sidebar-logo img {
+        width: 38px !important;
+        margin: 2px auto 4px auto !important;
+        display: block;
+    }
+    .sidebar {
+        min-width: 60px !important;
+        max-width: 60px !important;
+        padding: 0 !important;
+        overflow: visible !important;
+    }
+    .sidebar-link {
+        padding: 4px 0 !important;
+        justify-content: center !important;
+        overflow: visible !important;
+    }
+    .sidebar-label {
+        display: none !important;
+    }
+    .sidebar-icon, .sidebar-arrow {
+        font-size: 0.7em !important;
+    }
+}
+
+/* Prevent icon/arrow clipping in all browsers */
+.sidebar, .sidebar-link {
+    overflow: visible !important;
+    box-sizing: border-box !important;
+}

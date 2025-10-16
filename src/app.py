@@ -35,10 +35,16 @@ with server.app_context():
 # Sidebar layout
 sidebar = dbc.Col(
     [
-        html.H2(
-            html.A("Menu", href="/", className="text-light text-decoration-none"),
-            className="mb-4"
-        ),
+        html.Div(
+            dcc.Link(
+                html.Img(
+                    src="/assets/CRMLSLogoGreen.png",
+                    style={"width": "140px", "margin": "24px auto 32px auto", "display": "block"}
+                ),
+                href="/"
+            ),
+            className="sidebar-logo"
+        ), 
         dbc.Nav(
             [
                 dbc.NavLink(
