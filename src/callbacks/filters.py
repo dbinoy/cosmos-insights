@@ -10,18 +10,18 @@ def register_training_filter_callbacks(app):
         prevent_initial_call=False
     )
     def load_filter_data(_):
-        q_aors ='SELECT [AorID], [Name], [ShortName] FROM [consumable].[Dim_Aors] ORDER BY [ShortName]'
-        q_members ='SELECT [MemberID], [MemberName], [OfficeCode] FROM [consumable].[Dim_Members]'
+        q_aors ='SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]'
+        q_offices = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
 
         queries = {
             "aors": q_aors,
-            "members": q_members
+            "offices": q_offices
         }           
 
         results = run_queries(queries, len(queries.keys()))
         filter_data = {
             "aors": results["aors"].to_dict("records"),
-            "members": results["members"].to_dict("records")
+            "offices": results["offices"].to_dict("records")
         }     
         return filter_data   
     
@@ -29,23 +29,37 @@ def register_training_filter_callbacks(app):
         Output("training-date-range-picker", "start_date_placeholder_text"),
         Output("training-date-range-picker", "end_date_placeholder_text"),
         Output("training-aor-dropdown", "options"),
-        Output("training-office-dropdown", "options"),
-        # Output("training-member-dropdown", "options"),
         Input("training-filter-data-store", "data"),
         prevent_initial_call=False
     )
-    def populate_filters(filter_data):
+    def populate_aor_filter(filter_data):
         start_placeholder = datetime.strptime('2020-01-01', '%Y-%m-%d').date()
         end_placeholder = datetime.today().date()        
+
         if not filter_data:
-            return str(start_placeholder), str(end_placeholder), [], [], []
+            return str(start_placeholder), str(end_placeholder), []
+        
         df_aors = pd.DataFrame(filter_data["aors"])
-        aor_options = [{"label": "All Aors", "value": "All"}]+[{"label": v[1]['ShortName']+' - '+v[1]['Name'], "value": str(v[1]['AorID'])} for v in df_aors.iterrows() if pd.notnull(v)]
-        print(df_aors.shape)
-        df_members = pd.DataFrame(filter_data["members"])
-        print(sorted(list(df_members['OfficeCode'].dropna().unique())))
-        office_options = [{"label": "All Offices", "value": "All"}]+[{"label": v, "value": v} for v in sorted(list(df_members['OfficeCode'].dropna().unique()))]
-        print("Building member options")
-        member_options = [{"label": "All Members", "value": "All"}]+[{"label": v[1]['MemberName'], "value": str(v[1]['MemberID'])} for v in df_members.iterrows() if pd.notnull(v)]
-        print(len(member_options))
-        return str(start_placeholder), str(end_placeholder), aor_options, office_options    
+        aor_options = [{"label": "All Aors", "value": "All"}]+[{"label": v[1]['AorShortName']+' - '+v[1]['AorName'], "value": str(v[1]['AorShortName'])} for v in df_aors.iterrows() if pd.notnull(v)]
+
+        return str(start_placeholder), str(end_placeholder), aor_options
+        
+    @app.callback(
+        Output("training-office-dropdown", "options"),
+        Input("training-aor-dropdown", "value"),
+        Input("training-filter-data-store", "data"),    
+        prevent_initial_call=True
+    )
+    def populate_subscription_filter(selected_aors, filter_data):
+        if not filter_data:
+            return []
+        
+        df_offices = pd.DataFrame(filter_data["offices"])
+        if selected_aors and len(selected_aors) != 0 and "All" not in selected_aors:
+            df_offices = df_offices[df_offices["AorShortName"].isin([aor for aor in selected_aors])]
+            selected_aors = ' ' + ','.join(selected_aors) + ' '
+        else:
+            selected_aors = ' '
+
+        office_options = [{"label": f"All{selected_aors}Offices", "value": "All"}]+[{"label": v[1]['AorShortName']+' - '+v[1]['OfficeCode'], "value": v[1]['OfficeCode']} for v in df_offices.iterrows() if pd.notnull(v)]
+        return office_options        
