@@ -66,7 +66,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=3), 
+                ], width=5), 
                 dbc.Col([
                     html.Div([
                         html.Label("Class"),
@@ -78,7 +78,9 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=3), 
+                ], width=7)
+            ], className="mb-2"),
+            dbc.Row([                
                 dbc.Col([
                     html.Div([
                         html.Label("Instructor"),
@@ -90,7 +92,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=2), 
+                ], width=5), 
                 dbc.Col([
                     html.Div([
                         html.Label("Location"),
@@ -102,7 +104,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=4),                                              
+                ], width=7),                                              
             ], className="mb-2"),
         ]),
         ], className="mb-3"
