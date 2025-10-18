@@ -16,7 +16,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=3),                
+                ], width=4),                
                 dbc.Col([
                     html.Div([
                         html.Label("Aor"),
@@ -28,7 +28,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=4),   
+                ], width=6),   
                 dbc.Col([
                     html.Div([
                         html.Label("Office"),
@@ -40,19 +40,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=2), 
-                dbc.Col([
-                    html.Div([
-                        # html.Label("Member"),
-                        # dcc.Dropdown(
-                        #     id="training-member-dropdown", 
-                        #     options=[],
-                        #     placeholder="Select Member",
-                        #     multi=True,
-                        #     disabled=False
-                        # )
-                    ], className="d-grid gap-1")
-                ], width=3)                
+                ], width=2)                
             ], className="mb-2"),
             dbc.Row([
                 dbc.Col([
@@ -66,21 +54,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=5), 
-                dbc.Col([
-                    html.Div([
-                        html.Label("Class"),
-                        dcc.Dropdown(
-                            id="training-class-dropdown", 
-                            options=[],
-                            placeholder="Select Class",
-                            multi=True,
-                            disabled=False
-                        )
-                    ], className="d-grid gap-1")
-                ], width=7)
-            ], className="mb-2"),
-            dbc.Row([                
+                ], width=4), 
                 dbc.Col([
                     html.Div([
                         html.Label("Instructor"),
@@ -92,7 +66,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=5), 
+                ], width=3), 
                 dbc.Col([
                     html.Div([
                         html.Label("Location"),
@@ -104,7 +78,21 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=7),                                              
+                ], width=5),                   
+            ], className="mb-2"),
+            dbc.Row([                
+                dbc.Col([
+                    html.Div([
+                        html.Label("Class"),
+                        dcc.Dropdown(
+                            id="training-class-dropdown", 
+                            options=[],
+                            placeholder="Select Class",
+                            multi=True,
+                            disabled=False
+                        )
+                    ], className="d-grid gap-1")
+                ], width=8)                                             
             ], className="mb-2"),
         ]),
         ], className="mb-3"
