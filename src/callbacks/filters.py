@@ -121,9 +121,40 @@ def register_training_filter_callbacks(app):
         else:
             selected_topics = ' '
 
+        all_classes_label = f"All{selected_topics}Classes"
+        if selected_aors and len(selected_aors) != 0 and "All" not in selected_aors:
+            all_classes_label = f"{all_classes_label} For {','.join(selected_aors)}"
+        if selected_instructors and len(selected_instructors) != 0 and "All" not in selected_instructors:
+            all_classes_label = f"{all_classes_label} By {','.join(df_classes[df_classes['InstructorId'].isin([instr for instr in selected_instructors])]['InstructorName'].unique().tolist())}"
+        if selected_locations and len(selected_locations) != 0 and "All" not in selected_locations:
+            all_classes_label = f"{all_classes_label} At {','.join(df_classes[df_classes['LocationId'].isin([loc for loc in selected_locations])]['LocationName'].unique().tolist())}"
         if len(df_classes) > 0:
-            class_options = [{"label": f"All{selected_topics}Classes", "value": "All"}]+[{"label": textwrap.shorten(v[1]['ClassName'], width=72, placeholder='')+': '+v[1]['StartTime'], "value": v[1]['ClassId']} for v in df_classes.iterrows() if pd.notnull(v)]
+            class_options = [{"label": f"{all_classes_label}", "value": "All"}]+[{"label": v[1]['ClassName']+': '+v[1]['StartTime'], "value": v[1]['ClassId']} for v in df_classes.iterrows() if pd.notnull(v)]
         else:
             class_options = []
 
         return class_options           
+    
+    @app.callback(
+        Output("training-date-range-picker", "start_date", allow_duplicate=True),
+        Output("training-date-range-picker", "end_date", allow_duplicate=True),
+        Output("training-aor-dropdown", "value", allow_duplicate=True),
+        Output("training-office-dropdown", "value", allow_duplicate=True),
+        Output("training-topics-dropdown", "value", allow_duplicate=True),
+        Output("training-instructor-dropdown", "value", allow_duplicate=True),
+        Output("training-location-dropdown", "value", allow_duplicate=True),
+        Output("training-class-dropdown", "value", allow_duplicate=True),
+        Input("training-clear-filters-btn", "n_clicks"),
+        Input("training-filter-data-store", "data"),    
+        prevent_initial_call=True
+    )
+    def clear_all_filters(n_clicks, filter_data):
+        aor__default = []
+        office_default = []
+        topics_default = []
+        instructor_default = []
+        location_default = []
+        class_default = []
+        date_start_default = datetime.strptime('2020-01-01', '%Y-%m-%d').date()
+        date_end_default = datetime.today().date()  
+        return date_start_default, date_end_default, aor__default, office_default, topics_default, instructor_default, location_default, class_default

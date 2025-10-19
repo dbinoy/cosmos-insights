@@ -92,7 +92,7 @@ def get_filters_layout():
                             disabled=False
                         )
                     ], className="d-grid gap-1")
-                ], width=8)                                             
+                ], width=12)                                             
             ], className="mb-2"),
         ]),
         ], className="mb-3"
