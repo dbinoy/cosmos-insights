@@ -66,6 +66,7 @@ def register_training_filter_callbacks(app):
         aor_options = [{"label": "All Aors", "value": "All"}]+[{"label": v[1]['AorShortName']+' - '+v[1]['AorName'], "value": str(v[1]['AorShortName'])} for v in df_aors.iterrows() if pd.notnull(v)]
 
         return str(start_placeholder), str(end_placeholder), aor_options
+    print("Training filter callback registration complete")
     '''
     @app.callback(
         Output("training-office-dropdown", "options"),
@@ -284,3 +285,4 @@ def register_training_filter_callbacks(app):
         date_end_default = datetime.today().date()  
         return date_start_default, date_end_default, aor__default, office_default, topics_default, instructor_default, location_default, class_default
     '''    
+    
