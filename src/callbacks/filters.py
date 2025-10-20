@@ -261,7 +261,7 @@ def register_training_filter_callbacks(app):
 
         return class_options           
     
-    '''         
+  
     @app.callback(
         Output("training-date-range-picker", "start_date"),
         Output("training-date-range-picker", "end_date"),
@@ -277,7 +277,7 @@ def register_training_filter_callbacks(app):
         allow_duplicate=True
     )
     def clear_all_filters(n_clicks, filter_data):
-        aor__default = []
+        aor_default = []
         office_default = []
         topics_default = []
         instructor_default = []
@@ -285,6 +285,6 @@ def register_training_filter_callbacks(app):
         class_default = []
         date_start_default = datetime.strptime('2020-01-01', '%Y-%m-%d').date()
         date_end_default = datetime.today().date()  
-        return date_start_default, date_end_default, aor__default, office_default, topics_default, instructor_default, location_default, class_default
-    '''    
+        return date_start_default, date_end_default, aor_default, office_default, topics_default, instructor_default, location_default, class_default
+
     
