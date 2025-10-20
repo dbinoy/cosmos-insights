@@ -20,8 +20,9 @@ def register_training_filter_callbacks(app):
         q_topics = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
         # q_instructors = 'SELECT [InstructorID], [Name] FROM [consumable].[Dim_Instructors] ORDER BY [Name]'
         # q_locations = 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]'
-        q_request_stats = 'SELECT [TrainingTopicId],[TrainingTopicName],[AorShortName],[AorName],[MemberOffice],[MembersRequested],[TotalRequests] FROM [consumable].[Fact_RequestStats]'
-        q_attendance_stats = 'SELECT [TrainingClassId],[ClassName],[TrainingTopicId],[TrainingTopicName],[LocationId],[LocationName],[InstructorId],[InstructorName],[AorShortName],[MemberOffice],[MembersAttended],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
+        # q_request_stats = 'SELECT [TrainingTopicId],[TrainingTopicName],[AorShortName],[AorName],[MemberOffice],[MembersRequested],[TotalRequests] FROM [consumable].[Fact_RequestStats]'
+        # q_attendance_stats = 'SELECT [TrainingClassId],[ClassName],[TrainingTopicId],[TrainingTopicName],[LocationId],[LocationName],[InstructorId],[InstructorName],[AorShortName],[MemberOffice],[MembersAttended],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
+
 
         queries = {
             "aors": q_aors,
@@ -30,8 +31,8 @@ def register_training_filter_callbacks(app):
             "topics": q_topics,
             # "instructors": q_instructors,
             # "locations": q_locations,
-            "request_stats": q_request_stats,
-            "attendance_stats": q_attendance_stats
+            # "request_stats": q_request_stats,
+            # "attendance_stats": q_attendance_stats
         }           
 
         results = run_queries(queries, len(queries.keys()))
@@ -42,8 +43,8 @@ def register_training_filter_callbacks(app):
             "topics": results["topics"].to_dict("records"),
             # "instructors": results["instructors"].to_dict("records"),
             # "locations": results["locations"].to_dict("records"),
-            "request_stats": results["request_stats"].to_dict("records"),
-            "attendance_stats": results["attendance_stats"].to_dict("records")
+            # "request_stats": results["request_stats"].to_dict("records"),
+            # "attendance_stats": results["attendance_stats"].to_dict("records")
         }    
         print("Data Load done in", time.time()-start, "s")
         return filter_data   
@@ -100,26 +101,26 @@ def register_training_filter_callbacks(app):
             return []
         
         df_topics = pd.DataFrame(filter_data["topics"])
-        df_request_stats = pd.DataFrame(filter_data["request_stats"])
-        df_attendance_stats = pd.DataFrame(filter_data["attendance_stats"])
+        # df_request_stats = pd.DataFrame(filter_data["request_stats"])
+        # df_attendance_stats = pd.DataFrame(filter_data["attendance_stats"])
 
-        filtered = False
+        # filtered = False
         
-        if selected_aors and len(selected_aors) != 0 and "All" not in selected_aors:
-            filtered = True
-            df_request_stats = df_request_stats[df_request_stats["AorShortName"].isin([aor for aor in selected_aors])] 
-            df_attendance_stats = df_attendance_stats[df_attendance_stats["AorShortName"].isin([aor for aor in selected_aors])] 
+        # if selected_aors and len(selected_aors) != 0 and "All" not in selected_aors:
+        #     filtered = True
+        #     df_request_stats = df_request_stats[df_request_stats["AorShortName"].isin([aor for aor in selected_aors])] 
+        #     df_attendance_stats = df_attendance_stats[df_attendance_stats["AorShortName"].isin([aor for aor in selected_aors])] 
 
-        if selected_offices and len(selected_offices) != 0 and "All" not in selected_offices:
-            filtered = True
-            df_request_stats = df_request_stats[df_request_stats["MemberOffice"].isin([office for office in selected_offices])]      
-            df_attendance_stats = df_attendance_stats[df_attendance_stats["MemberOffice"].isin([office for office in selected_offices])]                          
+        # if selected_offices and len(selected_offices) != 0 and "All" not in selected_offices:
+        #     filtered = True
+        #     df_request_stats = df_request_stats[df_request_stats["MemberOffice"].isin([office for office in selected_offices])]      
+        #     df_attendance_stats = df_attendance_stats[df_attendance_stats["MemberOffice"].isin([office for office in selected_offices])]                          
 
-        if filtered == True:
-            topic_ids_from_request_stats = df_request_stats["TrainingTopicId"].unique().tolist()
-            topic_ids_from_attendance_stats = df_attendance_stats["TrainingTopicId"].unique().tolist()
-            topic_ids = list(set(topic_ids_from_request_stats).union(set(topic_ids_from_attendance_stats)))
-            df_topics = df_topics[df_topics["TopicId"].isin(topic_ids)]
+        # if filtered == True:
+        #     topic_ids_from_request_stats = df_request_stats["TrainingTopicId"].unique().tolist()
+        #     topic_ids_from_attendance_stats = df_attendance_stats["TrainingTopicId"].unique().tolist()
+        #     topic_ids = list(set(topic_ids_from_request_stats).union(set(topic_ids_from_attendance_stats)))
+        #     df_topics = df_topics[df_topics["TopicId"].isin(topic_ids)]
 
         topic_options = [{"label": "All Topics", "value": "All"}]+[{"label": v[1]['TopicName'], "value": str(v[1]['TopicId'])} for v in df_topics.iterrows() if pd.notnull(v)]
 
