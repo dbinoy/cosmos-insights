@@ -1,11 +1,13 @@
 from dash.dependencies import Input, Output, State
 import pandas as pd
 import textwrap
+import time
 from datetime import datetime
 from src.utils.db import run_queries
 
 def register_training_filter_callbacks(app):
     print("Registering training filter callbacks")
+    start = time.time()
     @app.callback(
         Output("training-filter-data-store", "data"),
         Input("training-filtered-query-store", "id"), 
@@ -43,7 +45,7 @@ def register_training_filter_callbacks(app):
             # "request_stats": results["request_stats"].to_dict("records"),
             # "attendance_stats": results["attendance_stats"].to_dict("records")
         }    
-        print("Training filter data loaded") 
+        print("Data Load done in", time.time()-start, "s")
         return filter_data   
     
     @app.callback(
