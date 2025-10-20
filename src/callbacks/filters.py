@@ -16,10 +16,10 @@ def register_training_filter_callbacks(app):
     def load_filter_data(_):
         q_aors ='SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]'
         q_offices = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
-        # q_classes = 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]'
         q_topics = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
         q_instructors = 'SELECT [InstructorID], [Name] FROM [consumable].[Dim_Instructors] ORDER BY [Name]'
         q_locations = 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]'
+        q_classes = 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]'
         # q_request_stats = 'SELECT [TrainingTopicId],[TrainingTopicName],[AorShortName],[AorName],[MemberOffice],[MembersRequested],[TotalRequests] FROM [consumable].[Fact_RequestStats]'
         # q_attendance_stats = 'SELECT [TrainingClassId],[ClassName],[TrainingTopicId],[TrainingTopicName],[LocationId],[LocationName],[InstructorId],[InstructorName],[AorShortName],[MemberOffice],[MembersAttended],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
 
@@ -27,10 +27,10 @@ def register_training_filter_callbacks(app):
         queries = {
             "aors": q_aors,
             "offices": q_offices,
-            # "classes": q_classes,
             "topics": q_topics,
             "instructors": q_instructors,
             "locations": q_locations,
+            "classes": q_classes,
             # "request_stats": q_request_stats,
             # "attendance_stats": q_attendance_stats
         }           
@@ -39,10 +39,10 @@ def register_training_filter_callbacks(app):
         filter_data = {
             "aors": results["aors"].to_dict("records"),
             "offices": results["offices"].to_dict("records"),
-            # "classes": results["classes"].to_dict("records"),
             "topics": results["topics"].to_dict("records"),
             "instructors": results["instructors"].to_dict("records"),
             "locations": results["locations"].to_dict("records"),
+            "classes": results["classes"].to_dict("records"),
             # "request_stats": results["request_stats"].to_dict("records"),
             # "attendance_stats": results["attendance_stats"].to_dict("records")
         }    
@@ -197,49 +197,48 @@ def register_training_filter_callbacks(app):
 
         location_options = [{"label": "All Locations", "value": "All"}]+[{"label": v[1]['Name'], "value": str(v[1]['LocationID'])} for v in df_locations.iterrows() if pd.notnull(v)]
         return location_options
-    
-    '''      
+     
     @app.callback(
         Output("training-class-dropdown", "options"),
         Input("training-aor-dropdown", "value"),
-        Input("training-office-dropdown", "value"),
+        # Input("training-office-dropdown", "value"),
         Input("training-instructor-dropdown", "value"),
         Input("training-location-dropdown", "value"),
         Input("training-topics-dropdown", "value"),        
         Input("training-filter-data-store", "data"),    
         prevent_initial_call=True
     )
-    def populate_class_filter(selected_aors, selected_offices, selected_instructors, selected_locations, selected_topics, filter_data):
+    def populate_class_filter(selected_aors, selected_instructors, selected_locations, selected_topics, filter_data):
         if not filter_data:
             return []
         
         df_topics = pd.DataFrame(filter_data["topics"])
         df_classes = pd.DataFrame(filter_data["classes"])
-        df_attendance_stats = pd.DataFrame(filter_data["attendance_stats"])
-        filtered = False
+        # df_attendance_stats = pd.DataFrame(filter_data["attendance_stats"])
+        # filtered = False
 
         if selected_aors and len(selected_aors) != 0 and "All" not in selected_aors:
             filtered = True
-            df_attendance_stats = df_attendance_stats[df_attendance_stats["AorShortName"].isin([aor for aor in selected_aors])] 
+            # df_attendance_stats = df_attendance_stats[df_attendance_stats["AorShortName"].isin([aor for aor in selected_aors])] 
             df_classes = df_classes[df_classes["AorShortName"].isin([aor for aor in selected_aors])] 
 
-        if selected_offices and len(selected_offices) != 0 and "All" not in selected_offices:
-            filtered = True
-            df_attendance_stats = df_attendance_stats[df_attendance_stats["MemberOffice"].isin([office for office in selected_offices])]     
+        # if selected_offices and len(selected_offices) != 0 and "All" not in selected_offices:
+        #     filtered = True
+        #     df_attendance_stats = df_attendance_stats[df_attendance_stats["MemberOffice"].isin([office for office in selected_offices])]     
                
         if selected_instructors and len(selected_instructors) != 0 and "All" not in selected_instructors:
             filtered = True
-            df_attendance_stats = df_attendance_stats[df_attendance_stats["InstructorId"].isin([instr for instr in selected_instructors])]                       
+            # df_attendance_stats = df_attendance_stats[df_attendance_stats["InstructorId"].isin([instr for instr in selected_instructors])]                       
             df_classes = df_classes[df_classes["InstructorId"].isin([instr for instr in selected_instructors])]
 
         if selected_locations and len(selected_locations) != 0 and "All" not in selected_locations:
             filtered = True
-            df_attendance_stats = df_attendance_stats[df_attendance_stats["LocationId"].isin([loc for loc in selected_locations])]
+            # df_attendance_stats = df_attendance_stats[df_attendance_stats["LocationId"].isin([loc for loc in selected_locations])]
             df_classes = df_classes[df_classes["LocationId"].isin([loc for loc in selected_locations])]
 
-        if filtered == True:
-            class_ids = df_attendance_stats["TrainingClassId"].unique().tolist()
-            df_classes = df_classes[df_classes["ClassId"].isin(class_ids)]
+        # if filtered == True:
+        #     class_ids = df_attendance_stats["TrainingClassId"].unique().tolist()
+        #     df_classes = df_classes[df_classes["ClassId"].isin(class_ids)]
 
         if selected_topics and len(selected_topics) != 0 and "All" not in selected_topics:
             df_classes = df_classes[df_classes["TopicId"].isin([topic for topic in selected_topics])]
@@ -262,6 +261,7 @@ def register_training_filter_callbacks(app):
 
         return class_options           
     
+    '''         
     @app.callback(
         Output("training-date-range-picker", "start_date"),
         Output("training-date-range-picker", "end_date"),
