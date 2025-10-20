@@ -257,17 +257,18 @@ def register_training_filter_callbacks(app):
         return class_options           
     
     @app.callback(
-        Output("training-date-range-picker", "start_date", allow_duplicate=True),
-        Output("training-date-range-picker", "end_date", allow_duplicate=True),
-        Output("training-aor-dropdown", "value", allow_duplicate=True),
-        Output("training-office-dropdown", "value", allow_duplicate=True),
-        Output("training-topics-dropdown", "value", allow_duplicate=True),
-        Output("training-instructor-dropdown", "value", allow_duplicate=True),
-        Output("training-location-dropdown", "value", allow_duplicate=True),
-        Output("training-class-dropdown", "value", allow_duplicate=True),
+        Output("training-date-range-picker", "start_date"),
+        Output("training-date-range-picker", "end_date"),
+        Output("training-aor-dropdown", "value"),
+        Output("training-office-dropdown", "value"),
+        Output("training-topics-dropdown", "value"),
+        Output("training-instructor-dropdown", "value"),
+        Output("training-location-dropdown", "value"),
+        Output("training-class-dropdown", "value"),
         Input("training-clear-filters-btn", "n_clicks"),
         Input("training-filter-data-store", "data"),    
-        prevent_initial_call=True
+        prevent_initial_call=True,
+        allow_duplicate=True
     )
     def clear_all_filters(n_clicks, filter_data):
         aor__default = []
