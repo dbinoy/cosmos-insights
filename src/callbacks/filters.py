@@ -5,6 +5,7 @@ from datetime import datetime
 from src.utils.db import run_queries
 
 def register_training_filter_callbacks(app):
+    print("Registering training filter callbacks")
     @app.callback(
         Output("training-filter-data-store", "data"),
         Input("training-filtered-query-store", "id"), 
@@ -233,7 +234,7 @@ def register_training_filter_callbacks(app):
         if filtered == True:
             class_ids = df_attendance_stats["TrainingClassId"].unique().tolist()
             df_classes = df_classes[df_classes["ClassId"].isin(class_ids)]
-            
+
         if selected_topics and len(selected_topics) != 0 and "All" not in selected_topics:
             df_classes = df_classes[df_classes["TopicId"].isin([topic for topic in selected_topics])]
             selected_topic_labels = df_topics[df_topics["TopicId"].isin([topic for topic in selected_topics])]['TopicName'].values.tolist()
