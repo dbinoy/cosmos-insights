@@ -13,36 +13,37 @@ def register_training_filter_callbacks(app):
     )
     def load_filter_data(_):
         q_aors ='SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]'
-        q_offices = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
-        q_classes = 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]'
-        q_topics = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
-        q_instructors = 'SELECT [InstructorID], [Name] FROM [consumable].[Dim_Instructors] ORDER BY [Name]'
-        q_locations = 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]'
-        q_request_stats = 'SELECT [TrainingTopicId],[TrainingTopicName],[AorShortName],[AorName],[MemberOffice],[MembersRequested],[TotalRequests] FROM [consumable].[Fact_RequestStats]'
-        q_attendance_stats = 'SELECT [TrainingClassId],[ClassName],[TrainingTopicId],[TrainingTopicName],[LocationId],[LocationName],[InstructorId],[InstructorName],[AorShortName],[MemberOffice],[MembersAttended],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
+        # q_offices = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
+        # q_classes = 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]'
+        # q_topics = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
+        # q_instructors = 'SELECT [InstructorID], [Name] FROM [consumable].[Dim_Instructors] ORDER BY [Name]'
+        # q_locations = 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]'
+        # q_request_stats = 'SELECT [TrainingTopicId],[TrainingTopicName],[AorShortName],[AorName],[MemberOffice],[MembersRequested],[TotalRequests] FROM [consumable].[Fact_RequestStats]'
+        # q_attendance_stats = 'SELECT [TrainingClassId],[ClassName],[TrainingTopicId],[TrainingTopicName],[LocationId],[LocationName],[InstructorId],[InstructorName],[AorShortName],[MemberOffice],[MembersAttended],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
 
         queries = {
             "aors": q_aors,
-            "offices": q_offices,
-            "classes": q_classes,
-            "topics": q_topics,
-            "instructors": q_instructors,
-            "locations": q_locations,
-            "request_stats": q_request_stats,
-            "attendance_stats": q_attendance_stats
+            # "offices": q_offices,
+            # "classes": q_classes,
+            # "topics": q_topics,
+            # "instructors": q_instructors,
+            # "locations": q_locations,
+            # "request_stats": q_request_stats,
+            # "attendance_stats": q_attendance_stats
         }           
 
         results = run_queries(queries, len(queries.keys()))
         filter_data = {
             "aors": results["aors"].to_dict("records"),
-            "offices": results["offices"].to_dict("records"),
-            "classes": results["classes"].to_dict("records"),
-            "topics": results["topics"].to_dict("records"),
-            "instructors": results["instructors"].to_dict("records"),
-            "locations": results["locations"].to_dict("records"),
-            "request_stats": results["request_stats"].to_dict("records"),
-            "attendance_stats": results["attendance_stats"].to_dict("records")
-        }     
+            # "offices": results["offices"].to_dict("records"),
+            # "classes": results["classes"].to_dict("records"),
+            # "topics": results["topics"].to_dict("records"),
+            # "instructors": results["instructors"].to_dict("records"),
+            # "locations": results["locations"].to_dict("records"),
+            # "request_stats": results["request_stats"].to_dict("records"),
+            # "attendance_stats": results["attendance_stats"].to_dict("records")
+        }    
+        print("Training filter data loaded") 
         return filter_data   
     
     @app.callback(
@@ -63,7 +64,7 @@ def register_training_filter_callbacks(app):
         aor_options = [{"label": "All Aors", "value": "All"}]+[{"label": v[1]['AorShortName']+' - '+v[1]['AorName'], "value": str(v[1]['AorShortName'])} for v in df_aors.iterrows() if pd.notnull(v)]
 
         return str(start_placeholder), str(end_placeholder), aor_options
-        
+    '''
     @app.callback(
         Output("training-office-dropdown", "options"),
         Input("training-aor-dropdown", "value"),
@@ -280,3 +281,4 @@ def register_training_filter_callbacks(app):
         date_start_default = datetime.strptime('2020-01-01', '%Y-%m-%d').date()
         date_end_default = datetime.today().date()  
         return date_start_default, date_end_default, aor__default, office_default, topics_default, instructor_default, location_default, class_default
+    '''    
