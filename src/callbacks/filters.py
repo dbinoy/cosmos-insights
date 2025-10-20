@@ -17,21 +17,21 @@ def register_training_filter_callbacks(app):
         q_aors ='SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]'
         q_offices = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
         # q_classes = 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]'
-        # q_topics = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
+        q_topics = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
         # q_instructors = 'SELECT [InstructorID], [Name] FROM [consumable].[Dim_Instructors] ORDER BY [Name]'
         # q_locations = 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]'
-        # q_request_stats = 'SELECT [TrainingTopicId],[TrainingTopicName],[AorShortName],[AorName],[MemberOffice],[MembersRequested],[TotalRequests] FROM [consumable].[Fact_RequestStats]'
-        # q_attendance_stats = 'SELECT [TrainingClassId],[ClassName],[TrainingTopicId],[TrainingTopicName],[LocationId],[LocationName],[InstructorId],[InstructorName],[AorShortName],[MemberOffice],[MembersAttended],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
+        q_request_stats = 'SELECT [TrainingTopicId],[TrainingTopicName],[AorShortName],[AorName],[MemberOffice],[MembersRequested],[TotalRequests] FROM [consumable].[Fact_RequestStats]'
+        q_attendance_stats = 'SELECT [TrainingClassId],[ClassName],[TrainingTopicId],[TrainingTopicName],[LocationId],[LocationName],[InstructorId],[InstructorName],[AorShortName],[MemberOffice],[MembersAttended],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
 
         queries = {
             "aors": q_aors,
             "offices": q_offices,
             # "classes": q_classes,
-            # "topics": q_topics,
+            "topics": q_topics,
             # "instructors": q_instructors,
             # "locations": q_locations,
-            # "request_stats": q_request_stats,
-            # "attendance_stats": q_attendance_stats
+            "request_stats": q_request_stats,
+            "attendance_stats": q_attendance_stats
         }           
 
         results = run_queries(queries, len(queries.keys()))
@@ -39,11 +39,11 @@ def register_training_filter_callbacks(app):
             "aors": results["aors"].to_dict("records"),
             "offices": results["offices"].to_dict("records"),
             # "classes": results["classes"].to_dict("records"),
-            # "topics": results["topics"].to_dict("records"),
+            "topics": results["topics"].to_dict("records"),
             # "instructors": results["instructors"].to_dict("records"),
             # "locations": results["locations"].to_dict("records"),
-            # "request_stats": results["request_stats"].to_dict("records"),
-            # "attendance_stats": results["attendance_stats"].to_dict("records")
+            "request_stats": results["request_stats"].to_dict("records"),
+            "attendance_stats": results["attendance_stats"].to_dict("records")
         }    
         print("Data Load done in", time.time()-start, "s")
         return filter_data   
@@ -88,7 +88,6 @@ def register_training_filter_callbacks(app):
         office_options = [{"label": f"All{selected_aors}Offices", "value": "All"}]+[{"label": v[1]['AorShortName']+' - '+v[1]['OfficeCode'], "value": v[1]['OfficeCode']} for v in df_offices.iterrows() if pd.notnull(v)]
         return office_options      
     
-    '''
     @app.callback(
         Output("training-topics-dropdown", "options"),
         Input("training-aor-dropdown", "value"),
@@ -125,7 +124,7 @@ def register_training_filter_callbacks(app):
         topic_options = [{"label": "All Topics", "value": "All"}]+[{"label": v[1]['TopicName'], "value": str(v[1]['TopicId'])} for v in df_topics.iterrows() if pd.notnull(v)]
 
         return topic_options
-    
+    '''    
     @app.callback(
         Output("training-instructor-dropdown", "options"),
         Input("training-aor-dropdown", "value"),
