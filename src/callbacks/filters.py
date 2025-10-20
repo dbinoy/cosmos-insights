@@ -6,14 +6,14 @@ from datetime import datetime
 from src.utils.db import run_queries
 
 def register_training_filter_callbacks(app):
-    print("Registering training filter callbacks")
-    start = time.time()
+    
     @app.callback(
         Output("training-filter-data-store", "data"),
         Input("training-filtered-query-store", "id"), 
         prevent_initial_call=False
     )
     def load_filter_data(_):
+        start = time.time()
         q_aors ='SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]'
         q_offices = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
         q_topics = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
@@ -67,7 +67,6 @@ def register_training_filter_callbacks(app):
         aor_options = [{"label": "All Aors", "value": "All"}]+[{"label": v[1]['AorShortName']+' - '+v[1]['AorName'], "value": str(v[1]['AorShortName'])} for v in df_aors.iterrows() if pd.notnull(v)]
 
         return str(start_placeholder), str(end_placeholder), aor_options
-    print("Training filter callback registration complete")
 
     @app.callback(
         Output("training-office-dropdown", "options"),
