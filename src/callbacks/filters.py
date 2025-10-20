@@ -15,7 +15,7 @@ def register_training_filter_callbacks(app):
     )
     def load_filter_data(_):
         q_aors ='SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]'
-        # q_offices = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
+        q_offices = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
         # q_classes = 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]'
         # q_topics = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
         # q_instructors = 'SELECT [InstructorID], [Name] FROM [consumable].[Dim_Instructors] ORDER BY [Name]'
@@ -25,7 +25,7 @@ def register_training_filter_callbacks(app):
 
         queries = {
             "aors": q_aors,
-            # "offices": q_offices,
+            "offices": q_offices,
             # "classes": q_classes,
             # "topics": q_topics,
             # "instructors": q_instructors,
@@ -37,7 +37,7 @@ def register_training_filter_callbacks(app):
         results = run_queries(queries, len(queries.keys()))
         filter_data = {
             "aors": results["aors"].to_dict("records"),
-            # "offices": results["offices"].to_dict("records"),
+            "offices": results["offices"].to_dict("records"),
             # "classes": results["classes"].to_dict("records"),
             # "topics": results["topics"].to_dict("records"),
             # "instructors": results["instructors"].to_dict("records"),
@@ -67,7 +67,7 @@ def register_training_filter_callbacks(app):
 
         return str(start_placeholder), str(end_placeholder), aor_options
     print("Training filter callback registration complete")
-    '''
+
     @app.callback(
         Output("training-office-dropdown", "options"),
         Input("training-aor-dropdown", "value"),
@@ -87,7 +87,8 @@ def register_training_filter_callbacks(app):
 
         office_options = [{"label": f"All{selected_aors}Offices", "value": "All"}]+[{"label": v[1]['AorShortName']+' - '+v[1]['OfficeCode'], "value": v[1]['OfficeCode']} for v in df_offices.iterrows() if pd.notnull(v)]
         return office_options      
-
+    
+    '''
     @app.callback(
         Output("training-topics-dropdown", "options"),
         Input("training-aor-dropdown", "value"),

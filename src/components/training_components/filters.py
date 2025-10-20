@@ -32,13 +32,13 @@ def get_filters_layout():
                 dbc.Col([
                     html.Div([
                         html.Label("Office"),
-                        # dcc.Dropdown(
-                        #     id="training-office-dropdown", 
-                        #     options=[],
-                        #     placeholder="Select Office",
-                        #     multi=True,
-                        #     disabled=False
-                        # )
+                        dcc.Dropdown(
+                            id="training-office-dropdown", 
+                            options=[],
+                            placeholder="Select Office",
+                            multi=True,
+                            disabled=False
+                        )
                     ], className="d-grid gap-1")
                 ], width=2)                
             ], className="mb-2"),
