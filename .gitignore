@@ -1,5 +1,6 @@
 .DS_Store
 src/config/*.py
+*_old*.py
 data/
 cache/
 *.rdb
