@@ -7,6 +7,7 @@ def create_training_dashboard_layout():
     return dbc.Container([
         dcc.Store(id="training-filtered-query-store"),
         dcc.Store(id="training-filter-data-store"),    
+        # dcc.Interval(id="training-filter-fetch-interval", interval=500, n_intervals=0, max_intervals=1),
         html.H3("Training Dashboard (Under Development)"),  
         html.Hr(),
         dbc.Row([
