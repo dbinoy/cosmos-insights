@@ -1,5 +1,5 @@
 .DS_Store
-src/config/*.py
+/src/config
 *_old*.py
 data/
 cache/
