@@ -7,17 +7,37 @@ from src.utils.db import run_queries
 def register_training_filter_callbacks(app):
     """
     Clean, modular training filter callbacks using external JavaScript modules
+    All JavaScript logic is now completely externalized to utility files
     """
     
-    # Single callback to load all training data
-    @app.callback(
-        Output("training-all-data-store", "data"),
+    # Step 1: Initial cache check - now externalized to TrainingDataManager
+    app.clientside_callback(
+        "function(_) { return TrainingDataManager.checkTrainingDataCache(_); }",
+        Output("training-cache-check-store", "data"),
         Input("training-filtered-query-store", "id"),
         prevent_initial_call=False
     )
-    def load_all_training_data(_):
-        """Load all training data in a single callback for efficiency"""
-        print("Loading all training data...")
+    
+    # Step 2: Conditional server data loading - only if cache check indicates need
+    @app.callback(
+        Output("training-all-data-store", "data"),
+        Input("training-cache-check-store", "data"),
+        prevent_initial_call=False
+    )
+    def load_all_training_data(cache_check_result):
+        """Load training data from server only if cache check indicates it's needed"""
+        
+        # If cache check hasn't completed yet, return no_update
+        if not cache_check_result:
+            return {}
+        
+        # If cache has all data, don't load from server
+        if not cache_check_result.get('needsServerData', True):
+            print("✅ Cache check indicates all data available - skipping server queries")
+            return cache_check_result.get('cacheData', {})
+        
+        # Cache is incomplete - load from server
+        print("📡 Loading training data from server...")
         
         queries = {
             "aors": 'SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]',
@@ -37,24 +57,13 @@ def register_training_filter_callbacks(app):
         all_data = {}
         for key, df in results.items():
             all_data[key] = df.to_dict("records")
-            print(f"Loaded {len(all_data[key])} {key} records")
+            print(f"📊 Loaded {len(all_data[key])} {key} records from server")
         
         return all_data
 
-    # Initialize cache system using external modules
+    # Step 3: Initialize system with either cached or server data
     app.clientside_callback(
-        """
-        async function(server_data) {
-            // Initialize data manager and cache system
-            const dataManager = new TrainingDataManager();
-            const result = await dataManager.initializeSystem(server_data);
-            
-            // Make globally available for other callbacks
-            window.trainingDataManager = dataManager;
-            
-            return result;
-        }
-        """,
+        "function(server_data) { return TrainingDataManager.initializeTrainingSystem(server_data); }",
         Output("training-data-ready", "data"),
         Input("training-all-data-store", "data"),
         prevent_initial_call=False

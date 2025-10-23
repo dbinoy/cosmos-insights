@@ -16,6 +16,7 @@ def create_training_dashboard_layout():
 
         # Data stores
         dcc.Store(id="training-filtered-query-store"),
+        dcc.Store(id="training-cache-check-store"),
         dcc.Store(id="training-all-data-store"),
         dcc.Store(id="training-data-ready"),
 
