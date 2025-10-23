@@ -19,14 +19,20 @@ def get_filters_layout():
                 ], width=4),                
                 dbc.Col([
                     html.Div([
-                        html.Label("Aor"),
+                        html.Label("Aor"),                     
                         dcc.Dropdown(
                             id="training-aor-dropdown", 
                             options=[],
                             placeholder="Select Aor",
                             multi=True,
                             disabled=False
-                        )
+                        ),
+                        dbc.Spinner(
+                            id="training-aor-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                        
                     ], className="d-grid gap-1")
                 ], width=6),   
                 dbc.Col([
@@ -38,7 +44,13 @@ def get_filters_layout():
                             placeholder="Select Office",
                             multi=True,
                             disabled=False
-                        )
+                        ),
+                        dbc.Spinner(
+                            id="training-office-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
                     ], className="d-grid gap-1")
                 ], width=2)                
             ], className="mb-2"),
@@ -52,7 +64,13 @@ def get_filters_layout():
                             placeholder="Select Topics",
                             multi=True,
                             disabled=False
-                        )
+                        ),
+                        dbc.Spinner(
+                            id="training-topics-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
                     ], className="d-grid gap-1")
                 ], width=4), 
                 dbc.Col([
@@ -64,7 +82,13 @@ def get_filters_layout():
                             placeholder="Select Instructor",
                             multi=True,
                             disabled=False
-                        )
+                        ),
+                        dbc.Spinner(
+                            id="training-instructor-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
                     ], className="d-grid gap-1")
                 ], width=3), 
                 dbc.Col([
@@ -76,7 +100,13 @@ def get_filters_layout():
                             placeholder="Select Location",
                             multi=True,
                             disabled=False
-                        )
+                        ),
+                        dbc.Spinner(
+                            id="training-location-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
                     ], className="d-grid gap-1")
                 ], width=5),                   
             ], className="mb-2"),
@@ -90,7 +120,13 @@ def get_filters_layout():
                             placeholder="Select Class",
                             multi=True,
                             disabled=False
-                        )
+                        ),
+                        dbc.Spinner(
+                            id="training-class-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
                     ], className="d-grid gap-1")
                 ], width=12)                                             
             ], className="mb-2"),
