@@ -4,10 +4,20 @@ from src.components.training_components.filters import get_filters_layout
 
 def create_training_dashboard_layout():
     return dbc.Container([
+        # Include external JavaScript modules in correct order
+        html.Script(src="/assets/js/core/cache-manager.js"),
+        html.Script(src="/assets/js/core/data-manager.js"),
+        html.Script(src="/assets/js/core/filter-utils.js"),
+        
+        # Training-specific modules (load after core modules)
+        html.Script(src="/assets/js/training/training-data-manager.js"),
+        html.Script(src="/assets/js/training/training-dropdown-handlers.js"),
+
+        # Data stores
         dcc.Store(id="training-filtered-query-store"),
-        dcc.Store(id="training-filtered-query-store"),
-        dcc.Store(id="training-all-data-store"), 
-        dcc.Store(id="training-data-ready"), 
+        dcc.Store(id="training-all-data-store"),
+        dcc.Store(id="training-data-ready"),
+
         html.H3("Training Dashboard (Under Development)"),  
         html.Hr(),
         dbc.Row([
