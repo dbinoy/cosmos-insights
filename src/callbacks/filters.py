@@ -80,58 +80,96 @@ def register_training_filter_callbacks(app):
         return result["classes"].to_dict("records")
 
     @app.callback(
-        Output("training-aor-spinner", "spinner_style"),
-        Input("training-aors-data-store", "data")
+        Output("training-request-stats-data-store", "data"),
+        Input("training-filtered-query-store", "id"), 
+        prevent_initial_call=False
     )
-    def toggle_aor_spinner(data):
-        if data is None:
-            return {"position": "absolute", "top": "30px", "right": "30px"}
-        return {"display": "none"}
+    def load_request_stats_data(_):
+        q_request_stats = 'SELECT [TrainingTopicId],[AorShortName],[MemberOffice] FROM [consumable].[Fact_RequestStats]'
+        result = run_queries({"request_stats": q_request_stats}, 1)
+        return result["request_stats"].to_dict("records")
+
+    @app.callback(
+        Output("training-attendance-stats-data-store", "data"),
+        Input("training-filtered-query-store", "id"), 
+        prevent_initial_call=False
+    )
+    def load_attendance_stats_data(_):
+        q_attendance_stats = 'SELECT [TrainingClassId],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice] FROM [consumable].[Fact_AttendanceStats]'
+        result = run_queries({"attendance_stats": q_attendance_stats}, 1)
+        return result["attendance_stats"].to_dict("records")
     
     @app.callback(
-        Output("training-office-spinner", "spinner_style"),
-        Input("training-offices-data-store", "data")
+        Output("training-aor-spinner", "spinner_style"),
+        Output("training-aor-dropdown", "placeholder"),
+        Input("training-aors-data-store", "data"),
+        Input("training-request-stats-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data")
     )
-    def toggle_office_spinner(data):
-        if data is None:
-            return {"position": "absolute", "top": "30px", "right": "30px"}
-        return {"display": "none"}   
+    def toggle_aor_spinner(data, req_data, att_data):
+        if data is None and req_data is None and att_data is None:
+            return {"position": "absolute", "top": "30px", "right": "30px"}, "Loading AORs..."
+        return {"display": "none"}, "Select AOR(s)"
+        
+    @app.callback(
+        Output("training-office-spinner", "spinner_style"),
+        Output("training-office-dropdown", "placeholder"),
+        Input("training-offices-data-store", "data"),
+        Input("training-request-stats-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data")
+    )
+    def toggle_office_spinner(data, req_data, att_data):
+        if data is None and req_data is None and att_data is None:
+            return {"position": "absolute", "top": "30px", "right": "30px"}, "Loading Offices..."
+        return {"display": "none"}, "Select Office(s)"
 
     @app.callback(
         Output("training-topics-spinner", "spinner_style"),
-        Input("training-topics-data-store", "data")
+        Output("training-topics-dropdown", "placeholder"),
+        Input("training-topics-data-store", "data"),
+        Input("training-request-stats-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data")
     )
-    def toggle_topics_spinner(data):
-        if data is None:
-            return {"position": "absolute", "top": "30px", "right": "30px"}
-        return {"display": "none"}     
+    def toggle_topics_spinner(data, req_data, att_data):
+        if data is None and req_data is None and att_data is None:
+            return {"position": "absolute", "top": "30px", "right": "30px"}, "Loading Topics..."
+        return {"display": "none"}, "Select Topic(s)"
 
     @app.callback(
         Output("training-instructor-spinner", "spinner_style"),
-        Input("training-instructors-data-store", "data")
+        Output("training-instructor-dropdown", "placeholder"),
+        Input("training-instructors-data-store", "data"),
+        Input("training-request-stats-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data")
     )
-    def toggle_instructor_spinner(data):
-        if data is None:
-            return {"position": "absolute", "top": "30px", "right": "30px"}
-        return {"display": "none"}   
-           
+    def toggle_instructor_spinner(data, req_data, att_data):
+        if data is None and req_data is None and att_data is None:
+            return {"position": "absolute", "top": "30px", "right": "30px"}, "Loading Instructors..."
+        return {"display": "none"}, "Select Instructor(s)"
+
     @app.callback(
         Output("training-location-spinner", "spinner_style"),
-        Input("training-locations-data-store", "data")
+        Output("training-location-dropdown", "placeholder"),
+        Input("training-locations-data-store", "data"),
+        Input("training-request-stats-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data")
     )
-    def toggle_location_spinner(data):
-        if data is None:
-            return {"position": "absolute", "top": "30px", "right": "30px"}
-        return {"display": "none"}       
+    def toggle_location_spinner(data, req_data, att_data):
+        if data is None and req_data is None and att_data is None:
+            return {"position": "absolute", "top": "30px", "right": "30px"}, "Loading Locations..."
+        return {"display": "none"}, "Select Location(s)"   
 
     @app.callback(
         Output("training-class-spinner", "spinner_style"),
-        Input("training-classes-data-store", "data")
+        Output("training-class-dropdown", "placeholder"),
+        Input("training-classes-data-store", "data"),
+        Input("training-request-stats-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data")
     )
-    def toggle_class_spinner(data):
-        if data is None:
-            return {"position": "absolute", "top": "30px", "right": "30px"}
-        return {"display": "none"}              
+    def toggle_class_spinner(data, req_data, att_data):
+        if data is None and req_data is None and att_data is None:
+            return {"position": "absolute", "top": "30px", "right": "30px"}, "Loading Classes..."
+        return {"display": "none"}, "Select Class(es)"
 
     @app.callback(
         Output("training-aor-dropdown", "options"),
@@ -171,90 +209,249 @@ def register_training_filter_callbacks(app):
         Input("training-offices-data-store", "data"),
         prevent_initial_call=False
     )
-
-    # Topics dropdown
-    @app.callback(
-        Output("training-topics-dropdown", "options"),
-        Input("training-topics-data-store", "data"),
-        prevent_initial_call=False
-    )
-    def populate_topics_dropdown(topics_data):
-        if not topics_data:
-            return [{"label": "Loading...", "value": "", "disabled": True}]
-        
-        return [{"label": "All Topics", "value": "All"}] + [
-            {"label": topic['TopicName'], "value": str(topic['TopicId'])} 
-            for topic in topics_data if topic.get('TopicName')
-        ]
-    
-    # Instructors dropdown
-    @app.callback(
-        Output("training-instructor-dropdown", "options"),
-        Input("training-instructors-data-store", "data"),
-        prevent_initial_call=False
-    )
-    def populate_instructors_dropdown(instructors_data):
-        if not instructors_data:
-            return [{"label": "Loading...", "value": "", "disabled": True}]
-        
-        return [{"label": "All Instructors", "value": "All"}] + [
-            {"label": instructor['Name'], "value": str(instructor['InstructorID'])} 
-            for instructor in instructors_data if instructor.get('Name')
-        ]
-    
-    # Locations dropdown
-    @app.callback(
-        Output("training-location-dropdown", "options"),
-        Input("training-locations-data-store", "data"),
-        prevent_initial_call=False
-    )
-    def populate_locations_dropdown(locations_data):
-        if not locations_data:
-            return [{"label": "Loading...", "value": "", "disabled": True}]
-        
-        return [{"label": "All Locations", "value": "All"}] + [
-            {"label": location['Name'], "value": str(location['LocationID'])} 
-            for location in locations_data if location.get('Name')
-        ]    
     
     app.clientside_callback(
         """
-        function(selected_aors, selected_instructors, selected_locations, selected_topics, classes_data) {
+        function(selected_aors, selected_offices, topics_data, request_stats, attendance_stats) {
+            if (!topics_data || topics_data.length === 0) {
+                return [{label: "Loading...", value: "", disabled: true}];
+            }
+            
+            let filtered_topics = topics_data;
+            
+            // If we have stats data and filters are applied, filter topics based on stats
+            if (request_stats && attendance_stats && request_stats.length > 0 && attendance_stats.length > 0) {
+                let filtered_request_stats = request_stats;
+                let filtered_attendance_stats = attendance_stats;
+                let should_filter = false;
+                
+                // Filter stats by AOR
+                if (Array.isArray(selected_aors) && selected_aors.length > 0 && selected_aors.indexOf("All") === -1) {
+                    should_filter = true;
+                    filtered_request_stats = filtered_request_stats.filter(r => selected_aors.indexOf(r.AorShortName) !== -1);
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_aors.indexOf(r.AorShortName) !== -1);
+                }
+                
+                // Filter stats by Office
+                if (Array.isArray(selected_offices) && selected_offices.length > 0 && selected_offices.indexOf("All") === -1) {
+                    should_filter = true;
+                    filtered_request_stats = filtered_request_stats.filter(r => selected_offices.indexOf(r.MemberOffice) !== -1);
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_offices.indexOf(r.MemberOffice) !== -1);
+                }
+                
+                // If filters were applied, get unique topic IDs from filtered stats
+                if (should_filter) {
+                    const topic_ids_from_requests = [...new Set(filtered_request_stats.map(r => r.TrainingTopicId))];
+                    const topic_ids_from_attendance = [...new Set(filtered_attendance_stats.map(r => r.TrainingTopicId))];
+                    const all_topic_ids = [...new Set([...topic_ids_from_requests, ...topic_ids_from_attendance])];
+                    
+                    filtered_topics = topics_data.filter(t => all_topic_ids.indexOf(t.TopicId) !== -1);
+                }
+            }
+            
+            const options = [{label: "All Topics", value: "All"}].concat(
+                filtered_topics.map(t => ({label: t.TopicName, value: String(t.TopicId)}))
+            );
+            return options;
+        }
+        """,
+        Output("training-topics-dropdown", "options"),
+        Input("training-aor-dropdown", "value"),
+        Input("training-office-dropdown", "value"),
+        Input("training-topics-data-store", "data"),
+        Input("training-request-stats-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data"),
+        prevent_initial_call=False
+    )
+    
+    app.clientside_callback(
+        """
+        function(selected_aors, selected_offices, instructors_data, attendance_stats) {
+            if (!instructors_data || instructors_data.length === 0) {
+                return [{label: "Loading...", value: "", disabled: true}];
+            }
+            
+            let filtered_instructors = instructors_data;
+            
+            // If we have attendance stats and filters are applied
+            if (attendance_stats && attendance_stats.length > 0) {
+                let filtered_attendance_stats = attendance_stats;
+                let should_filter = false;
+                
+                // Filter stats by AOR
+                if (Array.isArray(selected_aors) && selected_aors.length > 0 && selected_aors.indexOf("All") === -1) {
+                    should_filter = true;
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_aors.indexOf(r.AorShortName) !== -1);
+                }
+                
+                // Filter stats by Office
+                if (Array.isArray(selected_offices) && selected_offices.length > 0 && selected_offices.indexOf("All") === -1) {
+                    should_filter = true;
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_offices.indexOf(r.MemberOffice) !== -1);
+                }
+                
+                // If filters were applied, get unique instructor IDs from filtered stats
+                if (should_filter) {
+                    const instructor_ids = [...new Set(filtered_attendance_stats.map(r => r.InstructorId))];
+                    filtered_instructors = instructors_data.filter(i => instructor_ids.indexOf(i.InstructorID) !== -1);
+                }
+            }
+            
+            const options = [{label: "All Instructors", value: "All"}].concat(
+                filtered_instructors.map(i => ({label: i.Name, value: String(i.InstructorID)}))
+            );
+            return options;
+        }
+        """,
+        Output("training-instructor-dropdown", "options"),
+        Input("training-aor-dropdown", "value"),
+        Input("training-office-dropdown", "value"),
+        Input("training-instructors-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data"),
+        prevent_initial_call=False
+    ) 
+    
+    app.clientside_callback(
+        """
+        function(selected_aors, selected_offices, selected_topics, selected_instructors, locations_data, attendance_stats) {
+            if (!locations_data || locations_data.length === 0) {
+                return [{label: "Loading...", value: "", disabled: true}];
+            }
+            
+            let filtered_locations = locations_data;
+            
+            // If we have attendance stats and filters are applied
+            if (attendance_stats && attendance_stats.length > 0) {
+                let filtered_attendance_stats = attendance_stats;
+                let should_filter = false;
+                
+                // Filter stats by AOR
+                if (Array.isArray(selected_aors) && selected_aors.length > 0 && selected_aors.indexOf("All") === -1) {
+                    should_filter = true;
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_aors.indexOf(r.AorShortName) !== -1);
+                }
+                
+                // Filter stats by Office
+                if (Array.isArray(selected_offices) && selected_offices.length > 0 && selected_offices.indexOf("All") === -1) {
+                    should_filter = true;
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_offices.indexOf(r.MemberOffice) !== -1);
+                }
+                
+                // Filter stats by Topics
+                if (Array.isArray(selected_topics) && selected_topics.length > 0 && selected_topics.indexOf("All") === -1) {
+                    should_filter = true;
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_topics.indexOf(String(r.TrainingTopicId)) !== -1);
+                }
+                
+                // Filter stats by Instructors
+                if (Array.isArray(selected_instructors) && selected_instructors.length > 0 && selected_instructors.indexOf("All") === -1) {
+                    should_filter = true;
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_instructors.indexOf(String(r.InstructorId)) !== -1);
+                }
+                
+                // If filters were applied, get unique location IDs from filtered stats
+                if (should_filter) {
+                    const location_ids = [...new Set(filtered_attendance_stats.map(r => r.LocationId))];
+                    filtered_locations = locations_data.filter(l => location_ids.indexOf(l.LocationID) !== -1);
+                }
+            }
+            
+            const options = [{label: "All Locations", value: "All"}].concat(
+                filtered_locations.map(l => ({label: l.Name, value: String(l.LocationID)}))
+            );
+            return options;
+        }
+        """,
+        Output("training-location-dropdown", "options"),
+        Input("training-aor-dropdown", "value"),
+        Input("training-office-dropdown", "value"),
+        Input("training-topics-dropdown", "value"),
+        Input("training-instructor-dropdown", "value"),
+        Input("training-locations-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data"),
+        prevent_initial_call=False
+    )
+    
+    app.clientside_callback(
+        """
+        function(selected_aors, selected_offices, selected_instructors, selected_locations, selected_topics, 
+                 classes_data, attendance_stats, topics_data) {
             if (!classes_data || classes_data.length === 0) {
                 return [{label: "Loading...", value: "", disabled: true}];
             }
             
-            let classes = classes_data;
-
-            function applyFilter(list, sel, key) {
-                if (!Array.isArray(sel) || sel.length === 0 || sel.indexOf("All") !== -1) return list;
-                return list.filter(r => sel.indexOf(String(r[key])) !== -1);
+            let filtered_classes = classes_data;
+            
+            // First filter classes directly by selected filters
+            if (Array.isArray(selected_aors) && selected_aors.length > 0 && selected_aors.indexOf("All") === -1) {
+                filtered_classes = filtered_classes.filter(c => selected_aors.indexOf(c.AorShortName) !== -1);
             }
-
-            classes = applyFilter(classes, selected_aors, "AorShortName");
-            classes = applyFilter(classes, selected_instructors, "InstructorId");
-            classes = applyFilter(classes, selected_locations, "LocationId");
-            classes = applyFilter(classes, selected_topics, "TopicId");
-
-            if (classes.length === 0) return [{label: "No classes found", value: "", disabled: true}];
-
-            const selectedTopicLabels = Array.isArray(selected_topics) ? selected_topics.join(',') : '';
-            let allLabel = `All ${selectedTopicLabels} Classes`.trim();
-            const options = [{label: allLabel, value: "All"}].concat(
-                classes.map(c => ({label: `${c.ClassName}: ${c.StartTime}`, value: c.ClassId}))
+            
+            if (Array.isArray(selected_instructors) && selected_instructors.length > 0 && selected_instructors.indexOf("All") === -1) {
+                filtered_classes = filtered_classes.filter(c => selected_instructors.indexOf(String(c.InstructorId)) !== -1);
+            }
+            
+            if (Array.isArray(selected_locations) && selected_locations.length > 0 && selected_locations.indexOf("All") === -1) {
+                filtered_classes = filtered_classes.filter(c => selected_locations.indexOf(String(c.LocationId)) !== -1);
+            }
+            
+            if (Array.isArray(selected_topics) && selected_topics.length > 0 && selected_topics.indexOf("All") === -1) {
+                filtered_classes = filtered_classes.filter(c => selected_topics.indexOf(String(c.TopicId)) !== -1);
+            }
+            
+            // Additionally filter by attendance stats if available and other filters are applied
+            if (attendance_stats && attendance_stats.length > 0 && 
+                ((Array.isArray(selected_aors) && selected_aors.length > 0 && selected_aors.indexOf("All") === -1) ||
+                 (Array.isArray(selected_offices) && selected_offices.length > 0 && selected_offices.indexOf("All") === -1))) {
+                
+                let filtered_attendance_stats = attendance_stats;
+                
+                // Filter attendance stats by AOR and Office
+                if (Array.isArray(selected_aors) && selected_aors.length > 0 && selected_aors.indexOf("All") === -1) {
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_aors.indexOf(r.AorShortName) !== -1);
+                }
+                
+                if (Array.isArray(selected_offices) && selected_offices.length > 0 && selected_offices.indexOf("All") === -1) {
+                    filtered_attendance_stats = filtered_attendance_stats.filter(r => selected_offices.indexOf(r.MemberOffice) !== -1);
+                }
+                
+                // Get class IDs from filtered attendance stats
+                const class_ids_from_stats = [...new Set(filtered_attendance_stats.map(r => r.TrainingClassId))];
+                filtered_classes = filtered_classes.filter(c => class_ids_from_stats.indexOf(c.ClassId) !== -1);
+            }
+            
+            if (filtered_classes.length === 0) {
+                return [{label: "No classes found", value: "", disabled: true}];
+            }
+            
+            // Build label for "All" option
+            let all_label = "All";
+            if (Array.isArray(selected_topics) && selected_topics.length > 0 && selected_topics.indexOf("All") === -1 && topics_data) {
+                const selected_topic_names = topics_data
+                    .filter(t => selected_topics.indexOf(String(t.TopicId)) !== -1)
+                    .map(t => t.TopicName);
+                all_label += ` ${selected_topic_names.join(',')}`;
+            }
+            all_label += " Classes";
+            
+            const options = [{label: all_label, value: "All"}].concat(
+                filtered_classes.map(c => ({label: `${c.ClassName}: ${c.StartTime}`, value: c.ClassId}))
             );
             return options;
         }
         """,
         Output("training-class-dropdown", "options"),
         Input("training-aor-dropdown", "value"),
+        Input("training-office-dropdown", "value"),
         Input("training-instructor-dropdown", "value"),
         Input("training-location-dropdown", "value"),
         Input("training-topics-dropdown", "value"),
         Input("training-classes-data-store", "data"),
+        Input("training-attendance-stats-data-store", "data"),
+        Input("training-topics-data-store", "data"),
         prevent_initial_call=False            
     )
-    
+
     @app.callback(
         Output("training-date-range-picker", "start_date"),
         Output("training-date-range-picker", "end_date"),

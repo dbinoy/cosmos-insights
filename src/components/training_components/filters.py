@@ -23,7 +23,7 @@ def get_filters_layout():
                         dcc.Dropdown(
                             id="training-aor-dropdown", 
                             options=[],
-                            placeholder="Select Aor",
+                            placeholder="Loading AORs...",
                             multi=True,
                             disabled=False
                         ),
@@ -41,7 +41,7 @@ def get_filters_layout():
                         dcc.Dropdown(
                             id="training-office-dropdown", 
                             options=[],
-                            placeholder="Select Office",
+                            placeholder="Loading Offices...",
                             multi=True,
                             disabled=False
                         ),
@@ -61,7 +61,7 @@ def get_filters_layout():
                         dcc.Dropdown(
                             id="training-topics-dropdown", 
                             options=[],
-                            placeholder="Select Topics",
+                            placeholder="Loading Topics...",
                             multi=True,
                             disabled=False
                         ),
@@ -79,7 +79,7 @@ def get_filters_layout():
                         dcc.Dropdown(
                             id="training-instructor-dropdown", 
                             options=[],
-                            placeholder="Select Instructor",
+                            placeholder="Loading Instructors...",
                             multi=True,
                             disabled=False
                         ),
@@ -97,7 +97,7 @@ def get_filters_layout():
                         dcc.Dropdown(
                             id="training-location-dropdown", 
                             options=[],
-                            placeholder="Select Location",
+                            placeholder="Loading Locations...",
                             multi=True,
                             disabled=False
                         ),
@@ -117,7 +117,7 @@ def get_filters_layout():
                         dcc.Dropdown(
                             id="training-class-dropdown", 
                             options=[],
-                            placeholder="Select Class",
+                            placeholder="Loading Classes...",
                             multi=True,
                             disabled=False
                         ),
