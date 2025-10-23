@@ -5,11 +5,32 @@
 
 class TrainingDropdownHandlers {
     static getAorOptions(dataManager) {
-        return FilterUtils.getAorOptions(dataManager, "All AORs");
+        if (!dataManager || !dataManager.isReady()) return [];
+        
+        const aors = dataManager.getData('aors');
+        return FilterUtils.createOptions(aors, 'AorShortName', 'AorShortName', 'All AORs');
     }
 
     static getOfficeOptions(selectedAors, dataManager) {
-        return FilterUtils.getOfficeOptions(selectedAors, dataManager, "All Offices");
+        if (!dataManager || !dataManager.isReady()) return [];
+        
+        let offices = dataManager.getData('offices');
+        
+        // Filter by selected AORs
+        if (Array.isArray(selectedAors) && selectedAors.length > 0 && !selectedAors.includes("All")) {
+            offices = offices.filter(office => selectedAors.includes(office.AorShortName));
+        }
+        
+        const label = Array.isArray(selectedAors) && selectedAors.length > 0 && !selectedAors.includes("All")
+            ? `All ${selectedAors.join(',')} Offices`
+            : 'All Offices';
+            
+        return FilterUtils.createOptions(
+            offices.map(o => ({label: `${o.AorShortName} - ${o.OfficeCode}`, value: o.OfficeCode})),
+            'label',
+            'value',
+            label
+        );
     }
 
     static getTopicOptions(selectedAors, selectedOffices, dataManager) {

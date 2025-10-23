@@ -19,7 +19,7 @@ class DataManager {
         
         // Check cache for all data types
         for (const key of this.dataKeys) {
-            // Try dashboard-specific cache first, then shared cache
+            // Try dashboard-specific cache first, then shared cache if applicable
             let cached = await this.cacheManager.get(key, this.dashboardName);
             
             if (!cached && useSharedCache && this.isSharedData(key)) {
@@ -40,7 +40,7 @@ class DataManager {
                     results[key] = serverData[key];
                     this.cache[key] = serverData[key];
                     
-                    // Cache in appropriate store
+                    // Cache in appropriate store - dashboard-specific by default
                     const cacheLocation = this.isSharedData(key) ? 'SHARED' : this.dashboardName;
                     this.cacheManager.set(key, serverData[key], cacheLocation).catch(e => 
                         console.warn(`Failed to cache ${key}:`, e)
@@ -64,8 +64,8 @@ class DataManager {
 
     // Override in subclasses to define which data is shared across dashboards
     isSharedData(key) {
-        const sharedDataTypes = ['aors', 'offices']; // Common across all dashboards
-        return sharedDataTypes.includes(key);
+        // By default, no data is shared - each dashboard manages its own data
+        return false;
     }
 
     async initializeSystem(serverData) {

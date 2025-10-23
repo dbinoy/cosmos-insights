@@ -10,6 +10,7 @@ def create_training_dashboard_layout():
         html.Script(src="/assets/js/core/filter-utils.js"),
         
         # Training-specific modules (load after core modules)
+        html.Script(src="/assets/js/training/training-filter-utils.js"),
         html.Script(src="/assets/js/training/training-data-manager.js"),
         html.Script(src="/assets/js/training/training-dropdown-handlers.js"),
 

@@ -72,14 +72,9 @@ def register_training_filter_callbacks(app):
         end_placeholder = datetime.today().date()
         return str(start_placeholder), str(end_placeholder)
 
-    # Unified spinner control using utility function
+    # Unified spinner control using training-specific utility function
     app.clientside_callback(
-        """
-        function(data_ready) {
-            const isReady = data_ready && data_ready.ready;
-            return FilterUtils.createSpinnerStates(isReady);
-        }
-        """,
+        "function(data_ready) { const isReady = data_ready && data_ready.ready; return TrainingFilterUtils.createTrainingSpinnerStates(isReady); }",
         [Output("training-aor-spinner", "spinner_style"), Output("training-aor-dropdown", "placeholder"),
          Output("training-office-spinner", "spinner_style"), Output("training-office-dropdown", "placeholder"),
          Output("training-topics-spinner", "spinner_style"), Output("training-topics-dropdown", "placeholder"),
@@ -133,8 +128,9 @@ def register_training_filter_callbacks(app):
         prevent_initial_call=False
     )
 
-    # Clear filters callback
-    @app.callback(
+    # Clear filters callback - using external utility function
+    app.clientside_callback(
+        "function(n_clicks) { return TrainingFilterUtils.clearAllTrainingFilters(n_clicks); }",
         [Output("training-date-range-picker", "start_date"),
          Output("training-date-range-picker", "end_date"),
          Output("training-aor-dropdown", "value"),
@@ -144,10 +140,5 @@ def register_training_filter_callbacks(app):
          Output("training-location-dropdown", "value"),
          Output("training-class-dropdown", "value")],
         Input("training-clear-filters-btn", "n_clicks"),
-        prevent_initial_call=True,
-        allow_duplicate=True
+        prevent_initial_call=True
     )
-    def clear_all_filters(n_clicks):
-        date_start_default = datetime.strptime('2020-01-01', '%Y-%m-%d').date()
-        date_end_default = datetime.today().date()  
-        return date_start_default, date_end_default, [], [], [], [], [], []

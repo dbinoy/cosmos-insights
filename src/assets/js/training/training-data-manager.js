@@ -14,22 +14,34 @@ class TrainingDataManager extends DataManager {
 
     // Define which data types are shared across dashboards
     isSharedData(key) {
-        const sharedDataTypes = ['aors', 'offices']; // These are common across all dashboards
-        return sharedDataTypes.includes(key);
+        // No shared data types for training - store everything in TRAINING database
+        return false;
     }
 
-    // Training-specific helper methods
+    // Static method for callback initialization - keeps Python file clean
+    static async initializeTrainingSystem(server_data) {
+        // Initialize data manager and cache system
+        const dataManager = new TrainingDataManager();
+        const result = await dataManager.initializeSystem(server_data);
+        
+        // Make globally available for other callbacks
+        window.trainingDataManager = dataManager;
+        
+        return result;
+    }
+
+    // Training-specific helper methods using TrainingFilterUtils
     getFilteredTopics(selectedAors, selectedOffices) {
         const topics = this.getData('topics');
         const requestStats = this.getData('request_stats');
         const attendanceStats = this.getData('attendance_stats');
         
-        // Filter stats by AOR and Office
-        let filteredRequestStats = FilterUtils.filterByAors(requestStats, selectedAors);
-        filteredRequestStats = FilterUtils.filterByOffices(filteredRequestStats, selectedOffices);
+        // Filter stats by AOR and Office using training-specific filters
+        let filteredRequestStats = TrainingFilterUtils.filterByAors(requestStats, selectedAors);
+        filteredRequestStats = TrainingFilterUtils.filterByOffices(filteredRequestStats, selectedOffices);
         
-        let filteredAttendanceStats = FilterUtils.filterByAors(attendanceStats, selectedAors);
-        filteredAttendanceStats = FilterUtils.filterByOffices(filteredAttendanceStats, selectedOffices);
+        let filteredAttendanceStats = TrainingFilterUtils.filterByAors(attendanceStats, selectedAors);
+        filteredAttendanceStats = TrainingFilterUtils.filterByOffices(filteredAttendanceStats, selectedOffices);
         
         // Get unique topic IDs from filtered stats
         const topicIds = new Set([
@@ -45,9 +57,9 @@ class TrainingDataManager extends DataManager {
         const instructors = this.getData('instructors');
         const attendanceStats = this.getData('attendance_stats');
         
-        // Filter attendance stats
-        let filteredStats = FilterUtils.filterByAors(attendanceStats, selectedAors);
-        filteredStats = FilterUtils.filterByOffices(filteredStats, selectedOffices);
+        // Filter attendance stats using training-specific filters
+        let filteredStats = TrainingFilterUtils.filterByAors(attendanceStats, selectedAors);
+        filteredStats = TrainingFilterUtils.filterByOffices(filteredStats, selectedOffices);
         
         // Get unique instructor IDs
         const instructorIds = new Set(FilterUtils.getUniqueIds(filteredStats, 'InstructorId'));
@@ -62,23 +74,11 @@ class TrainingDataManager extends DataManager {
         const locations = this.getData('locations');
         const attendanceStats = this.getData('attendance_stats');
         
-        // Apply all filters to attendance stats
-        let filteredStats = FilterUtils.filterByAors(attendanceStats, selectedAors);
-        filteredStats = FilterUtils.filterByOffices(filteredStats, selectedOffices);
-        
-        // Filter by topics
-        if (Array.isArray(selectedTopics) && selectedTopics.length > 0 && !selectedTopics.includes("All")) {
-            filteredStats = filteredStats.filter(stat => 
-                selectedTopics.includes(String(stat.TrainingTopicId))
-            );
-        }
-        
-        // Filter by instructors
-        if (Array.isArray(selectedInstructors) && selectedInstructors.length > 0 && !selectedInstructors.includes("All")) {
-            filteredStats = filteredStats.filter(stat => 
-                selectedInstructors.includes(String(stat.InstructorId))
-            );
-        }
+        // Apply all filters to attendance stats using training-specific filters
+        let filteredStats = TrainingFilterUtils.filterByAors(attendanceStats, selectedAors);
+        filteredStats = TrainingFilterUtils.filterByOffices(filteredStats, selectedOffices);
+        filteredStats = TrainingFilterUtils.filterByTopics(filteredStats, selectedTopics);
+        filteredStats = TrainingFilterUtils.filterByInstructors(filteredStats, selectedInstructors);
         
         // Get unique location IDs
         const locationIds = new Set(FilterUtils.getUniqueIds(filteredStats, 'LocationId'));
@@ -96,26 +96,15 @@ class TrainingDataManager extends DataManager {
         
         let filteredClasses = classes;
         
-        // Apply filters to classes directly
-        if (Array.isArray(selectedAors) && selectedAors.length > 0 && !selectedAors.includes("All")) {
-            filteredClasses = filteredClasses.filter(c => selectedAors.includes(c.AorShortName));
-        }
-        
-        if (Array.isArray(selectedInstructors) && selectedInstructors.length > 0 && !selectedInstructors.includes("All")) {
-            filteredClasses = filteredClasses.filter(c => selectedInstructors.includes(String(c.InstructorId)));
-        }
-        
-        if (Array.isArray(selectedLocations) && selectedLocations.length > 0 && !selectedLocations.includes("All")) {
-            filteredClasses = filteredClasses.filter(c => selectedLocations.includes(String(c.LocationId)));
-        }
-        
-        if (Array.isArray(selectedTopics) && selectedTopics.length > 0 && !selectedTopics.includes("All")) {
-            filteredClasses = filteredClasses.filter(c => selectedTopics.includes(String(c.TopicId)));
-        }
+        // Apply filters to classes directly using training-specific filters
+        filteredClasses = TrainingFilterUtils.filterByAors(filteredClasses, selectedAors);
+        filteredClasses = TrainingFilterUtils.filterByInstructors(filteredClasses, selectedInstructors);
+        filteredClasses = TrainingFilterUtils.filterByLocations(filteredClasses, selectedLocations);
+        filteredClasses = TrainingFilterUtils.filterByTopics(filteredClasses, selectedTopics);
         
         // Additional filtering by office through attendance stats
         if (Array.isArray(selectedOffices) && selectedOffices.length > 0 && !selectedOffices.includes("All")) {
-            let filteredStats = FilterUtils.filterByOffices(attendanceStats, selectedOffices);
+            let filteredStats = TrainingFilterUtils.filterByOffices(attendanceStats, selectedOffices);
             const classIds = new Set(FilterUtils.getUniqueIds(filteredStats, 'TrainingClassId'));
             filteredClasses = filteredClasses.filter(c => classIds.has(c.ClassId));
         }
