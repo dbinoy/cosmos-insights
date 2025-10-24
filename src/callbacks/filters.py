@@ -16,7 +16,7 @@ def register_training_filter_callbacks(app):
         Output("training-cache-check-store", "data"),
         Input("training-filtered-query-store", "id"),
         prevent_initial_call=False
-    )
+    )   
     
     # Step 2: Conditional server data loading - only if cache check indicates need
     @app.callback(

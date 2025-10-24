@@ -8,7 +8,7 @@ class TrainingDropdownHandlers {
         if (!dataManager || !dataManager.isReady()) return [];
         
         const aors = dataManager.getData('aors');
-        return FilterUtils.createOptions(aors, 'AorShortName', 'AorShortName', 'All AORs');
+        return FilterUtils.createOptions(aors, ['AorShortName', 'AorName'], 'AorShortName', 'All AORs',  ' - ');
     }
 
     static getOfficeOptions(selectedAors, dataManager) {

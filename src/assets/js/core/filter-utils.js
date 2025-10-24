@@ -38,15 +38,33 @@ class FilterUtils {
         return [...new Set(data.map(item => item[field]).filter(Boolean))];
     }
     
-    static createOptions(data, labelField, valueField, allLabel = "All") {
+    static createOptions(data, labelField, valueField, allLabel = "All", concatenationChar = null) {
         if (!data || data.length === 0) return [];
         
         const options = [{label: allLabel, value: "All"}];
+        
         return options.concat(
-            data.map(item => ({
-                label: item[labelField],
-                value: String(item[valueField])
-            }))
+            data.map(item => {
+                let label;
+                
+                // Check if labelField is an array (multiple fields to concatenate)
+                if (Array.isArray(labelField)) {
+                    // Use concatenation character (default to space if not provided)
+                    const separator = concatenationChar !== null ? concatenationChar : ' ';
+                    label = labelField
+                        .map(field => item[field] || '') // Handle missing fields gracefully
+                        .filter(value => value !== '') // Remove empty values
+                        .join(separator);
+                } else {
+                    // Single field (backward compatibility)
+                    label = item[labelField];
+                }
+                
+                return {
+                    label: label,
+                    value: String(item[valueField])
+                };
+            })
         );
     }
 
