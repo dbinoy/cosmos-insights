@@ -9,7 +9,8 @@ def register_training_filter_callbacks(app):
     Clean, modular training filter callbacks using external JavaScript modules
     All JavaScript logic is now completely externalized to utility files
     """
-    
+    print("Registering Filter callbacks...")
+
     # Step 1: Initial cache check - now externalized to TrainingDataManager
     app.clientside_callback(
         "function(_) { return TrainingDataManager.checkTrainingDataCache(_); }",
@@ -20,7 +21,7 @@ def register_training_filter_callbacks(app):
     
     # Step 2: Conditional server data loading - only if cache check indicates need
     @app.callback(
-        Output("training-all-data-store", "data"),
+        Output("training-filtered-data-store", "data"),
         Input("training-cache-check-store", "data"),
         prevent_initial_call=False
     )
@@ -46,8 +47,8 @@ def register_training_filter_callbacks(app):
             "instructors": 'SELECT [InstructorID], [Name] FROM [consumable].[Dim_Instructors] ORDER BY [Name]',
             "locations": 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]',
             "classes": 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]',
-            "request_stats": 'SELECT [TrainingTopicId],[AorShortName],[MemberOffice] FROM [consumable].[Fact_RequestStats]',
-            "attendance_stats": 'SELECT [TrainingClassId],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice] FROM [consumable].[Fact_AttendanceStats]'
+            "request_stats": 'SELECT [TrainingTopicId],[AorShortName],[MemberOffice],[TotalRequests] FROM [consumable].[Fact_RequestStats]',
+            "attendance_stats": 'SELECT [TrainingClassId],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
         }
         
         # Execute all queries at once
@@ -65,7 +66,7 @@ def register_training_filter_callbacks(app):
     app.clientside_callback(
         "function(server_data) { return TrainingDataManager.initializeTrainingSystem(server_data); }",
         Output("training-data-ready", "data"),
-        Input("training-all-data-store", "data"),
+        Input("training-filtered-data-store", "data"),
         prevent_initial_call=False
     )
 
@@ -151,3 +152,35 @@ def register_training_filter_callbacks(app):
         Input("training-clear-filters-btn", "n_clicks"),
         prevent_initial_call=True
     )
+
+    @app.callback(
+        Output("training-filtered-query-store", "data"),     
+        Input("training-filtered-data-store", "data"),
+        Input("training-date-range-picker", "start_date"),
+        Input("training-date-range-picker", "end_date"),  
+        Input("training-aor-dropdown", "value"),
+        Input("training-office-dropdown", "value"),
+        Input("training-topics-dropdown", "value"),
+        Input("training-instructor-dropdown", "value"),
+        Input("training-location-dropdown", "value"),
+        Input("training-class-dropdown", "value"),
+        prevent_initial_call=True
+    )
+    def filter_data_query(filter_data, start_date, end_date, 
+                          selected_aors, selected_offices, 
+                          selected_topics, selected_instructors, 
+                          selected_locations, selected_classes):
+        start_placeholder = datetime.strptime('2020-01-01', '%Y-%m-%d').date()
+        end_placeholder = datetime.today().date()
+        selections = {
+            "Day_From": start_date if start_date is not None else start_placeholder,
+            "Day_To": end_date if end_date is not None else end_placeholder,
+            "AORs": ", ".join(["'"+aor+"'" for aor in selected_aors]) if selected_aors and len(selected_aors) > 0 and "All" not in selected_aors else "",
+            "Offices": ", ".join(["'"+office+"'" for office in selected_offices]) if selected_offices and len(selected_offices) > 0 and "All" not in selected_offices else "",
+            "Topics": ", ".join(["'"+topic+"'" for topic in selected_topics]) if selected_topics and len(selected_topics) > 0 and "All" not in selected_topics else "",
+            "Instructors": ", ".join(["'"+instructor+"'" for instructor in selected_instructors]) if selected_instructors and len(selected_instructors) > 0 and "All" not in selected_instructors else "",
+            "Locations": ", ".join(["'"+location+"'" for location in selected_locations]) if selected_locations and len(selected_locations) > 0 and "All" not in selected_locations else "",
+            "Classes": ", ".join(["'"+cls+"'" for cls in selected_classes]) if selected_classes and len(selected_classes) > 0 and "All" not in selected_classes else ""
+        }
+        # print("🔍 Training filter selections updated:", selections)
+        return selections

@@ -2,6 +2,7 @@
 /src/config
 *_old*.py
 data/
+schema/
 cache/
 *.rdb
 *.csv

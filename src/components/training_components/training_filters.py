@@ -1,6 +1,5 @@
 from dash import html, dcc
 import dash_bootstrap_components as dbc
-import pandas as pd
 
 def get_filters_layout():
     filters_layout = dbc.Card([
