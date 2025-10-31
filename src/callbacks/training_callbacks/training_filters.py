@@ -48,8 +48,8 @@ def register_training_filter_callbacks(app):
             "locations": 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]',
             "classes": 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]',
             "request_stats": 'SELECT [TrainingTopicId],[AorShortName],[MemberOffice],[TotalRequests] FROM [consumable].[Fact_RequestStats]',
-            "attendance_stats": 'SELECT [TrainingClassId],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]',
-            "active_members": "SELECT [MemberID], [OfficeCode] FROM [consumable].[Fact_MemberEngagement] WHERE ([TotalSessionsRegistered] > 0 OR [TotalSessionsAttended] > 0) AND [MemberStatus] = 'Active'"            
+            "attendance_stats": 'SELECT [TrainingClassId],[StartTime],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]',
+            "active_members": "SELECT [MemberID],[MemberName],[OfficeCode],[TotalSessionsRegistered],[TotalSessionsAttended],[MissedSessions],[AttendanceRate] FROM [consumable].[Fact_MemberEngagement] WHERE ([TotalSessionsRegistered] > 0 OR [TotalSessionsAttended] > 0) AND [MemberStatus] = 'Active'"            
         }
         
         # Execute all queries at once

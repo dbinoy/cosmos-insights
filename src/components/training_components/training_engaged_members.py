@@ -1,49 +1,72 @@
 from dash import html, dcc
 import dash_bootstrap_components as dbc
+import plotly.graph_objects as go
 
 def get_engaged_members_layout():
-    """Create top engaged members visualization"""
+    """Create top engaged members visualization with control dropdowns"""
     
-    component = dbc.Card([
+    # Empty figure as placeholder
+    empty_fig = go.Figure()
+    empty_fig.update_layout(
+        title="Top Engaged Members",
+        showlegend=False,
+        height=400,
+        annotations=[{
+            'text': 'Select filters to view data',
+            'xref': 'paper', 'yref': 'paper',
+            'x': 0.5, 'y': 0.5,
+            'xanchor': 'center', 'yanchor': 'middle',
+            'showarrow': False,
+            'font': {'size': 14, 'color': 'gray'}
+        }]
+    )
+    
+    return dbc.Card([
         dbc.CardHeader([
-            html.H5("Top Engaged Members", className="mb-0"),
-            html.Small("Members with highest training participation", className="text-muted")
-        ]),
-        dbc.CardBody([
-            # Chart controls
             dbc.Row([
                 dbc.Col([
-                    html.Label("Engagement Metric:", className="form-label"),
-                    dcc.Dropdown(
-                        id="engagement-metric-dropdown",
-                        options=[
-                            {"label": "Total Sessions Attended", "value": "sessions_attended"},
-                            {"label": "Total Training Hours", "value": "training_hours"},
-                            {"label": "Unique Topics Completed", "value": "topics_completed"},
-                            {"label": "Attendance Rate %", "value": "attendance_rate"}
-                        ],
-                        value="sessions_attended",
-                        className="mb-3"
-                    )
+                    html.H5("Top Engaged Members", className="mb-0")
                 ], width=6),
                 dbc.Col([
-                    html.Label("Show Top:", className="form-label"),
-                    dcc.Dropdown(
-                        id="top-members-count-dropdown",
-                        options=[
-                            {"label": "Top 10", "value": 10},
-                            {"label": "Top 20", "value": 20},
-                            {"label": "Top 50", "value": 50}
-                        ],
-                        value=20,
-                        className="mb-3"
-                    )
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Engagement Metric", className="form-label-sm mb-1"),
+                            dcc.Dropdown(
+                                id="engagement-metric-dropdown",
+                                options=[
+                                    {'label': 'Sessions Attended', 'value': 'sessions_attended'},
+                                    {'label': 'Training Hours', 'value': 'training_hours'},
+                                    {'label': 'Topics Completed', 'value': 'topics_completed'},
+                                ],
+                                value='sessions_attended',
+                                clearable=False,
+                                className="form-control-sm"
+                            )
+                        ], width=8),
+                        dbc.Col([
+                            html.Label("Show Top", className="form-label-sm mb-1"),
+                            dcc.Dropdown(
+                                id="top-members-count-dropdown",
+                                options=[
+                                    {'label': '10', 'value': 10},
+                                    {'label': '20', 'value': 20},
+                                    {'label': '30', 'value': 30},
+                                    {'label': '50', 'value': 50}
+                                ],
+                                value=20,
+                                clearable=False,
+                                className="form-control-sm"
+                            )
+                        ], width=4)
+                    ])
                 ], width=6)
-            ]),
-            
-            # Chart
-            dcc.Graph(id="top-engaged-members-chart", config={'displayModeBar': False})
+            ])
+        ]),
+        dbc.CardBody([
+            dcc.Graph(
+                id="top-engaged-members-chart",
+                figure=empty_fig,
+                config={'displayModeBar': False}
+            )
         ])
-    ], className="mb-4 shadow-sm border-0")
-    
-    return component
+    ], className="mb-4")
