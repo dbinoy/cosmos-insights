@@ -9,7 +9,7 @@ def register_training_filter_callbacks(app):
     Clean, modular training filter callbacks using external JavaScript modules
     All JavaScript logic is now completely externalized to utility files
     """
-    print("Registering Filter callbacks...")
+    # print("Registering Filter callbacks...")
 
     # Step 1: Initial cache check - now externalized to TrainingDataManager
     app.clientside_callback(
@@ -34,11 +34,11 @@ def register_training_filter_callbacks(app):
         
         # If cache has all data, don't load from server
         if not cache_check_result.get('needsServerData', True):
-            print("✅ Cache check indicates all data available - skipping server queries")
+            # print("✅ Cache check indicates all data available - skipping server queries")
             return cache_check_result.get('cacheData', {})
         
         # Cache is incomplete - load from server
-        print("📡 Loading training data from server...")
+        # print("📡 Loading training data from server...")
         
         queries = {
             "aors": 'SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]',
@@ -48,7 +48,8 @@ def register_training_filter_callbacks(app):
             "locations": 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]',
             "classes": 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]',
             "request_stats": 'SELECT [TrainingTopicId],[AorShortName],[MemberOffice],[TotalRequests] FROM [consumable].[Fact_RequestStats]',
-            "attendance_stats": 'SELECT [TrainingClassId],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
+            "attendance_stats": 'SELECT [TrainingClassId],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]',
+            "active_members": "SELECT [MemberID], [OfficeCode] FROM [consumable].[Fact_MemberEngagement] WHERE ([TotalSessionsRegistered] > 0 OR [TotalSessionsAttended] > 0) AND [MemberStatus] = 'Active'"            
         }
         
         # Execute all queries at once
@@ -58,7 +59,7 @@ def register_training_filter_callbacks(app):
         all_data = {}
         for key, df in results.items():
             all_data[key] = df.to_dict("records")
-            print(f"📊 Loaded {len(all_data[key])} {key} records from server")
+            # print(f"📊 Loaded {len(all_data[key])} {key} records from server")
         
         return all_data
 

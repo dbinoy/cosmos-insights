@@ -26,12 +26,12 @@ class CacheManager {
             };
             
             request.onsuccess = () => {
-                console.log('✅ Universal IndexedDB opened successfully');
+                // console.log('✅ Universal IndexedDB opened successfully');
                 resolve(request.result);
             };
             
             request.onupgradeneeded = (event) => {
-                console.log('🔄 Universal IndexedDB upgrade needed');
+                // console.log('🔄 Universal IndexedDB upgrade needed');
                 const db = event.target.result;
                 
                 // Create stores for each dashboard
@@ -41,7 +41,7 @@ class CacheManager {
                         store.createIndex('timestamp', 'timestamp', { unique: false });
                         store.createIndex('dataType', 'dataType', { unique: false });
                         store.createIndex('dashboard', 'dashboard', { unique: false });
-                        console.log(`📦 Created store: ${storeName}`);
+                        // console.log(`📦 Created store: ${storeName}`);
                     }
                 });
             };
@@ -60,7 +60,7 @@ class CacheManager {
                 request.onsuccess = () => {
                     const result = request.result;
                     if (!result) {
-                        console.log(`📭 No cache found for: ${key} in ${dashboard}`);
+                        // console.log(`📭 No cache found for: ${key} in ${dashboard}`);
                         resolve(null);
                         return;
                     }
@@ -69,13 +69,13 @@ class CacheManager {
                     const age = now - result.timestamp;
                     
                     if (age > this.CACHE_TTL) {
-                        console.log(`⏰ Cache expired for: ${key} in ${dashboard} (${Math.round(age/1000/60)} min old)`);
+                        // console.log(`⏰ Cache expired for: ${key} in ${dashboard} (${Math.round(age/1000/60)} min old)`);
                         this.delete(key, dashboard);
                         resolve(null);
                         return;
                     }
                     
-                    console.log(`✅ Cache hit for: ${key} in ${dashboard} (${Math.round(age/1000/60)} min old, ${result.value.length} records)`);
+                    // console.log(`✅ Cache hit for: ${key} in ${dashboard} (${Math.round(age/1000/60)} min old, ${result.value.length} records)`);
                     resolve(result.value);
                 };
                 request.onerror = () => resolve(null);
@@ -106,7 +106,7 @@ class CacheManager {
                 const request = store.put(data);
                 request.onsuccess = () => {
                     const sizeMB = Math.round(data.size / 1024 / 1024 * 100) / 100;
-                    console.log(`💾 Cached: ${key} in ${dashboard} (${value.length} records, ${sizeMB}MB)`);
+                    // console.log(`💾 Cached: ${key} in ${dashboard} (${value.length} records, ${sizeMB}MB)`);
                     resolve(true);
                 };
                 request.onerror = () => {
@@ -139,7 +139,7 @@ class CacheManager {
             const transaction = db.transaction([storeName], 'readwrite');
             const store = transaction.objectStore(storeName);
             store.clear();
-            console.log(`🗑️ Cleared ${dashboard} cache`);
+            // console.log(`🗑️ Cleared ${dashboard} cache`);
         } catch (e) {
             console.warn(`Warning: Could not clear ${dashboard} cache:`, e);
         }
@@ -153,7 +153,7 @@ class CacheManager {
                 const store = transaction.objectStore(storeName);
                 store.clear();
             });
-            console.log('🗑️ Cleared all caches');
+            // console.log('🗑️ Cleared all caches');
         } catch (e) {
             console.warn('Warning: Could not clear all caches:', e);
         }

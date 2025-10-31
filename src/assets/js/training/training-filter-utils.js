@@ -84,7 +84,7 @@ class TrainingFilterUtils {
         // Clear all dropdown values
         const emptyArray = [];
         
-        console.log('🧹 Clearing all training filters via TrainingFilterUtils...');
+        // console.log('🧹 Clearing all training filters via TrainingFilterUtils...');
         
         return [
             dateStartDefault,    // training-date-range-picker start_date

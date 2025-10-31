@@ -12,7 +12,7 @@ class DataManager {
     }
 
     async loadAllData(serverData, useSharedCache = true) {
-        console.log(`📡 Loading all ${this.dashboardName} data...`);
+        // console.log(`📡 Loading all ${this.dashboardName} data...`);
         const results = {};
         let cacheHits = 0;
         let serverLoads = 0;
@@ -50,7 +50,7 @@ class DataManager {
             }
         }
         
-        console.log(`📊 ${this.dashboardName} data loading complete: ${cacheHits} from cache, ${serverLoads} from server`);
+        // console.log(`📊 ${this.dashboardName} data loading complete: ${cacheHits} from cache, ${serverLoads} from server`);
         return results;
     }
 
@@ -69,13 +69,13 @@ class DataManager {
     }
 
     async initializeSystem(serverData) {
-        console.log(`🚀 ${this.dashboardName} Data Cache System Initializing...`);
+        // console.log(`🚀 ${this.dashboardName} Data Cache System Initializing...`);
         
         // Initialize data
         const allData = await this.loadAllData(serverData);
         
-        console.log(`🎉 ${this.dashboardName} Data Cache System Ready!`);
-        console.log(`📋 Available datasets:`, Object.keys(allData));
+        // console.log(`🎉 ${this.dashboardName} Data Cache System Ready!`);
+        // console.log(`📋 Available datasets:`, Object.keys(allData));
         
         return {
             ready: true,

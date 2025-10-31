@@ -20,6 +20,7 @@ def create_training_dashboard_layout():
         html.Script(src="/assets/js/training/training-filter-utils.js"),
         html.Script(src="/assets/js/training/training-data-manager.js"),
         html.Script(src="/assets/js/training/training-dropdown-handlers.js"),
+        html.Script(src="/assets/js/training/training-summary-utils.js"),
 
         # Data stores
         dcc.Store(id="training-filtered-query-store"),

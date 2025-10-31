@@ -7,8 +7,8 @@ class TrainingDataManager extends DataManager {
     constructor() {
         super('TRAINING');
         this.dataKeys = [
-            'aors', 'offices', 'topics', 'instructors', 
-            'locations', 'classes', 'request_stats', 'attendance_stats'
+            'aors', 'offices', 'topics', 'instructors', 'locations', 'classes', 
+            'request_stats', 'attendance_stats', 'active_members'
         ];
     }
 
@@ -20,7 +20,7 @@ class TrainingDataManager extends DataManager {
 
     // Static method for cache check - keeps Python file clean
     static async checkTrainingDataCache(_) {
-        console.log('🔍 Checking training data cache...');
+        // console.log('🔍 Checking training data cache...');
         
         // Check if we have all required data in cache
         const dataManager = new TrainingDataManager();
@@ -38,14 +38,14 @@ class TrainingDataManager extends DataManager {
         }
         
         if (allCached) {
-            console.log('✅ All data found in cache - no server request needed');
+            // console.log('✅ All data found in cache - no server request needed');
             return { 
                 needsServerData: false, 
                 cacheData: cacheData,
                 timestamp: Date.now()
             };
         } else {
-            console.log('❌ Cache incomplete - server data required');
+            // console.log('❌ Cache incomplete - server data required');
             return { 
                 needsServerData: true, 
                 cacheData: null,
@@ -56,7 +56,7 @@ class TrainingDataManager extends DataManager {
 
     // Enhanced static method that checks cache first, then requests server data if needed
     static async initializeTrainingSystem(server_data) {
-        console.log('🚀 Training system initialization starting...');
+        // console.log('🚀 Training system initialization starting...');
         
         // First, try to load from cache
         const dataManager = new TrainingDataManager();
@@ -71,16 +71,16 @@ class TrainingDataManager extends DataManager {
                 allData[key] = cached;
                 dataManager.cache[key] = cached;
                 cacheHits++;
-                console.log(`✅ Cache hit for ${key}: ${cached.length} records`);
+                // console.log(`✅ Cache hit for ${key}: ${cached.length} records`);
             } else {
-                console.log(`❌ Cache miss for ${key}`);
+                // console.log(`❌ Cache miss for ${key}`);
                 needsServerData = true;
             }
         }
         
         // If we have all data from cache, use it
         if (cacheHits === dataManager.dataKeys.length) {
-            console.log(`🎯 All data loaded from cache! No server request needed.`);
+            // console.log(`🎯 All data loaded from cache! No server request needed.`);
             
             // Make globally available for other callbacks
             window.trainingDataManager = dataManager;
@@ -96,7 +96,7 @@ class TrainingDataManager extends DataManager {
         
         // If we need server data, process it and cache it
         if (server_data && typeof server_data === 'object') {
-            console.log(`📡 Processing server data...`);
+            // console.log(`📡 Processing server data...`);
             
             for (const key of dataManager.dataKeys) {
                 if (server_data[key] && server_data[key].length > 0) {
@@ -105,7 +105,7 @@ class TrainingDataManager extends DataManager {
                     
                     // Cache the data
                     await window.cacheManager.set(key, server_data[key], 'TRAINING');
-                    console.log(`💾 Cached ${key}: ${server_data[key].length} records`);
+                    // console.log(`💾 Cached ${key}: ${server_data[key].length} records`);
                 }
             }
             
@@ -122,7 +122,7 @@ class TrainingDataManager extends DataManager {
         }
         
         // Fallback: return whatever we have
-        console.log(`⚠️ Incomplete data loading - some data missing`);
+        // console.log(`⚠️ Incomplete data loading - some data missing`);
         window.trainingDataManager = dataManager;
         
         return {
