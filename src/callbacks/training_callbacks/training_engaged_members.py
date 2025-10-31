@@ -1,6 +1,7 @@
-from dash import callback, Input, Output, no_update
+from dash import callback, ctx, dcc, html, Input, Output, State, no_update
 import plotly.graph_objects as go
 import pandas as pd
+import copy
 from datetime import datetime
 
 def register_training_engaged_members_callbacks(app):
@@ -8,7 +9,7 @@ def register_training_engaged_members_callbacks(app):
     Register server-side callback for top engaged members chart using Fact_MemberEngagement
     """
     # print("Registering Training Engaged Members callback (server-side)...")
-    
+
     @callback(
         Output("top-engaged-members-chart", "figure"),
         [
@@ -348,7 +349,8 @@ def create_members_chart(top_members, metric, top_count):
         showlegend=False,
         plot_bgcolor='white',
         paper_bgcolor='white',
-        hovermode='closest'
+        hovermode='closest',
+        clickmode='event+select'
     )
     
     fig.update_traces(
@@ -398,4 +400,145 @@ def create_empty_chart(title, message):
     )
     return fig
 
+def register_training_chart_modal_callbacks(app):
+    """
+    Register callbacks for training chart modal functionality
+    """
+    # print("Registering Training Chart Modal callbacks...")
+    
+    @callback(
+        [Output("training-chart-modal", "is_open"),
+         Output("training-modal-chart-content", "children")],
+        [Input("top-engaged-members-chart", "figure"),       
+         Input("close-training-chart-modal", "n_clicks")],
+        [State("training-chart-modal", "is_open")],
+        prevent_initial_call=True
+    )
+    def toggle_chart_modal(chart_figure, close_clicks, is_open):
+        """
+        Handle modal opening/closing - simplified approach
+        """
+        triggered = ctx.triggered
+        triggered_id = triggered[0]['prop_id'].split('.')[0] if triggered else None
+        
+        print(f"🔄 Modal callback triggered by: {triggered_id}")
+        
+        # Close modal if close button clicked
+        if triggered_id == "close-training-chart-modal":
+            print("🔒 Closing chart modal")
+            return False, no_update
+        
+        # If chart figure updated and modal is not open, we can open it
+        # This is a different approach - we'll use a different trigger
+        
+        return no_update, no_update
+    
+    print("✅ Training Chart Modal callbacks registered successfully")
+    
+    # Separate callback for chart clicks
+    @callback(
+        [Output("training-chart-modal", "is_open", allow_duplicate=True),
+         Output("training-modal-chart-content", "children", allow_duplicate=True)],
+        [Input("top-engaged-members-chart", "clickData"),
+         Input("top-engaged-members-chart", "relayoutData")],
+        [State("top-engaged-members-chart", "figure")],
+        prevent_initial_call=True
+    )
+    def open_chart_modal_on_click(click_data, relayout_data, chart_figure):
+        """
+        Open modal on any chart interaction
+        """
+        triggered = ctx.triggered
+        
+        if not triggered:
+            return no_update, no_update
+            
+        print(f"📊 Chart interaction detected!")
+        print(f"   Trigger: {triggered[0]['prop_id']}")
+        
+        # Check if we have a valid chart figure
+        if not chart_figure or not chart_figure.get('data'):
+            print("⚠️ No chart figure data available")
+            return no_update, no_update
+        
+        # Open modal for any chart interaction
+        print("✅ Opening modal with chart data")
+        enlarged_chart = create_enlarged_chart(chart_figure)
+        return True, enlarged_chart
+        
+def create_enlarged_chart(original_figure):
+    """
+    Create an enlarged version of the chart for modal display
+    """
+    if not original_figure:
+        return html.Div("No chart data available", className="text-center p-4")
+    
+    try:
+        # Create a deep copy of the original figure
+        enlarged_fig = copy.deepcopy(original_figure)
+        
+        # Update layout for larger modal display
+        enlarged_fig['layout'].update({
+            'height': 600,  # ✅ Larger height for modal
+            'margin': {'l': 80, 'r': 60, 't': 100, 'b': 120},  # ✅ More space for labels
+            'title': {
+                **enlarged_fig['layout'].get('title', {}),
+                'font': {'size': 20, 'color': '#2c3e50'}  # ✅ Larger title
+            },
+            'xaxis': {
+                **enlarged_fig['layout'].get('xaxis', {}),
+                'title': {
+                    **enlarged_fig['layout'].get('xaxis', {}).get('title', {}),
+                    'font': {'size': 14}
+                },
+                'tickfont': {'size': 12}  # ✅ Larger tick labels
+            },
+            'yaxis': {
+                **enlarged_fig['layout'].get('yaxis', {}),
+                'title': {
+                    **enlarged_fig['layout'].get('yaxis', {}).get('title', {}),
+                    'font': {'size': 14}
+                },
+                'tickfont': {'size': 12}  # ✅ Larger tick labels
+            }
+        })
+        
+        # Update traces for better visibility in larger chart
+        if 'data' in enlarged_fig and enlarged_fig['data']:
+            for trace in enlarged_fig['data']:
+                if trace.get('type') == 'bar':
+                    # Make text larger and more visible
+                    trace.update({
+                        'textfont': {'size': 12},
+                        'marker': {
+                            **trace.get('marker', {}),
+                            'line': {'width': 2, 'color': 'rgba(54, 162, 235, 1.0)'}
+                        }
+                    })
+        
+        # Create the chart component
+        return dcc.Graph(
+            figure=enlarged_fig,
+            config={
+                'displayModeBar': True,  # ✅ Show toolbar in modal
+                'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
+                'displaylogo': False,
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': 'training_engagement_chart',
+                    'height': 600,
+                    'width': 1000,
+                    'scale': 1
+                }
+            },
+            style={'height': '600px'}
+        )
+        
+    except Exception as e:
+        print(f"❌ Error creating enlarged chart: {str(e)}")
+        return html.Div(
+            f"Error displaying chart: {str(e)}", 
+            className="text-center p-4 text-danger"
+        )
+    
     # print("✅ Training Engaged Members callback registered successfully")

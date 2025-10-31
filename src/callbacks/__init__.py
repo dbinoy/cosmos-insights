@@ -1,8 +1,10 @@
 from src.callbacks.training_callbacks.training_filters import register_training_filter_callbacks
 from src.callbacks.training_callbacks.training_summary_cards import register_training_summary_cards_callbacks
 from src.callbacks.training_callbacks.training_engaged_members import register_training_engaged_members_callbacks
+from src.callbacks.training_callbacks.training_engaged_members import register_training_chart_modal_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
     register_training_summary_cards_callbacks(app)
     register_training_engaged_members_callbacks(app)
+    register_training_chart_modal_callbacks(app)

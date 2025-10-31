@@ -79,6 +79,27 @@ def create_training_dashboard_layout():
         ]),
         
         # # Data Table Section
-        get_data_table_layout()
+        get_data_table_layout(),
+
+        # Modal for enlarged chart view 
+        dbc.Modal(
+            [
+                dbc.ModalHeader([
+                    html.H4("Enlarged Chart View", className="modal-title"),
+                    dbc.Button("Close", id="close-training-chart-modal", className="btn-close", n_clicks=0)
+                ]),
+                dbc.ModalBody(
+                    html.Div(id="training-modal-chart-content"),
+                    style={"padding": "10px"}
+                )
+            ],
+            id="training-chart-modal",
+            size="xl",
+            is_open=False,
+            centered=True,
+            scrollable=True,
+            backdrop="static",
+            style={"padding": "0"}
+        )        
 
     ], fluid=True)

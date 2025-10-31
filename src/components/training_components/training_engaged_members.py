@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 def get_engaged_members_layout():
     """Create top engaged members visualization with control dropdowns (vertical bar style)"""
     
-    # ✅ UPDATED: Empty figure matching vertical bar chart style
     empty_fig = go.Figure()
     empty_fig.update_layout(
         title={
@@ -25,8 +24,8 @@ def get_engaged_members_layout():
             'gridcolor': '#f0f0f0'
         },
         showlegend=False,
-        height=500,  # ✅ CHANGED: Match main chart height
-        margin={'l': 60, 'r': 50, 't': 80, 'b': 100},  # ✅ CHANGED: Match main chart margins
+        height=500,  
+        margin={'l': 60, 'r': 50, 't': 80, 'b': 100}, 
         plot_bgcolor='white',
         paper_bgcolor='white',
         annotations=[{
@@ -84,7 +83,10 @@ def get_engaged_members_layout():
             dcc.Graph(
                 id="top-engaged-members-chart",
                 figure=empty_fig,
-                config={'displayModeBar': False}
+                config={
+                    'displayModeBar': False,
+                    'doubleClick': 'reset'  
+                }
             )
         ])
     ], className="mb-4")
