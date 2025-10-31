@@ -271,7 +271,7 @@ def calculate_top_members(df_members, metric, top_count):
 
 def create_members_chart(top_members, metric, top_count):
     """
-    Create Plotly chart for top engaged members
+    Create Plotly chart for top engaged members with vertical bars (matching Azure cost drivers style)
     """
     if top_members.empty:
         return create_empty_chart("No Data", "No member data available")
@@ -281,8 +281,8 @@ def create_members_chart(top_members, metric, top_count):
     values = top_members['metric_value'].tolist()
     metric_label = top_members['metric_label'].iloc[0] if 'metric_label' in top_members.columns else ''
     
-    # Truncate long names for better display
-    display_names = [name[:25] + '...' if len(name) > 25 else name for name in member_names]
+    # Truncate long names for better display on x-axis
+    display_names = [name[:15] + '...' if len(name) > 15 else name for name in member_names]
     
     # Create hover text with detailed information
     hover_texts = []
@@ -308,12 +308,10 @@ def create_members_chart(top_members, metric, top_count):
     
     info = metric_info.get(metric, metric_info['sessions_attended'])
     
-    # Create horizontal bar chart
     fig = go.Figure(data=[
         go.Bar(
-            y=display_names,
-            x=values,
-            orientation='h',
+            x=display_names,  
+            y=values,        
             text=[f"{v}{metric_label}" for v in values],
             textposition='outside',
             hovertemplate=hover_texts,
@@ -327,7 +325,6 @@ def create_members_chart(top_members, metric, top_count):
         )
     ])
     
-    # Update layout
     fig.update_layout(
         title={
             'text': f"{info['title']} (Top {top_count})",
@@ -336,34 +333,57 @@ def create_members_chart(top_members, metric, top_count):
             'font': {'size': 16, 'color': '#2c3e50'}
         },
         xaxis={
-            'title': info['label'],
+            'title': 'Member Name',  
+            'showgrid': False,
+            'tickangle': -45,       
+            'tickfont': {'size': 10}
+        },
+        yaxis={
+            'title': info['label'],  
             'showgrid': True,
             'gridcolor': '#f0f0f0'
         },
-        yaxis={
-            'title': '',
-            'automargin': True,
-            'tickfont': {'size': 10}
-        },
-        margin={'l': 200, 'r': 50, 't': 80, 'b': 60},
-        height=max(400, len(top_members) * 30 + 150),
+        margin={'l': 60, 'r': 50, 't': 80, 'b': 100}, 
+        height=500,  
         showlegend=False,
         plot_bgcolor='white',
         paper_bgcolor='white',
         hovermode='closest'
     )
     
+    fig.update_traces(
+        hovertemplate=hover_texts
+    )
+    
     return fig
 
 def create_empty_chart(title, message):
     """
-    Create an empty chart with a message
+    Create an empty chart with a message (matching vertical bar chart style)
     """
     fig = go.Figure()
     fig.update_layout(
-        title=title,
+        title={
+            'text': title,
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 16, 'color': '#2c3e50'}
+        },
+        xaxis={
+            'title': 'Member Name',
+            'showgrid': False,
+            'tickfont': {'size': 10}
+        },
+        yaxis={
+            'title': 'Engagement Metric',
+            'showgrid': True,
+            'gridcolor': '#f0f0f0'
+        },
         showlegend=False,
-        height=400,
+        height=500,  
+        margin={'l': 60, 'r': 50, 't': 80, 'b': 100},  
+        plot_bgcolor='white',
+        paper_bgcolor='white',
         annotations=[{
             'text': message,
             'xref': 'paper',

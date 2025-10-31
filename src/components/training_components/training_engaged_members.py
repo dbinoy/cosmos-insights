@@ -3,14 +3,32 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 
 def get_engaged_members_layout():
-    """Create top engaged members visualization with control dropdowns"""
+    """Create top engaged members visualization with control dropdowns (vertical bar style)"""
     
-    # Empty figure as placeholder
+    # ✅ UPDATED: Empty figure matching vertical bar chart style
     empty_fig = go.Figure()
     empty_fig.update_layout(
-        title="Top Engaged Members",
+        title={
+            'text': "Top Engaged Members",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 16, 'color': '#2c3e50'}
+        },
+        xaxis={
+            'title': 'Member Name',
+            'showgrid': False,
+            'tickfont': {'size': 10}
+        },
+        yaxis={
+            'title': 'Sessions Attended',
+            'showgrid': True,
+            'gridcolor': '#f0f0f0'
+        },
         showlegend=False,
-        height=400,
+        height=500,  # ✅ CHANGED: Match main chart height
+        margin={'l': 60, 'r': 50, 't': 80, 'b': 100},  # ✅ CHANGED: Match main chart margins
+        plot_bgcolor='white',
+        paper_bgcolor='white',
         annotations=[{
             'text': 'Select filters to view data',
             'xref': 'paper', 'yref': 'paper',
@@ -36,7 +54,7 @@ def get_engaged_members_layout():
                                 options=[
                                     {'label': 'Sessions Attended', 'value': 'sessions_attended'},
                                     {'label': 'Training Hours', 'value': 'training_hours'},
-                                    {'label': 'Topics Completed', 'value': 'topics_completed'},
+                                    {'label': 'Topics Completed', 'value': 'topics_completed'}
                                 ],
                                 value='sessions_attended',
                                 clearable=False,
