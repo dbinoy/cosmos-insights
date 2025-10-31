@@ -389,6 +389,26 @@ class TrainingSummaryUtils {
     }
     
     /**
+     * Create spinner states for summary cards - following filter dropdown pattern
+     * @param {boolean} isReady - Whether data is ready
+     * @returns {Array} Array of spinner styles for all 4 cards
+     */
+    static createSummarySpinnerStates(isReady) {
+        const hiddenStyle = {"display": "none"};
+        const visibleStyle = {"position": "absolute", "top": "10px", "right": "10px"};
+        
+        // If data is ready, hide all spinners. If not ready, show all spinners
+        const spinnerStyle = isReady ? hiddenStyle : visibleStyle;
+        
+        return [
+            spinnerStyle, // total-classes-spinner
+            spinnerStyle, // total-attendances-spinner  
+            spinnerStyle, // total-requests-spinner
+            spinnerStyle  // active-members-spinner
+        ];
+    }
+        
+    /**
      * Main function to update summary cards - called by client-side callback
      * Matches server-side callback logic exactly
      */
@@ -424,11 +444,7 @@ class TrainingSummaryUtils {
             const filtered_classes = this.filterClasses(classes_data, selections);
             const filtered_attendance = this.filterAttendance(attendance_data, selections);
             const filtered_requests = this.filterRequests(request_data, selections);
-            const filtered_active_members = this.filterActiveMembers(
-                active_members_data, 
-                offices_data, 
-                selections
-            );
+            const filtered_active_members = this.filterActiveMembers(active_members_data, offices_data, selections);
             
             // console.log('📊 Final Filtered data counts:', {
             //     classes: filtered_classes.length,

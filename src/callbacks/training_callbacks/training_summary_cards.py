@@ -6,6 +6,18 @@ def register_training_summary_cards_callbacks(app):
     """
     # print("Registering Client-side Training Summary Cards callback...")
     
+    # Spinner control callback
+    app.clientside_callback(
+        "function(data_ready) { const isReady = data_ready && data_ready.ready; return TrainingSummaryUtils.createSummarySpinnerStates(isReady); }",
+        [Output("total-classes-spinner", "spinner_style"),
+         Output("total-attendances-spinner", "spinner_style"),
+         Output("total-requests-spinner", "spinner_style"),
+         Output("active-members-spinner", "spinner_style")],
+        Input("training-data-ready", "data"),
+        prevent_initial_call=False
+    )
+
+    # Main summary cards update callback
     clientside_callback(
         """
         function(filtered_data, query_selections) {
