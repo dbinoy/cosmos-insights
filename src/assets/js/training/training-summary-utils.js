@@ -390,15 +390,15 @@ class TrainingSummaryUtils {
     
     /**
      * Create spinner states for summary cards - following filter dropdown pattern
-     * @param {boolean} isReady - Whether data is ready
+     * @param {boolean} isCalculating - Whether calculation is in progress
      * @returns {Array} Array of spinner styles for all 4 cards
      */
-    static createSummarySpinnerStates(isReady) {
+    static createSummarySpinnerStates(isCalculating) {
         const hiddenStyle = {"display": "none"};
         const visibleStyle = {"position": "absolute", "top": "10px", "right": "10px"};
         
         // If data is ready, hide all spinners. If not ready, show all spinners
-        const spinnerStyle = isReady ? hiddenStyle : visibleStyle;
+        const spinnerStyle = isCalculating ? visibleStyle : hiddenStyle;
         
         return [
             spinnerStyle, // total-classes-spinner
@@ -415,12 +415,24 @@ class TrainingSummaryUtils {
     static updateSummaryCards(filtered_data, query_selections) {
         // console.log('🔄 TrainingSummaryUtils: Client-side summary update triggered');
         
+        // First, return "calculating" state (show spinners, keep current values)
+        const calculatingState = {
+            isCalculating: true,
+            values: null
+        };
+
         if (!filtered_data || typeof filtered_data !== 'object') {
             // console.log('⚠️ No filtered data available');
-            return ["0", "0", "0", "0"];
+            return {
+                isCalculating: false,
+                values: ["0", "0", "0", "0"]
+            };
         }
         
         try {
+            // console.log('⏳ Starting client-side calculation...');
+            const startTime = performance.now();
+
             // Extract data arrays - exactly as server-side does
             const classes_data = filtered_data.classes || [];
             const attendance_data = filtered_data.attendance_stats || [];
@@ -428,30 +440,17 @@ class TrainingSummaryUtils {
             const active_members_data = filtered_data.active_members || [];
             const offices_data = filtered_data.offices || [];
             
-            // console.log('📊 Initial Data counts:', {
-            //     classes: classes_data.length,
-            //     attendance: attendance_data.length,
-            //     requests: request_data.length,
-            //     activeMembers: active_members_data.length,
-            //     offices: offices_data.length
-            // });
+            console.log('📊 Data extraction completed');
             
             const selections = query_selections || {};
-            
-            // console.log('📋 Query Selections:', selections);
-            
+                        
             // Filter all data types - exactly matching server-side logic
             const filtered_classes = this.filterClasses(classes_data, selections);
             const filtered_attendance = this.filterAttendance(attendance_data, selections);
             const filtered_requests = this.filterRequests(request_data, selections);
             const filtered_active_members = this.filterActiveMembers(active_members_data, offices_data, selections);
             
-            // console.log('📊 Final Filtered data counts:', {
-            //     classes: filtered_classes.length,
-            //     attendance: filtered_attendance.length,
-            //     requests: filtered_requests.length,
-            //     activeMembers: filtered_active_members.length
-            // });
+            console.log('📊 Data filtering completed');
             
             // Calculate metrics
             const metrics = this.calculateMetrics(
@@ -461,14 +460,22 @@ class TrainingSummaryUtils {
                 filtered_active_members
             );
             
-            // console.log(`📊 TrainingSummaryUtils: Summary Updated - Classes=${metrics.totalClasses}, Attendances=${metrics.totalAttendances}, Requests=${metrics.totalRequests}, Members=${metrics.activeMembers}`);
+            const endTime = performance.now();
+            console.log(`✅ Calculation completed in ${(endTime - startTime).toFixed(2)}ms`);
+            console.log(`📊 Results: Classes=${metrics.totalClasses}, Attendances=${metrics.totalAttendances}, Requests=${metrics.totalRequests}, Members=${metrics.activeMembers}`);            
             
             // Format and return results
-            return this.formatMetrics(metrics);
+            return {
+                isCalculating: false,
+                values: this.formatMetrics(metrics)
+            };
             
         } catch (error) {
             console.error('❌ Error in TrainingSummaryUtils.updateSummaryCards:', error);
-            return ["0", "0", "0", "0"];
+            return {
+                isCalculating: false,
+                values: ["0", "0", "0", "0"]
+            };
         }
     }
 }
