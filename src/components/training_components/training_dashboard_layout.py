@@ -85,13 +85,9 @@ def create_training_dashboard_layout():
         dbc.Modal(
             [
                 dbc.ModalHeader([
-                    html.H4("Enlarged Chart View", className="modal-title"),
-                    dbc.Button("Close", id="close-training-chart-modal", className="btn-close", n_clicks=0)
-                ]),
-                dbc.ModalBody(
-                    html.Div(id="training-modal-chart-content"),
-                    style={"padding": "10px"}
-                )
+                    html.H4("Enlarged Chart View", className="modal-title")
+                ]),                
+                dbc.ModalBody(html.Div(id="training-modal-chart-content"))
             ],
             id="training-chart-modal",
             size="xl",
@@ -99,7 +95,8 @@ def create_training_dashboard_layout():
             centered=True,
             scrollable=True,
             backdrop="static",
-            style={"padding": "0"}
-        )        
+            style={"padding": "0"},
+            className="modal-90-viewport"
+        )     
 
     ], fluid=True)

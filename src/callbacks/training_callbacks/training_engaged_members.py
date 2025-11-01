@@ -150,7 +150,7 @@ def apply_attendance_filters(df_attendance, query_selections):
     if aors_filter and aors_filter.strip():
         aor_list = [aor.strip().strip("'\"") for aor in aors_filter.split(',')]
         aor_list = [aor for aor in aor_list if aor]
-        print(f"🔍 Applying AOR filter: {aor_list}")
+        # print(f"🔍 Applying AOR filter: {aor_list}")
         if aor_list and 'AorShortName' in df_filtered.columns:
             before_count = len(df_filtered)
             df_filtered = df_filtered[df_filtered['AorShortName'].isin(aor_list)]
@@ -161,7 +161,7 @@ def apply_attendance_filters(df_attendance, query_selections):
     if offices_filter and offices_filter.strip():
         office_list = [office.strip().strip("'\"") for office in offices_filter.split(',')]
         office_list = [office for office in office_list if office]
-        print(f"🔍 Applying Office filter: {office_list}")
+        # print(f"🔍 Applying Office filter: {office_list}")
         if office_list and 'MemberOffice' in df_filtered.columns:
             before_count = len(df_filtered)
             df_filtered = df_filtered[df_filtered['MemberOffice'].isin(office_list)]
@@ -172,7 +172,7 @@ def apply_attendance_filters(df_attendance, query_selections):
     if topics_filter and topics_filter.strip():
         topic_list = [topic.strip().strip("'\"") for topic in topics_filter.split(',')]
         topic_list = [topic for topic in topic_list if topic]
-        print(f"🔍 Applying Topic filter: {topic_list}")
+        # print(f"🔍 Applying Topic filter: {topic_list}")
         if topic_list and 'TrainingTopicId' in df_filtered.columns:
             before_count = len(df_filtered)
             df_filtered = df_filtered[df_filtered['TrainingTopicId'].isin(topic_list)]
@@ -183,7 +183,7 @@ def apply_attendance_filters(df_attendance, query_selections):
     if instructors_filter and instructors_filter.strip():
         instructor_list = [inst.strip().strip("'\"") for inst in instructors_filter.split(',')]
         instructor_list = [inst for inst in instructor_list if inst]
-        print(f"🔍 Applying Instructor filter: {instructor_list}")
+        # print(f"🔍 Applying Instructor filter: {instructor_list}")
         if instructor_list and 'InstructorId' in df_filtered.columns:
             before_count = len(df_filtered)
             df_filtered = df_filtered[df_filtered['InstructorId'].isin(instructor_list)]
@@ -194,7 +194,7 @@ def apply_attendance_filters(df_attendance, query_selections):
     if locations_filter and locations_filter.strip():
         location_list = [loc.strip().strip("'\"") for loc in locations_filter.split(',')]
         location_list = [loc for loc in location_list if loc]
-        print(f"🔍 Applying Location filter: {location_list}")
+        # print(f"🔍 Applying Location filter: {location_list}")
         if location_list and 'LocationId' in df_filtered.columns:
             before_count = len(df_filtered)
             df_filtered = df_filtered[df_filtered['LocationId'].isin(location_list)]
@@ -205,7 +205,7 @@ def apply_attendance_filters(df_attendance, query_selections):
     if classes_filter and classes_filter.strip():
         class_list = [cls.strip().strip("'\"") for cls in classes_filter.split(',')]
         class_list = [cls for cls in class_list if cls]
-        print(f"🔍 Applying Class filter: {class_list}")
+        # print(f"🔍 Applying Class filter: {class_list}")
         if class_list and 'TrainingClassId' in df_filtered.columns:
             before_count = len(df_filtered)
             df_filtered = df_filtered[df_filtered['TrainingClassId'].isin(class_list)]
@@ -399,72 +399,45 @@ def create_empty_chart(title, message):
         }]
     )
     return fig
-
+        
 def register_training_chart_modal_callbacks(app):
     """
-    Register callbacks for training chart modal functionality
+    Register callbacks for training chart modal functionality - SIMPLIFIED
     """
     # print("Registering Training Chart Modal callbacks...")
     
     @callback(
         [Output("training-chart-modal", "is_open"),
-         Output("training-modal-chart-content", "children")],
-        [Input("top-engaged-members-chart", "figure"),       
-         Input("close-training-chart-modal", "n_clicks")],
-        [State("training-chart-modal", "is_open")],
+        Output("training-modal-chart-content", "children")],
+        [Input("chart-wrapper", "n_clicks")],  # ✅ Only chart clicks, no close button
+        [State("training-chart-modal", "is_open"),
+        State("top-engaged-members-chart", "figure")],
         prevent_initial_call=True
     )
-    def toggle_chart_modal(chart_figure, close_clicks, is_open):
+    def toggle_chart_modal(chart_wrapper_clicks, is_open, chart_figure):
         """
-        Handle modal opening/closing - simplified approach
+        Handle opening of chart modal - closing handled automatically by default X button
         """
         triggered = ctx.triggered
         triggered_id = triggered[0]['prop_id'].split('.')[0] if triggered else None
         
-        print(f"🔄 Modal callback triggered by: {triggered_id}")
+        # print(f"🔄 Modal callback triggered by: {triggered_id}")
         
-        # Close modal if close button clicked
-        if triggered_id == "close-training-chart-modal":
-            print("🔒 Closing chart modal")
-            return False, no_update
-        
-        # If chart figure updated and modal is not open, we can open it
-        # This is a different approach - we'll use a different trigger
-        
-        return no_update, no_update
-    
-    print("✅ Training Chart Modal callbacks registered successfully")
-    
-    # Separate callback for chart clicks
-    @callback(
-        [Output("training-chart-modal", "is_open", allow_duplicate=True),
-         Output("training-modal-chart-content", "children", allow_duplicate=True)],
-        [Input("top-engaged-members-chart", "clickData"),
-         Input("top-engaged-members-chart", "relayoutData")],
-        [State("top-engaged-members-chart", "figure")],
-        prevent_initial_call=True
-    )
-    def open_chart_modal_on_click(click_data, relayout_data, chart_figure):
-        """
-        Open modal on any chart interaction
-        """
-        triggered = ctx.triggered
-        
-        if not triggered:
-            return no_update, no_update
+        # Open modal if chart wrapper clicked and modal is not already open
+        if triggered_id == "chart-wrapper" and chart_wrapper_clicks and not is_open:
+            # print("📊 Chart wrapper clicked! Opening modal...")
             
-        print(f"📊 Chart interaction detected!")
-        print(f"   Trigger: {triggered[0]['prop_id']}")
+            if not chart_figure or not chart_figure.get('data'):
+                # print("⚠️ No chart figure data available")
+                return no_update, no_update
+            
+            # print("✅ Opening modal with chart data")
+            enlarged_chart = create_enlarged_chart(chart_figure)
+            return True, enlarged_chart
         
-        # Check if we have a valid chart figure
-        if not chart_figure or not chart_figure.get('data'):
-            print("⚠️ No chart figure data available")
-            return no_update, no_update
-        
-        # Open modal for any chart interaction
-        print("✅ Opening modal with chart data")
-        enlarged_chart = create_enlarged_chart(chart_figure)
-        return True, enlarged_chart
+        return no_update, no_update    
+    
+    # print("✅ Training Chart Modal callbacks registered successfully")
         
 def create_enlarged_chart(original_figure):
     """
@@ -479,11 +452,11 @@ def create_enlarged_chart(original_figure):
         
         # Update layout for larger modal display
         enlarged_fig['layout'].update({
-            'height': 600,  # ✅ Larger height for modal
-            'margin': {'l': 80, 'r': 60, 't': 100, 'b': 120},  # ✅ More space for labels
+            'height': 600,  
+            'margin': {'l': 80, 'r': 60, 't': 100, 'b': 120},  
             'title': {
                 **enlarged_fig['layout'].get('title', {}),
-                'font': {'size': 20, 'color': '#2c3e50'}  # ✅ Larger title
+                'font': {'size': 20, 'color': '#2c3e50'}  
             },
             'xaxis': {
                 **enlarged_fig['layout'].get('xaxis', {}),
@@ -491,7 +464,7 @@ def create_enlarged_chart(original_figure):
                     **enlarged_fig['layout'].get('xaxis', {}).get('title', {}),
                     'font': {'size': 14}
                 },
-                'tickfont': {'size': 12}  # ✅ Larger tick labels
+                'tickfont': {'size': 12}  
             },
             'yaxis': {
                 **enlarged_fig['layout'].get('yaxis', {}),
@@ -499,7 +472,7 @@ def create_enlarged_chart(original_figure):
                     **enlarged_fig['layout'].get('yaxis', {}).get('title', {}),
                     'font': {'size': 14}
                 },
-                'tickfont': {'size': 12}  # ✅ Larger tick labels
+                'tickfont': {'size': 12} 
             }
         })
         
@@ -520,7 +493,7 @@ def create_enlarged_chart(original_figure):
         return dcc.Graph(
             figure=enlarged_fig,
             config={
-                'displayModeBar': True,  # ✅ Show toolbar in modal
+                'displayModeBar': True, 
                 'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
                 'displaylogo': False,
                 'toImageButtonOptions': {
@@ -535,10 +508,12 @@ def create_enlarged_chart(original_figure):
         )
         
     except Exception as e:
-        print(f"❌ Error creating enlarged chart: {str(e)}")
+        # print(f"❌ Error creating enlarged chart: {str(e)}")
         return html.Div(
             f"Error displaying chart: {str(e)}", 
             className="text-center p-4 text-danger"
         )
+
+ 
     
     # print("✅ Training Engaged Members callback registered successfully")

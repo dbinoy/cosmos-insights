@@ -1,0 +1,40 @@
+/* Custom modal size - 90% viewport coverage */
+.modal-90-viewport .modal-dialog {
+    max-width: 90vw !important;
+    width: 90vw !important;
+    height: 90vh !important;
+    margin: 2.5vh auto !important;
+}
+
+.modal-90-viewport .modal-content {
+    height: 100% !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+.modal-90-viewport .modal-body {
+    height: calc(100% - 60px) !important;
+    padding: 15px !important;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-90-viewport .modal-header {
+    flex-shrink: 0;
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+}
+
+/* Ensure the chart takes full available space */
+.modal-90-viewport .modal-body > div {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-90-viewport .modal-body .js-plotly-plot {
+    flex: 1 !important;
+    width: 100% !important;
+}

@@ -80,13 +80,24 @@ def get_engaged_members_layout():
             ])
         ]),
         dbc.CardBody([
-            dcc.Graph(
-                id="top-engaged-members-chart",
-                figure=empty_fig,
-                config={
-                    'displayModeBar': False,
-                    'doubleClick': 'reset'  
-                }
+            html.Div([  
+                dcc.Graph(
+                    id="top-engaged-members-chart",
+                    figure=empty_fig,
+                    config={
+                        'displayModeBar': False,
+                        'doubleClick': 'reset'
+                    }
+                )
+            ], 
+            id="chart-wrapper",  
+            style={
+                'cursor': 'pointer',
+                'border': '1px solid transparent',
+                'borderRadius': '4px',
+                'transition': 'border-color 0.2s'
+            },
+            className="chart-clickable-area"  
             )
-        ])
+        ])        
     ], className="mb-4")
