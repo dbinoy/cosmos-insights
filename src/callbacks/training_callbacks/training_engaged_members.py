@@ -3,6 +3,27 @@ import plotly.graph_objects as go
 import pandas as pd
 import copy
 from datetime import datetime
+import time
+from functools import wraps
+import logging
+
+def monitor_performance(func_name="Unknown"):
+    """Decorator to monitor function performance"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+                duration = time.time() - start_time
+                print(f"⏱️ {func_name} completed in {duration:.2f} seconds")
+                return result
+            except Exception as e:
+                duration = time.time() - start_time
+                print(f"❌ {func_name} failed after {duration:.2f} seconds: {str(e)}")
+                raise
+        return wrapper
+    return decorator
 
 def register_training_engaged_members_callbacks(app):
     """
@@ -19,7 +40,9 @@ def register_training_engaged_members_callbacks(app):
             Input("top-members-count-dropdown", "value")
         ],
         prevent_initial_call=True
+    
     )
+    @monitor_performance("Engaged Members Chart Update")
     def update_engaged_members_chart(filtered_data, query_selections, engagement_metric, top_count):
         """
         Update the top engaged members chart using Fact_MemberEngagement and filtered attendance data
