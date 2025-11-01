@@ -91,6 +91,9 @@ sidebar = dbc.Col(
 # Main content placeholder
 content = dbc.Col(id="page-content", width=10, className="p-4 main-content")
 
+# Register callbacks BEFORE defining layout
+register_all_callbacks(app) 
+
 # App layout with URL routing
 app.layout = dbc.Container(
     [
@@ -115,7 +118,7 @@ def display_page(pathname):
     else:
         return welcome_layout()
 
-register_all_callbacks(app) 
+# register_all_callbacks(app) 
 
 # Run app
 if __name__ == "__main__":
