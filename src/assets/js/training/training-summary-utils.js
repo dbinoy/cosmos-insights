@@ -440,7 +440,7 @@ class TrainingSummaryUtils {
             const active_members_data = filtered_data.active_members || [];
             const offices_data = filtered_data.offices || [];
             
-            console.log('📊 Data extraction completed');
+            // console.log('📊 Data extraction completed');
             
             const selections = query_selections || {};
                         
@@ -450,7 +450,7 @@ class TrainingSummaryUtils {
             const filtered_requests = this.filterRequests(request_data, selections);
             const filtered_active_members = this.filterActiveMembers(active_members_data, offices_data, selections);
             
-            console.log('📊 Data filtering completed');
+            // console.log('📊 Data filtering completed');
             
             // Calculate metrics
             const metrics = this.calculateMetrics(
@@ -461,8 +461,8 @@ class TrainingSummaryUtils {
             );
             
             const endTime = performance.now();
-            console.log(`✅ Calculation completed in ${(endTime - startTime).toFixed(2)}ms`);
-            console.log(`📊 Results: Classes=${metrics.totalClasses}, Attendances=${metrics.totalAttendances}, Requests=${metrics.totalRequests}, Members=${metrics.activeMembers}`);            
+            // console.log(`✅ Calculation completed in ${(endTime - startTime).toFixed(2)}ms`);
+            // console.log(`📊 Results: Classes=${metrics.totalClasses}, Attendances=${metrics.totalAttendances}, Requests=${metrics.totalRequests}, Members=${metrics.activeMembers}`);            
             
             // Format and return results
             return {

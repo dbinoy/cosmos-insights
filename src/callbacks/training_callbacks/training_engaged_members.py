@@ -399,7 +399,7 @@ def create_empty_chart(title, message):
         }]
     )
     return fig
-        
+                
 def register_training_chart_modal_callbacks(app):
     """
     Register callbacks for training chart modal functionality - SIMPLIFIED

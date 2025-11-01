@@ -81,14 +81,21 @@ def get_engaged_members_layout():
         ]),
         dbc.CardBody([
             html.Div([  
-                dcc.Graph(
-                    id="top-engaged-members-chart",
-                    figure=empty_fig,
-                    config={
-                        'displayModeBar': False,
-                        'doubleClick': 'reset'
-                    }
-                )
+                dcc.Loading(
+                    id="loading-engaged-members-chart",
+                    type="dot", 
+                    children=[
+                        dcc.Graph(
+                            id="top-engaged-members-chart",
+                            figure=empty_fig,
+                            config={
+                                'displayModeBar': False,
+                                'doubleClick': 'reset'
+                            },
+                            style={'cursor': 'pointer'}
+                        )
+                    ]
+                )                
             ], 
             id="chart-wrapper",  
             style={
