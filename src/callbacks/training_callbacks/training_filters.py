@@ -88,7 +88,7 @@ def register_training_filter_callbacks(app):
         Input("training-filtered-query-store", "id"),  # Simple trigger
         prevent_initial_call=False
     )
-    @monitor_performance("Training AOR Dropdown Population")
+    # @monitor_performance("Training AOR Dropdown Population")
     def populate_initial_filters(_):
         """
         Populate initial filters - only fetches AOR data
@@ -104,7 +104,7 @@ def register_training_filter_callbacks(app):
                 for _, row in df_aors.iterrows() if pd.notnull(row['AorShortName'])
             ]
             
-            print(f"📊 AOR options loaded: {len(aor_options)} options")
+            # print(f"📊 AOR options loaded: {len(aor_options)} options")
             return (
                 str(start_placeholder), 
                 str(end_placeholder), 
@@ -145,7 +145,7 @@ def register_training_filter_callbacks(app):
         Input("training-aor-dropdown", "value"),
         prevent_initial_call=False
     )
-    @monitor_performance("Training Office Dropdown Population")
+    # @monitor_performance("Training Office Dropdown Population")
     def populate_office_filter(selected_aors):
         """
         Populate office dropdown based on selected AORs
@@ -207,7 +207,7 @@ def register_training_filter_callbacks(app):
          Input("training-office-dropdown", "value")],
         prevent_initial_call=False
     )
-    @monitor_performance("Training Topics Dropdown Population")
+    # @monitor_performance("Training Topics Dropdown Population")
     def populate_topics_filter(selected_aors, selected_offices):
         """
         Populate topics dropdown based on AOR/Office selections
@@ -246,7 +246,7 @@ def register_training_filter_callbacks(app):
                 for _, row in df_topics.iterrows() if pd.notnull(row['TopicName'])
             ]
             
-            print(f"📊 Topic options loaded: {len(topic_options)} options (filtered: {filtered})")
+            # print(f"📊 Topic options loaded: {len(topic_options)} options (filtered: {filtered})")
             return (
                 topic_options,
                 "Select Topics...",
@@ -270,7 +270,7 @@ def register_training_filter_callbacks(app):
          Input("training-office-dropdown", "value")],
         prevent_initial_call=False
     )
-    @monitor_performance("Training Instructors Dropdown Population")
+    # @monitor_performance("Training Instructors Dropdown Population")
     def populate_instructor_filter(selected_aors, selected_offices):
         """
         Populate instructors dropdown based on AOR/Office selections
@@ -302,7 +302,7 @@ def register_training_filter_callbacks(app):
                 for _, row in df_instructors.iterrows() if pd.notnull(row['Name'])
             ]
             
-            print(f"📊 Instructor options loaded: {len(instructor_options)} options (filtered: {filtered})")
+            # print(f"📊 Instructor options loaded: {len(instructor_options)} options (filtered: {filtered})")
             return (
                 instructor_options,
                 "Select Instructors...",
@@ -345,7 +345,7 @@ def register_training_filter_callbacks(app):
          Input("training-instructor-dropdown", "value")],
         prevent_initial_call=False
     )
-    @monitor_performance("Training Locations Dropdown Population")
+    # @monitor_performance("Training Locations Dropdown Population")
     def populate_location_filter(selected_aors, selected_offices, selected_topics, selected_instructors):
         """
         Populate locations dropdown based on filter selections
@@ -387,7 +387,7 @@ def register_training_filter_callbacks(app):
                 for _, row in df_locations.iterrows() if pd.notnull(row['Name'])
             ]
             
-            print(f"📊 Location options loaded: {len(location_options)} options (filtered: {filtered})")
+            # print(f"📊 Location options loaded: {len(location_options)} options (filtered: {filtered})")
             return (
                 location_options,
                 "Select Locations...",
@@ -432,7 +432,7 @@ def register_training_filter_callbacks(app):
          Input("training-topics-dropdown", "value")],
         prevent_initial_call=False
     )
-    @monitor_performance("Training Classes Dropdown Population")
+    # @monitor_performance("Training Classes Dropdown Population")
     def populate_class_filter(selected_aors, selected_offices, selected_instructors, selected_locations, selected_topics):
         """
         Populate classes dropdown based on all filter selections
@@ -500,7 +500,7 @@ def register_training_filter_callbacks(app):
             else:
                 class_options = []
 
-            print(f"📊 Class options loaded: {len(class_options)} options (filtered: {filtered})")
+            # print(f"📊 Class options loaded: {len(class_options)} options (filtered: {filtered})")
             return (
                 class_options,
                 "Select Classes..." if class_options else "No classes available",
@@ -528,7 +528,7 @@ def register_training_filter_callbacks(app):
         Input("training-clear-filters-btn", "n_clicks"),
         prevent_initial_call=True
     )
-    @monitor_performance("Training Clear All Filters")
+    # @monitor_performance("Training Clear All Filters")
     def clear_all_filters(n_clicks):
         """
         Clear all filter selections
@@ -541,7 +541,7 @@ def register_training_filter_callbacks(app):
             [], [], [], [], [], []  # Clear all dropdown selections
         )
 
-    print("✅ Training filter callbacks registered (optimized - individual queries)")
+    # print("✅ Training filter callbacks registered (optimized - individual queries)")
 
     @app.callback(
         Output("training-filtered-query-store", "data"),     

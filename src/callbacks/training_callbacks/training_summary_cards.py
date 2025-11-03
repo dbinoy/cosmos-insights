@@ -18,37 +18,8 @@ def register_training_summary_cards_callbacks(app):
         result = run_queries(queries, len(queries))
         # print(f"✅ Fetched base data for training summary cards: {len(result['offices'])} offices, {len(result['classes'])} classes, {len(result['request_stats'])} request stats, {len(result['attendance_stats'])} attendance stats, {len(result['active_members'])} active members")
         return result
-            
-    # def get_all_active_members():
-    #     """
-    #     Query all active members with training activity 
-    #     """
-    #     try:
-    #         # Simple base query that gets cached
-    #         base_query = """
-    #         SELECT MemberID, OfficeCode, MemberType, MemberStatus,
-    #             TotalSessionsRegistered, TotalSessionsAttended
-    #         FROM [consumable].[Fact_MemberEngagement]
-    #         WHERE (TotalSessionsRegistered > 0 OR TotalSessionsAttended > 0)
-    #         AND MemberStatus = 'Active'
-    #         """
-                        
-    #         # Execute query - this will be cached by Redis memoization
-    #         result = run_queries({"active_members": base_query}, 1)
-            
-    #         if 'active_members' in result and not result['active_members'].empty:
-    #             df_members = result['active_members']
-    #             print(f"✅ Retrieved {len(df_members)} active members from cache/DB")
-    #             return df_members
-    #         else:
-    #             print("⚠️ No active members found")
-    #             return pd.DataFrame()
-                
-    #     except Exception as e:
-    #         print(f"❌ Error querying active members: {e}")
-    #         return pd.DataFrame()
 
-    def calculate_active_members_count(df_members, query_selections, offices_data):
+    def calculate_active_members_count(df_members, query_selections, df_offices):
         """
         Filter active members DataFrame based on query selections using pandas
         Enhanced to handle AOR-based filtering using existing office data 
@@ -84,9 +55,8 @@ def register_training_summary_cards_callbacks(app):
                     # If AORs are selected but no specific offices, get all offices under those AORs
                     # Use existing office data 
                     
-                    if offices_data:
-                        df_offices = pd.DataFrame(offices_data)
-                        
+                    if df_offices is not None and not df_offices.empty:
+                       
                         # Filter offices to selected AORs and get their office codes
                         if 'AorShortName' in df_offices.columns and 'OfficeCode' in df_offices.columns:
                             aor_offices = df_offices[df_offices['AorShortName'].isin(aor_list)]
@@ -156,11 +126,33 @@ def register_training_summary_cards_callbacks(app):
             print(f"⚠️ Error parsing date '{date_str}': {e}")
             return None
     
+    # Show locations spinner when filters change
+    @app.callback(
+         [Output("total-classes-spinner", "style", allow_duplicate=True),
+         Output("total-attendances-spinner", "style", allow_duplicate=True),
+         Output("total-requests-spinner", "style", allow_duplicate=True),
+         Output("active-members-spinner", "style", allow_duplicate=True)],
+        [Input("training-filtered-query-store", "data")],
+        prevent_initial_call=True
+    )
+    def show_summary_card_spinners(query_selectionss):
+        """Show summary cards spinner when filter selections change"""
+        return (
+                {"visibility": "block", "position": "absolute", "top": "10px", "right": "10px"},
+                {"visibility": "block", "position": "absolute", "top": "10px", "right": "10px"},
+                {"visibility": "block", "position": "absolute", "top": "10px", "right": "10px"},
+                {"visibility": "block", "position": "absolute", "top": "10px", "right": "10px"}
+        )
+        
     @app.callback(
         [Output("total-classes-card", "children"),
          Output("total-attendances-card", "children"),
          Output("total-requests-card", "children"),
-         Output("active-members-card", "children")],
+         Output("active-members-card", "children"),
+         Output("total-classes-spinner", "style"),
+         Output("total-attendances-spinner", "style"),
+         Output("total-requests-spinner", "style"),
+         Output("active-members-spinner", "style")],
         [Input("training-filtered-query-store", "data")],
         prevent_initial_call=True
     )
@@ -174,9 +166,10 @@ def register_training_summary_cards_callbacks(app):
         base_data = fetch_base_data()
         
         try:
-            df_classes = base_data.get('classes', pd.DataFrame())
-            df_attendance = base_data.get('attendance_stats', pd.DataFrame())
-            df_requests = base_data.get('request_stats', pd.DataFrame())
+            df_classes = base_data.get('classes', pd.DataFrame()).copy()
+            # print(f"📊 Total classes before filtering: {len(df_classes)}")
+            df_attendance = base_data.get('attendance_stats', pd.DataFrame()).copy()
+            df_requests = base_data.get('request_stats', pd.DataFrame()).copy()
             
             # Apply filters based on query_selections
             if query_selections and isinstance(query_selections, dict):
@@ -185,7 +178,6 @@ def register_training_summary_cards_callbacks(app):
                 aor_list = []
                 if aors_filter:
                     aor_list = [aor.strip("'") for aor in aors_filter.split(', ') if aor.strip("'")]
-                
                 # Filter classes by AOR 
                 if aor_list and not df_classes.empty and 'AorShortName' in df_classes.columns:
                     df_classes = df_classes[df_classes['AorShortName'].isin(aor_list)]
@@ -200,7 +192,6 @@ def register_training_summary_cards_callbacks(app):
                     
                     # Filter out rows where parsing failed
                     df_classes = df_classes.dropna(subset=['ParsedStartTime'])
-                    
                     start_date = query_selections.get('Day_From')
                     end_date = query_selections.get('Day_To')
                     
@@ -214,8 +205,9 @@ def register_training_summary_cards_callbacks(app):
                                 (df_classes['ParsedStartTime'] >= start_date) & 
                                 (df_classes['ParsedStartTime'] <= end_date)
                             ]
-                            
                             # print(f"📅 Date filtering applied to CLASSES: {len(df_classes)} classes between {start_date.date()} and {end_date.date()}")
+
+                            # print(f"Number of classes after date filtering: {len(df_classes)}")
                             
                         except Exception as e:
                             print(f"❌ Error applying date filter to classes: {e}")
@@ -259,6 +251,19 @@ def register_training_summary_cards_callbacks(app):
                         except (ValueError, TypeError) as e:
                             print(f"⚠️ Error filtering classes by locations: {e}")
                 
+                # Filter classes by Classes (if classes have ClassId)
+                classes_filter = query_selections.get('Classes', '')
+                if classes_filter and not df_classes.empty:
+                    class_list = [cls.strip("'") for cls in classes_filter.split(', ') if cls.strip("'")]
+                    if class_list:
+                        try:
+                            class_ids = [str(cls) for cls in class_list]
+                            if 'ClassId' in df_classes.columns:
+                                df_classes = df_classes[df_classes['ClassId'].isin(class_ids)]
+                                # print(f"🏫 Class filtering applied to CLASSES: {len(df_classes)} classes for classes: {class_ids}")
+                        except (ValueError, TypeError) as e:
+                            print(f"⚠️ Error filtering classes by classes: {e}")    
+
                 # Filter attendance by AOR (existing logic)
                 if aor_list and not df_attendance.empty:
                     df_attendance = df_attendance[df_attendance['AorShortName'].isin(aor_list)]
@@ -308,7 +313,7 @@ def register_training_summary_cards_callbacks(app):
                             df_attendance = df_attendance[df_attendance['LocationId'].astype(str).isin(location_list)]
                             # print(f"📍 Location filtering applied to ATTENDANCE (as strings): {len(df_attendance)} attendance records")
                 
-                # Apply same filters to requests data
+                # Apply filters to requests data
                 if not df_requests.empty:
                     df_requests_filtered = df_requests.copy()
                     
@@ -345,7 +350,7 @@ def register_training_summary_cards_callbacks(app):
                 total_requests = len(df_requests_filtered)
         
             # 4. Active Members (unique members with attendance)
-            active_members = calculate_active_members_count(base_data.get('members', pd.DataFrame()), query_selections, base_data.get('offices', pd.DataFrame()))            
+            active_members = calculate_active_members_count(base_data.get('active_members', pd.DataFrame()), query_selections, base_data.get('offices', pd.DataFrame()))            
             
             # Format the values for display
             total_classes_formatted = f"{total_classes:,}"
@@ -359,7 +364,11 @@ def register_training_summary_cards_callbacks(app):
                 total_classes_formatted,
                 total_attendances_formatted, 
                 total_requests_formatted,
-                active_members_formatted
+                active_members_formatted,
+                {"visibility": "hidden"},
+                {"visibility": "hidden"},
+                {"visibility": "hidden"},
+                {"visibility": "hidden"}
             ]
             
         except Exception as e:

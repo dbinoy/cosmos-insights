@@ -42,7 +42,7 @@ def register_training_engaged_members_callbacks(app):
         prevent_initial_call=True
     
     )
-    @monitor_performance("Engaged Members Chart Update")
+    # @monitor_performance("Engaged Members Chart Update")
     def update_engaged_members_chart(query_selections, engagement_metric, top_count):
         """
         Update the top engaged members chart using Fact_MemberEngagement and filtered attendance data
