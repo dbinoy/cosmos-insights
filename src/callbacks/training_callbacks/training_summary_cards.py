@@ -16,7 +16,7 @@ def register_training_summary_cards_callbacks(app):
             "active_members": "SELECT [MemberID],[MemberName],[MemberType],[MemberStatus],[OfficeCode],[TotalSessionsRegistered],[TotalSessionsAttended] FROM [consumable].[Fact_MemberEngagement] WHERE ([TotalSessionsRegistered] > 0 OR [TotalSessionsAttended] > 0) AND [MemberStatus] = 'Active'"            
         }
         result = run_queries(queries, len(queries))
-        print(f"✅ Fetched base data for training summary cards: {len(result['offices'])} offices, {len(result['classes'])} classes, {len(result['request_stats'])} request stats, {len(result['attendance_stats'])} attendance stats, {len(result['active_members'])} active members")
+        # print(f"✅ Fetched base data for training summary cards: {len(result['offices'])} offices, {len(result['classes'])} classes, {len(result['request_stats'])} request stats, {len(result['attendance_stats'])} attendance stats, {len(result['active_members'])} active members")
         return result
             
     # def get_all_active_members():
@@ -78,7 +78,7 @@ def register_training_summary_cards_callbacks(app):
                 if office_list:
                     # If specific offices are selected, use those
                     offices_to_filter = office_list
-                    print(f"🏢 Using explicitly selected offices: {office_list}")
+                    # print(f"🏢 Using explicitly selected offices: {office_list}")
                     
                 elif aor_list:
                     # If AORs are selected but no specific offices, get all offices under those AORs
@@ -91,8 +91,8 @@ def register_training_summary_cards_callbacks(app):
                         if 'AorShortName' in df_offices.columns and 'OfficeCode' in df_offices.columns:
                             aor_offices = df_offices[df_offices['AorShortName'].isin(aor_list)]
                             offices_to_filter = aor_offices['OfficeCode'].unique().tolist()
-                            print(f"🎯 AOR-based filtering: Found {len(offices_to_filter)} offices for AORs {aor_list}")
-                            print(f"📋 Offices under selected AORs: {offices_to_filter}")
+                            # print(f"🎯 AOR-based filtering: Found {len(offices_to_filter)} offices for AORs {aor_list}")
+                            # print(f"📋 Offices under selected AORs: {offices_to_filter}")
                         else:
                             print("⚠️ Office data missing required columns (AorShortName, OfficeCode)")
                     else:
@@ -101,11 +101,11 @@ def register_training_summary_cards_callbacks(app):
                 # Apply office filtering if we have offices to filter by
                 if offices_to_filter:
                     df_filtered = df_filtered[df_filtered['OfficeCode'].isin(offices_to_filter)]
-                    print(f"🏢 Office filtering applied to ACTIVE MEMBERS: {len(df_filtered)} members for offices: {offices_to_filter}")
+                    # print(f"🏢 Office filtering applied to ACTIVE MEMBERS: {len(df_filtered)} members for offices: {offices_to_filter}")
             
             # Count unique MemberIDs
             active_count = df_filtered['MemberID'].nunique()
-            print(f"👤 Filtered Active Members Count: {active_count}")
+            # print(f"👤 Filtered Active Members Count: {active_count}")
             
             return active_count
             
@@ -116,7 +116,7 @@ def register_training_summary_cards_callbacks(app):
     """
     Register callbacks for training summary cards
     """
-    print("Registering Training Summary Cards callbacks...")
+    # print("Registering Training Summary Cards callbacks...")
     
     def parse_custom_datetime(date_str):
         """
@@ -189,11 +189,11 @@ def register_training_summary_cards_callbacks(app):
                 # Filter classes by AOR 
                 if aor_list and not df_classes.empty and 'AorShortName' in df_classes.columns:
                     df_classes = df_classes[df_classes['AorShortName'].isin(aor_list)]
-                    print(f"🎯 AOR filtering applied to CLASSES: {len(df_classes)} classes for AORs: {aor_list}")
+                    # print(f"🎯 AOR filtering applied to CLASSES: {len(df_classes)} classes for AORs: {aor_list}")
                 
                 # Filter classes by date range with custom parsing
                 if not df_classes.empty and 'StartTime' in df_classes.columns:
-                    print("🔍 Parsing custom datetime format for classes...")
+                    # print("🔍 Parsing custom datetime format for classes...")
                     
                     # Parse custom datetime format
                     df_classes['ParsedStartTime'] = df_classes['StartTime'].apply(parse_custom_datetime)
@@ -215,7 +215,7 @@ def register_training_summary_cards_callbacks(app):
                                 (df_classes['ParsedStartTime'] <= end_date)
                             ]
                             
-                            print(f"📅 Date filtering applied to CLASSES: {len(df_classes)} classes between {start_date.date()} and {end_date.date()}")
+                            # print(f"📅 Date filtering applied to CLASSES: {len(df_classes)} classes between {start_date.date()} and {end_date.date()}")
                             
                         except Exception as e:
                             print(f"❌ Error applying date filter to classes: {e}")
@@ -229,7 +229,7 @@ def register_training_summary_cards_callbacks(app):
                             topic_ids = [str(topic) for topic in topic_list]
                             if 'TopicId' in df_classes.columns:
                                 df_classes = df_classes[df_classes['TopicId'].isin(topic_ids)]
-                                print(f"📚 Topic filtering applied to CLASSES: {len(df_classes)} classes for topics: {topic_ids}")
+                                # print(f"📚 Topic filtering applied to CLASSES: {len(df_classes)} classes for topics: {topic_ids}")
                         except (ValueError, TypeError) as e:
                             print(f"⚠️ Error filtering classes by topics: {e}")
                 
@@ -242,7 +242,7 @@ def register_training_summary_cards_callbacks(app):
                             instructor_ids = [str(inst) for inst in instructor_list]
                             if 'InstructorId' in df_classes.columns:
                                 df_classes = df_classes[df_classes['InstructorId'].isin(instructor_ids)]
-                                print(f"👨‍🏫 Instructor filtering applied to CLASSES: {len(df_classes)} classes for instructors: {instructor_ids}")
+                                # print(f"👨‍🏫 Instructor filtering applied to CLASSES: {len(df_classes)} classes for instructors: {instructor_ids}")
                         except (ValueError, TypeError) as e:
                             print(f"⚠️ Error filtering classes by instructors: {e}")
                 
@@ -255,14 +255,14 @@ def register_training_summary_cards_callbacks(app):
                             location_ids = [str(loc) for loc in location_list]
                             if 'LocationId' in df_classes.columns:
                                 df_classes = df_classes[df_classes['LocationId'].isin(location_ids)]
-                                print(f"📍 Location filtering applied to CLASSES: {len(df_classes)} classes for locations: {location_ids}")
+                                # print(f"📍 Location filtering applied to CLASSES: {len(df_classes)} classes for locations: {location_ids}")
                         except (ValueError, TypeError) as e:
                             print(f"⚠️ Error filtering classes by locations: {e}")
                 
                 # Filter attendance by AOR (existing logic)
                 if aor_list and not df_attendance.empty:
                     df_attendance = df_attendance[df_attendance['AorShortName'].isin(aor_list)]
-                    print(f"🎯 AOR filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for AORs: {aor_list}")
+                    # print(f"🎯 AOR filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for AORs: {aor_list}")
                 
                 # Filter attendance by Office
                 offices_filter = query_selections.get('Offices', '')
@@ -270,7 +270,7 @@ def register_training_summary_cards_callbacks(app):
                     office_list = [office.strip("'") for office in offices_filter.split(', ') if office.strip("'")]
                     if office_list:
                         df_attendance = df_attendance[df_attendance['MemberOffice'].isin(office_list)]
-                        print(f"🏢 Office filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for offices: {office_list}")
+                        # print(f"🏢 Office filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for offices: {office_list}")
                 
                 # Filter attendance by Topics
                 if topics_filter and not df_attendance.empty:
@@ -279,10 +279,10 @@ def register_training_summary_cards_callbacks(app):
                         try:
                             topic_ids = [str(topic) for topic in topic_list]
                             df_attendance = df_attendance[df_attendance['TrainingTopicId'].isin(topic_ids)]
-                            print(f"📚 Topic filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for topics: {topic_ids}")
+                            # print(f"📚 Topic filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for topics: {topic_ids}")
                         except (ValueError, TypeError):
                             df_attendance = df_attendance[df_attendance['TrainingTopicId'].astype(str).isin(topic_list)]
-                            print(f"📚 Topic filtering applied to ATTENDANCE (as strings): {len(df_attendance)} attendance records")
+                            # print(f"📚 Topic filtering applied to ATTENDANCE (as strings): {len(df_attendance)} attendance records")
                 
                 # Filter attendance by Instructors
                 if instructors_filter and not df_attendance.empty:
@@ -291,10 +291,10 @@ def register_training_summary_cards_callbacks(app):
                         try:
                             instructor_ids = [str(inst) for inst in instructor_list]
                             df_attendance = df_attendance[df_attendance['InstructorId'].isin(instructor_ids)]
-                            print(f"👨‍🏫 Instructor filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for instructors: {instructor_ids}")
+                            # print(f"👨‍🏫 Instructor filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for instructors: {instructor_ids}")
                         except (ValueError, TypeError):
                             df_attendance = df_attendance[df_attendance['InstructorId'].astype(str).isin(instructor_list)]
-                            print(f"👨‍🏫 Instructor filtering applied to ATTENDANCE (as strings): {len(df_attendance)} attendance records")
+                            # print(f"👨‍🏫 Instructor filtering applied to ATTENDANCE (as strings): {len(df_attendance)} attendance records")
                 
                 # Filter attendance by Locations
                 if locations_filter and not df_attendance.empty:
@@ -303,10 +303,10 @@ def register_training_summary_cards_callbacks(app):
                         try:
                             location_ids = [str(loc) for loc in location_list]
                             df_attendance = df_attendance[df_attendance['LocationId'].isin(location_ids)]
-                            print(f"📍 Location filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for locations: {location_ids}")
+                            # print(f"📍 Location filtering applied to ATTENDANCE: {len(df_attendance)} attendance records for locations: {location_ids}")
                         except (ValueError, TypeError):
                             df_attendance = df_attendance[df_attendance['LocationId'].astype(str).isin(location_list)]
-                            print(f"📍 Location filtering applied to ATTENDANCE (as strings): {len(df_attendance)} attendance records")
+                            # print(f"📍 Location filtering applied to ATTENDANCE (as strings): {len(df_attendance)} attendance records")
                 
                 # Apply same filters to requests data
                 if not df_requests.empty:
@@ -314,14 +314,14 @@ def register_training_summary_cards_callbacks(app):
                     
                     if aor_list:
                         df_requests_filtered = df_requests_filtered[df_requests_filtered['AorShortName'].isin(aor_list)]
-                        print(f"🎯 AOR filtering applied to REQUESTS: {len(df_requests_filtered)} request records")
+                        # print(f"🎯 AOR filtering applied to REQUESTS: {len(df_requests_filtered)} request records")
                     
                     offices_filter = query_selections.get('Offices', '')
                     if offices_filter:
                         office_list = [office.strip("'") for office in offices_filter.split(', ') if office.strip("'")]
                         if office_list:
                             df_requests_filtered = df_requests_filtered[df_requests_filtered['MemberOffice'].isin(office_list)]
-                            print(f"🏢 Office filtering applied to REQUESTS: {len(df_requests_filtered)} request records")
+                            # print(f"🏢 Office filtering applied to REQUESTS: {len(df_requests_filtered)} request records")
                 else:
                     df_requests_filtered = df_requests
             
@@ -353,7 +353,7 @@ def register_training_summary_cards_callbacks(app):
             total_requests_formatted = f"{int(total_requests):,}"
             active_members_formatted = f"{active_members:,}"
             
-            print(f"📊 Summary Cards Updated: Classes={total_classes}, Attendances={int(total_attendances)}, Requests={total_requests}, Members={active_members}")
+            # print(f"📊 Summary Cards Updated: Classes={total_classes}, Attendances={int(total_attendances)}, Requests={total_requests}, Members={active_members}")
             
             return [
                 total_classes_formatted,
