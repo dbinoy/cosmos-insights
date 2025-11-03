@@ -6,6 +6,7 @@ from datetime import datetime
 import time
 from functools import wraps
 import logging
+from src.utils.db import run_queries
 
 def monitor_performance(func_name="Unknown"):
     """Decorator to monitor function performance"""
@@ -34,7 +35,6 @@ def register_training_engaged_members_callbacks(app):
     @callback(
         Output("top-engaged-members-chart", "figure"),
         [
-            Input("training-filtered-data-store", "data"),
             Input("training-filtered-query-store", "data"),
             Input("engagement-metric-dropdown", "value"),
             Input("top-members-count-dropdown", "value")
@@ -43,7 +43,7 @@ def register_training_engaged_members_callbacks(app):
     
     )
     @monitor_performance("Engaged Members Chart Update")
-    def update_engaged_members_chart(filtered_data, query_selections, engagement_metric, top_count):
+    def update_engaged_members_chart(query_selections, engagement_metric, top_count):
         """
         Update the top engaged members chart using Fact_MemberEngagement and filtered attendance data
         """
@@ -54,22 +54,18 @@ def register_training_engaged_members_callbacks(app):
         engagement_metric = engagement_metric or 'sessions_attended'
         top_count = top_count or 20
         
-        # Check if filtered data is available
-        if not filtered_data or not isinstance(filtered_data, dict):
-            # print("⚠️ No filtered data available for engaged members chart")
-            return create_empty_chart("No Data Available", "Please select filters to view engaged members data")
         
         try:
-            # Get member engagement data from Fact_MemberEngagement (pre-aggregated)
-            member_engagement_data = filtered_data.get('active_members', [])  # This comes from Fact_MemberEngagement
-            attendance_stats = filtered_data.get('attendance_stats', [])      # This has filtering context
+            queries = {
+                "attendance_stats": 'SELECT [TrainingClassId],[StartTime],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]',
+                "active_members": "SELECT [MemberID],[MemberName],[OfficeCode],[TotalSessionsRegistered],[TotalSessionsAttended],[MissedSessions],[AttendanceRate] FROM [consumable].[Fact_MemberEngagement] WHERE ([TotalSessionsRegistered] > 0 OR [TotalSessionsAttended] > 0) AND [MemberStatus] = 'Active'"            
+            }
             
-            # print(f"📊 Member engagement data available: {len(member_engagement_data)} members")
-            # print(f"📊 Attendance stats available: {len(attendance_stats)} records")
-            
-            # Convert to DataFrames
-            df_members = pd.DataFrame(member_engagement_data)
-            df_attendance = pd.DataFrame(attendance_stats)
+            # Execute all queries at once
+            results = run_queries(queries, 1)
+
+            df_members = results["active_members"]
+            df_attendance = results["attendance_stats"]
             
             if df_members.empty:
                 # print("⚠️ No member engagement data available")
