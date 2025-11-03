@@ -164,7 +164,7 @@ def register_training_filter_callbacks(app):
         Input("training-instructor-dropdown", "value"),
         Input("training-location-dropdown", "value"),
         Input("training-class-dropdown", "value"),
-        prevent_initial_call=True
+        prevent_initial_call=False
     )
     def filter_data_query(start_date, end_date, 
                           selected_aors, selected_offices, 
