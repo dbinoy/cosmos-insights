@@ -156,7 +156,6 @@ def register_training_filter_callbacks(app):
 
     @app.callback(
         Output("training-filtered-query-store", "data"),     
-        Input("training-filtered-data-store", "data"),
         Input("training-date-range-picker", "start_date"),
         Input("training-date-range-picker", "end_date"),  
         Input("training-aor-dropdown", "value"),
@@ -167,7 +166,7 @@ def register_training_filter_callbacks(app):
         Input("training-class-dropdown", "value"),
         prevent_initial_call=True
     )
-    def filter_data_query(filter_data, start_date, end_date, 
+    def filter_data_query(start_date, end_date, 
                           selected_aors, selected_offices, 
                           selected_topics, selected_instructors, 
                           selected_locations, selected_classes):
