@@ -2,16 +2,30 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 
 def get_office_engagement_layout():
-    """Create office-level engagement heatmap"""
+    """Create office-level engagement trend analysis with 2x2 control layout"""
     
     component = dbc.Card([
         dbc.CardHeader([
-            html.H5("Office-Level Training Engagement", className="mb-0"),
-            html.Small("Training participation across different offices and AORs", className="text-muted")
+            html.H5("Training Engagement Trends", className="mb-0"),
+            html.Small("Track training participation trends across AORs and offices over time", className="text-muted")
         ]),
         dbc.CardBody([
-            # Chart controls
+            # Enhanced chart controls in 2x2 layout
             dbc.Row([
+                # First row of controls
+                dbc.Col([
+                    html.Label("Group By:", className="form-label"),
+                    dcc.Dropdown(
+                        id="engagement-grouping-dropdown",
+                        options=[
+                            {"label": "By AOR", "value": "aor"},
+                            {"label": "By Office", "value": "office"},
+                            {"label": "Top 10 Performers", "value": "top10"}
+                        ],
+                        value="aor",
+                        className="mb-3"
+                    )
+                ], width=6),
                 dbc.Col([
                     html.Label("Engagement Metric:", className="form-label"),
                     dcc.Dropdown(
@@ -25,25 +39,48 @@ def get_office_engagement_layout():
                         value="total_attendances",
                         className="mb-3"
                     )
+                ], width=6)
+            ], className="mb-2"),
+            
+            dbc.Row([
+                # Second row of controls
+                dbc.Col([
+                    html.Label("Time Granularity:", className="form-label"),
+                    dcc.Dropdown(
+                        id="engagement-time-granularity-dropdown",
+                        options=[
+                            {"label": "Monthly", "value": "monthly"},
+                            {"label": "Quarterly", "value": "quarterly"},
+                            {"label": "Yearly", "value": "yearly"}
+                        ],
+                        value="monthly",
+                        className="mb-3"
+                    )
                 ], width=6),
                 dbc.Col([
-                    html.Label("Time Period:", className="form-label"),
+                    html.Label("Show Benchmarks:", className="form-label"),
                     dcc.Dropdown(
-                        id="office-engagement-period-dropdown",
+                        id="engagement-benchmark-dropdown",
                         options=[
-                            {"label": "All Time", "value": "all"},
-                            {"label": "Last 12 Months", "value": "12m"},
-                            {"label": "Last 6 Months", "value": "6m"},
-                            {"label": "Last 3 Months", "value": "3m"}
+                            {"label": "None", "value": "none"},
+                            {"label": "Average Line", "value": "average"},
+                            {"label": "Target Line", "value": "target"},
+                            {"label": "Both", "value": "both"}
                         ],
-                        value="12m",
+                        value="average",
                         className="mb-3"
                     )
                 ], width=6)
-            ]),
+            ], className="mb-3"),
             
-            # Chart
-            dcc.Graph(id="office-engagement-heatmap", config={'displayModeBar': False})
+            # Trend chart
+            dcc.Graph(
+                id="engagement-trends-chart", 
+                config={'displayModeBar': True, 'modeBarButtonsToRemove': ['pan2d', 'lasso2d']}
+            ),
+            
+            # Summary insights below chart
+            html.Div(id="engagement-insights-summary", className="mt-3 p-3 bg-light rounded")
         ])
     ], className="mb-4 shadow-sm border-0")
     
