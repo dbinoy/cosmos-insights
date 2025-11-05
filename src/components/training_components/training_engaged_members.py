@@ -47,6 +47,21 @@ def get_engaged_members_layout():
                 dbc.Col([
                     dbc.Row([
                         dbc.Col([
+                            html.Label("Show", className="form-label-sm mb-1"),
+                            dcc.Dropdown(
+                                id="top-members-count-dropdown",
+                                options=[
+                                    {'label': 'Top 10', 'value': 10},
+                                    {'label': 'Top 20', 'value': 20},
+                                    {'label': 'Top 30', 'value': 30},
+                                    {'label': 'Top 50', 'value': 50}
+                                ],
+                                value=20,
+                                clearable=False,
+                                className="form-control-sm"
+                            )
+                        ], width=4),                        
+                        dbc.Col([
                             html.Label("Engagement Metric", className="form-label-sm mb-1"),
                             dcc.Dropdown(
                                 id="engagement-metric-dropdown",
@@ -59,22 +74,7 @@ def get_engaged_members_layout():
                                 clearable=False,
                                 className="form-control-sm"
                             )
-                        ], width=8),
-                        dbc.Col([
-                            html.Label("Show Top", className="form-label-sm mb-1"),
-                            dcc.Dropdown(
-                                id="top-members-count-dropdown",
-                                options=[
-                                    {'label': '10', 'value': 10},
-                                    {'label': '20', 'value': 20},
-                                    {'label': '30', 'value': 30},
-                                    {'label': '50', 'value': 50}
-                                ],
-                                value=20,
-                                clearable=False,
-                                className="form-control-sm"
-                            )
-                        ], width=4)
+                        ], width=8)
                     ])
                 ], width=6)
             ])
@@ -95,7 +95,13 @@ def get_engaged_members_layout():
                             style={'cursor': 'pointer'}
                         )
                     ]
-                )                
+                ),
+                # ✅ Added insights panel
+                html.Div(
+                    id="member-insights-summary", 
+                    className="mt-3 p-3 bg-light rounded",
+                    style={'minHeight': '60px'}
+                )               
             ], 
             id="chart-wrapper",  
             style={

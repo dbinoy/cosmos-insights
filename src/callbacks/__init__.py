@@ -3,6 +3,7 @@ from src.callbacks.training_callbacks.training_summary_cards import register_tra
 from src.callbacks.training_callbacks.training_engaged_members import register_training_engaged_members_callbacks
 from src.callbacks.training_callbacks.training_engaged_members import register_training_chart_modal_callbacks
 from src.callbacks.training_callbacks.training_office_engagement import register_training_office_engagement_callbacks
+from src.callbacks.training_callbacks.training_office_engagement import register_training_office_engagement_modal_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
@@ -10,3 +11,4 @@ def register_all_callbacks(app):
     register_training_engaged_members_callbacks(app)
     register_training_chart_modal_callbacks(app)
     register_training_office_engagement_callbacks(app)
+    register_training_office_engagement_modal_callbacks(app)

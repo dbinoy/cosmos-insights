@@ -18,7 +18,7 @@ def get_filters_layout():
                 ], width=4),                
                 dbc.Col([
                     html.Div([
-                        html.Label("Aor"),                     
+                        html.Label("AOR"),                     
                         dcc.Dropdown(
                             id="training-aor-dropdown", 
                             options=[],
@@ -56,7 +56,7 @@ def get_filters_layout():
             dbc.Row([
                 dbc.Col([
                     html.Div([
-                        html.Label("Topics"),
+                        html.Label("Topic"),
                         dcc.Dropdown(
                             id="training-topics-dropdown", 
                             options=[],

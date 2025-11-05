@@ -1,3 +1,27 @@
+import os
+from dotenv import load_dotenv
+
+# Load environment-specific configuration BEFORE importing anything else
+def load_environment():
+    """Load environment configuration based on ENVIRONMENT variable"""
+    environment = os.getenv('ENVIRONMENT', 'development')
+    env_file = f'.env.{environment}'
+    
+    # Try to load environment-specific file first
+    if os.path.exists(env_file):
+        load_dotenv(env_file)
+        print(f"✅ Loaded configuration from {env_file}")
+    else:
+        # Fallback to default .env
+        load_dotenv()
+        print("✅ Loaded default .env configuration")
+    
+    return environment
+
+# Load environment first
+current_env = load_environment()
+
+from src.config.settings import config
 import dash
 from dash import html, dcc, Input, Output
 import dash_bootstrap_components as dbc
@@ -122,4 +146,6 @@ def display_page(pathname):
 
 # Run app
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8060, debug=True)
+    print(f"🚀 Starting Cosmos Insights in {config.ENVIRONMENT} mode")
+    print(f"📊 Performance monitoring: {'enabled' if config.ENABLE_PERFORMANCE_MONITORING else 'disabled'}")    
+    app.run(host='0.0.0.0', port=8060, debug=config.IS_DEVELOPMENT)
