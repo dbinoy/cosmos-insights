@@ -8,6 +8,8 @@ from src.callbacks.training_callbacks.training_session_scheduling import registe
 from src.callbacks.training_callbacks.training_session_scheduling import register_training_session_scheduling_modal_callbacks
 from src.callbacks.training_callbacks.training_instructor_performance import register_training_instructor_performance_callbacks
 from src.callbacks.training_callbacks.training_instructor_performance import register_training_instructor_performance_modal_callbacks
+from src.callbacks.training_callbacks.training_gap_analysis import register_training_gap_analysis_callbacks
+from src.callbacks.training_callbacks.training_gap_analysis import register_training_gap_analysis_modal_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
@@ -20,3 +22,5 @@ def register_all_callbacks(app):
     register_training_session_scheduling_modal_callbacks(app)
     register_training_instructor_performance_callbacks(app)
     register_training_instructor_performance_modal_callbacks(app)
+    register_training_gap_analysis_callbacks(app)
+    register_training_gap_analysis_modal_callbacks(app)
