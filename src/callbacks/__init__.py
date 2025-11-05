@@ -6,6 +6,8 @@ from src.callbacks.training_callbacks.training_office_engagement import register
 from src.callbacks.training_callbacks.training_office_engagement import register_training_office_engagement_modal_callbacks
 from src.callbacks.training_callbacks.training_session_scheduling import register_training_session_scheduling_callbacks
 from src.callbacks.training_callbacks.training_session_scheduling import register_training_session_scheduling_modal_callbacks
+from src.callbacks.training_callbacks.training_instructor_performance import register_training_instructor_performance_callbacks
+from src.callbacks.training_callbacks.training_instructor_performance import register_training_instructor_performance_modal_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
@@ -16,3 +18,5 @@ def register_all_callbacks(app):
     register_training_office_engagement_modal_callbacks(app)
     register_training_session_scheduling_callbacks(app)
     register_training_session_scheduling_modal_callbacks(app)
+    register_training_instructor_performance_callbacks(app)
+    register_training_instructor_performance_modal_callbacks(app)
