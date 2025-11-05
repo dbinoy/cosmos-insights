@@ -24,10 +24,6 @@ def create_training_dashboard_layout():
 
         # Data stores
         dcc.Store(id="training-filtered-query-store"),
-        # dcc.Store(id="training-cache-check-store"),
-        # dcc.Store(id="training-all-data-store"),
-        # dcc.Store(id="training-data-ready"),
-        # dcc.Store(id="training-filtered-data-store"),    
 
         dbc.Row([
             dbc.Col([
@@ -65,17 +61,17 @@ def create_training_dashboard_layout():
         dbc.Row([
             dbc.Col([
                 html.Div(get_session_scheduling_layout(), id="training-session-scheduling-container")
-            ], width=12)
+            ], width=6, lg=6),
+            dbc.Col([
+                html.Div(get_instructor_performance_layout(), id="training-instructor-performance-container")
+            ], width=6, lg=6)            
         ]),
         
         # Charts Section - Row 3
         dbc.Row([
             dbc.Col([
                 html.Div(get_gap_analysis_layout(), id="training-gap-analysis-container")
-            ], width=6, lg=6),
-            dbc.Col([
-                html.Div(get_instructor_performance_layout(), id="training-instructor-performance-container")
-            ], width=6, lg=6)
+            ], width=12),
         ]),
         
         # # Data Table Section
