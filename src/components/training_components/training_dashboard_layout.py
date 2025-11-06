@@ -27,7 +27,7 @@ def create_training_dashboard_layout():
 
         dbc.Row([
             dbc.Col([
-                html.H2("Training Dashboard (Under Development)", className="mb-1"),
+                html.H2("Training Dashboard", className="mb-1"),
                 html.P("Comprehensive insights into training engagement, performance, and trends", 
                       className="text-muted mb-3")
             ], width=8),

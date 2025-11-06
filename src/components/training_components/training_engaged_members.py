@@ -42,7 +42,7 @@ def get_engaged_members_layout():
         dbc.CardHeader([
             dbc.Row([
                 dbc.Col([
-                    html.H5("Top Engaged Members", className="mb-0")
+                    html.H5("Top Engaged Members", className="mb-0 flex-grow-1")
                 ], width=6),
                 dbc.Col([
                     dbc.Row([
@@ -96,7 +96,6 @@ def get_engaged_members_layout():
                         )
                     ]
                 ),
-                # ✅ Added insights panel
                 html.Div(
                     id="member-insights-summary", 
                     className="mt-3 p-3 bg-light rounded",
