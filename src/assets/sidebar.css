@@ -1,49 +1,104 @@
-/* assets/sidebar.css */
+/* ✅ CONSOLIDATED: Complete sidebar CSS with fixed positioning */
 
 /* Make the whole app sit nicely against the dark sidebar */
 body {
-  background-color: #0b0c10; /* optional, tweak as needed */
+  background-color: #0b0c10;
+  margin: 0;
+  padding: 0;
 }
 
-/* Sidebar container */
+/* ✅ ENHANCED: Fixed sidebar container with your existing styles */
 .sidebar {
-  /* keeps it full height via vh-100 in your layout */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 100vh !important;
+  width: 250px !important;
+  z-index: 1000 !important;
+  overflow-y: auto !important;
+  background-color: #343a40 !important;
+  border-right: 1px solid #495057 !important;
+  padding: 0.5rem !important;
 }
 
-/* Nav links: flex layout for icon / label / chevron */
+/* ✅ NEW: Main content positioning to account for fixed sidebar */
+.main-content {
+  margin-left: 250px !important;
+  min-height: 100vh !important;
+  padding: 1.5rem !important;
+  background-color: #f8f9fa;
+  animation: fadeIn 0.3s ease-in;
+}
+
+/* ✅ NEW: Sidebar logo sticky positioning */
+.sidebar-logo {
+  position: sticky;
+  top: 0;
+  background-color: #343a40;
+  z-index: 1001;
+  padding: 10px 0 20px 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #495057;
+}
+
+/* ✅ CONSOLIDATED: Nav links with your flex layout + enhanced styling */
 .sidebar .nav-link {
   display: flex;
   align-items: center;
-  gap: .75rem;
-  color: #cfd3da;               /* subtle light */
-  padding: .65rem .75rem;
-  border-radius: .5rem;
-  transition: background-color .15s ease, color .15s ease;
-}
-
-/* Hover and focus */
-.sidebar .nav-link:hover,
-.sidebar .nav-link:focus {
-  color: #ffffff;
-  background-color: rgba(255,255,255, .08);
+  gap: 0.75rem;
+  color: #cfd3da;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  margin: 6px 8px;
+  font-weight: 500;
+  position: relative;
+  overflow: hidden;
   text-decoration: none;
 }
 
-/* Active state—highlight and left accent bar */
+/* ✅ ENHANCED: Subtle animation effect on hover */
+.sidebar .nav-link::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition: left 0.5s;
+}
+
+.sidebar .nav-link:hover::before {
+  left: 100%;
+}
+
+/* ✅ CONSOLIDATED: Hover and focus states with your colors + enhancements */
+.sidebar .nav-link:hover,
+.sidebar .nav-link:focus {
+  color: #ffffff;
+  background-color: rgba(255,255,255, 0.12);
+  text-decoration: none;
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ✅ CONSOLIDATED: Active state with your accent bar + enhanced styling */
 .sidebar .nav-link.active {
   color: #ffffff !important;
-  background-color: rgba(var(--bs-primary-rgb, 13,110,253), .15);
-  box-shadow: inset 3px 0 0 var(--bs-primary, #0d6efd);
+  background: linear-gradient(135deg, rgba(var(--bs-primary-rgb, 13,110,253), 0.2), rgba(var(--bs-primary-rgb, 13,110,253), 0.15));
+  box-shadow: inset 3px 0 0 var(--bs-primary, #0d6efd), 0 4px 15px rgba(0,123,255,0.2);
 }
 
-/* Icon on the left */
+/* ✅ PRESERVED: Your icon styling */
 .sidebar .sidebar-icon {
-  font-size: 1.1rem; /* adjust size */
+  font-size: 1.1rem;
   line-height: 1;
-  opacity: .95;
+  opacity: 0.95;
+  margin-right: 8px;
 }
 
-/* Label flexes to take remaining space */
+/* ✅ PRESERVED: Your label styling with flex */
 .sidebar .sidebar-label {
   flex: 1;
   white-space: nowrap;
@@ -51,12 +106,195 @@ body {
   text-overflow: ellipsis;
 }
 
-/* Chevron on the right; rotate when active */
+/* ✅ ENHANCED: Your chevron styling with improved animations */
 .sidebar .sidebar-arrow {
   margin-left: auto;
-  transition: transform .2s ease;
-  opacity: .9;
+  transition: transform 0.2s ease;
+  opacity: 0.9;
+  font-size: 0.8rem;
 }
+
 .sidebar .nav-link.active .sidebar-arrow {
   transform: rotate(90deg);
+}
+
+.sidebar .nav-link:hover .sidebar-arrow {
+  transform: translateX(2px);
+}
+
+.sidebar .nav-link.active:hover .sidebar-arrow {
+  transform: rotate(90deg) translateX(2px);
+}
+
+/* ✅ NEW: Custom scrollbar for the fixed sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: #495057;
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #6c757d;
+  border-radius: 4px;
+  border: 2px solid #495057;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: #adb5bd;
+}
+
+/* ✅ NEW: Smooth page transitions for main content */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+/* ✅ NEW: Responsive design for different screen sizes */
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 220px !important;
+  }
+  
+  .main-content {
+    margin-left: 220px !important;
+  }
+}
+
+@media (max-width: 992px) {
+  .sidebar {
+    width: 200px !important;
+  }
+  
+  .main-content {
+    margin-left: 200px !important;
+  }
+  
+  .sidebar-label {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    width: 250px !important;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+  }
+  
+  .sidebar.show {
+    transform: translateX(0);
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  
+  /* ✅ NEW: Mobile hamburger menu */
+  .mobile-menu-toggle {
+    display: block;
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1002;
+    background: #343a40;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: all 0.2s ease;
+  }
+  
+  .mobile-menu-toggle:hover {
+    background: #495057;
+    transform: scale(1.05);
+  }
+  
+  .mobile-menu-toggle i {
+    font-size: 1.2rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu-toggle {
+    display: none !important;
+  }
+}
+
+/* ✅ NEW: Mobile overlay for sidebar */
+@media (max-width: 768px) {
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 999;
+  }
+  
+  .sidebar-overlay.show {
+    display: block;
+  }
+}
+
+/* ✅ NEW: Focus states for accessibility */
+.sidebar .nav-link:focus {
+  outline: 2px solid var(--bs-primary, #0d6efd);
+  outline-offset: 2px;
+}
+
+/* ✅ NEW: Reduced motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar .nav-link,
+  .sidebar .nav-link::before,
+  .sidebar .sidebar-arrow,
+  .main-content {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ✅ NEW: High contrast mode support */
+@media (prefers-contrast: high) {
+  .sidebar {
+    border-right: 2px solid #ffffff;
+  }
+  
+  .sidebar .nav-link {
+    border: 1px solid transparent;
+  }
+  
+  .sidebar .nav-link:hover,
+  .sidebar .nav-link:focus {
+    border-color: #ffffff;
+  }
+  
+  .sidebar .nav-link.active {
+    border-color: var(--bs-primary, #0d6efd);
+  }
+}
+
+/* ✅ NEW: Print styles (hide sidebar in print) */
+@media print {
+  .sidebar {
+    display: none !important;
+  }
+  
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
 }
