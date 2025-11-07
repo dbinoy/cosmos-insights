@@ -210,14 +210,38 @@ def register_training_engaged_members_callbacks(app):
         values = top_members['metric_value'].tolist()
         metric_label = top_members['metric_label'].iloc[0] if 'metric_label' in top_members.columns else ''
         
-        # Truncate long names for better display on x-axis
-        display_names = [name[:15] + '...' if len(name) > 15 else name for name in member_names]
+        # ✅ FIXED: Handle duplicate names by making them unique with member ID suffix
+        display_names = []
+        name_counts = {}
         
-        # Create hover text with detailed information
+        # First pass: count occurrences of each name
+        for name in member_names:
+            name_counts[name] = name_counts.get(name, 0) + 1
+        
+        # Second pass: create unique display names
+        for i, (_, member) in enumerate(top_members.iterrows()):
+            name = member['MemberName']
+            member_id = member.get('MemberID', '')
+            
+            if name_counts[name] > 1:  # Duplicate name found
+                # Use last 4 chars of member ID to make it unique
+                suffix = member_id[-4:] if len(member_id) >= 4 else member_id
+                unique_name = f"{name} #{suffix}"
+            else:
+                unique_name = name
+            
+            # Truncate if too long for display
+            if len(unique_name) > 25:
+                unique_name = unique_name[:22] + '...'
+            
+            display_names.append(unique_name)
+        
+        # Create hover text with detailed information including MemberID
         hover_texts = []
-        for _, member in top_members.iterrows():
+        for i, (_, member) in enumerate(top_members.iterrows()):
             hover_text = (
                 f"<b>{member['MemberName']}</b><br>"
+                f"Member ID: {member.get('MemberID', 'Unknown')}<br>"
                 f"Office: {member.get('OfficeCode', 'Unknown')}<br>"
                 f"Sessions Attended: {member.get('TotalSessionsAttended', 0)}<br>"
                 f"Sessions Registered: {member.get('TotalSessionsRegistered', 0)}<br>"
@@ -237,22 +261,50 @@ def register_training_engaged_members_callbacks(app):
         
         info = metric_info.get(metric, metric_info['sessions_attended'])
         
-        fig = go.Figure(data=[
-            go.Bar(
-                x=display_names,  
-                y=values,        
-                text=[f"{v}{metric_label}" for v in values],
-                textposition='outside',
-                hovertemplate=hover_texts,
-                name='',
-                marker=dict(
-                    color=values,
-                    colorscale='Viridis',
-                    showscale=False,
-                    line=dict(color='rgba(54, 162, 235, 1.0)', width=1)
+        # ✅ CRITICAL FIX: Create individual bar traces to prevent stacking
+        # Instead of one trace with multiple bars, create separate traces for duplicate names
+        duplicate_names = [name for name, count in name_counts.items() if count > 1]
+        
+        if any(member['MemberName'] in duplicate_names for _, member in top_members.iterrows()):
+            # When we have duplicates, create individual traces
+            traces = []
+            for i, (display_name, value, hover_text) in enumerate(zip(display_names, values, hover_texts)):
+                traces.append(
+                    go.Bar(
+                        x=[display_name],
+                        y=[value],
+                        text=[f"{value}{metric_label}"],
+                        textposition='outside',
+                        hovertemplate=[hover_text],
+                        name='',
+                        showlegend=False,
+                        marker=dict(
+                            color=value,
+                            colorscale='Viridis',
+                            showscale=False,
+                            line=dict(color='rgba(54, 162, 235, 1.0)', width=1)
+                        )
+                    )
                 )
-            )
-        ])
+            fig = go.Figure(data=traces)
+        else:
+            # No duplicates, use the original single trace approach
+            fig = go.Figure(data=[
+                go.Bar(
+                    x=display_names,
+                    y=values,        
+                    text=[f"{v}{metric_label}" for v in values],
+                    textposition='outside',
+                    hovertemplate=hover_texts,
+                    name='',
+                    marker=dict(
+                        color=values,
+                        colorscale='Viridis',
+                        showscale=False,
+                        line=dict(color='rgba(54, 162, 235, 1.0)', width=1)
+                    )
+                )
+            ])
         
         fig.update_layout(
             title={
@@ -278,15 +330,12 @@ def register_training_engaged_members_callbacks(app):
             plot_bgcolor='white',
             paper_bgcolor='white',
             hovermode='closest',
-            clickmode='event+select'
-        )
-        
-        fig.update_traces(
-            hovertemplate=hover_texts
+            clickmode='event+select',
+            barmode='group'  # ✅ Ensure bars are grouped, not stacked
         )
         
         return fig
-
+       
     def create_empty_chart(title, message):
         """
         Create an empty chart with a message (matching vertical bar chart style)
