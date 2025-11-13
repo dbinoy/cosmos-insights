@@ -189,7 +189,7 @@ def register_workflow_filter_callbacks(app):
          Output("workflow-issue-dropdown", "options"),
          Output("workflow-issue-dropdown", "placeholder"),
          Output("workflow-issue-spinner", "style")],     
-        Input("workflow-filtered-query-store", "id"),  # Simple trigger
+        Input("workflow-filtered-query-store", "id"), 
         prevent_initial_call=False
     )
     @monitor_performance("Workflow Initial Filters Population")
