@@ -12,6 +12,8 @@ from src.callbacks.training_callbacks.training_gap_analysis import register_trai
 from src.callbacks.training_callbacks.training_gap_analysis import register_training_gap_analysis_modal_callbacks
 from src.callbacks.training_callbacks.training_data_table import register_training_data_table_callbacks
 
+from src.callbacks.workflow_callbacks.workflow_filters import register_workflow_filter_callbacks
+
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
     register_training_summary_cards_callbacks(app)
@@ -26,3 +28,5 @@ def register_all_callbacks(app):
     register_training_gap_analysis_callbacks(app)
     register_training_gap_analysis_modal_callbacks(app)
     register_training_data_table_callbacks(app)
+
+    register_workflow_filter_callbacks(app)

@@ -142,7 +142,7 @@ def register_training_data_table_callbacks(app):
             """
         }
         
-        return run_queries(queries, len(queries))
+        return run_queries(queries, 'training', len(queries))
 
     def parse_custom_datetime(date_str):
         """

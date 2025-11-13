@@ -99,8 +99,8 @@ def register_training_session_scheduling_callbacks(app):
                 ORDER BY [DateKey]
             """
         }
-        
-        return run_queries(queries, len(queries))
+
+        return run_queries(queries, 'training', len(queries))
 
     def parse_custom_datetime(date_str):
         """

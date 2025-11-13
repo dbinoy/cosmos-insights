@@ -119,8 +119,8 @@ def register_training_instructor_performance_callbacks(app):
                 AND [AorShortName] IS NOT NULL
             """
         }
-        
-        return run_queries(queries, len(queries))
+
+        return run_queries(queries, 'training', len(queries))
 
     def parse_custom_datetime(date_str):
         """

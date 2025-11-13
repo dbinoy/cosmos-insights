@@ -481,7 +481,7 @@ def register_training_engaged_members_callbacks(app):
             }
             
             # Execute all queries at once
-            results = run_queries(queries, 1)
+            results = run_queries(queries, 'training',  1)
 
             df_members = results["active_members"]
             df_attendance = results["attendance_stats"]

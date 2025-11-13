@@ -15,7 +15,7 @@ def register_training_summary_cards_callbacks(app):
             "attendance_stats": 'SELECT [TrainingClassId],[StartTime],[TrainingTopicId],[LocationId],[InstructorId],[AorShortName],[MemberOffice],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]',
             "active_members": "SELECT [MemberID],[MemberName],[MemberType],[MemberStatus],[OfficeCode],[TotalSessionsRegistered],[TotalSessionsAttended] FROM [consumable].[Fact_MemberEngagement] WHERE ([TotalSessionsRegistered] > 0 OR [TotalSessionsAttended] > 0) AND [MemberStatus] = 'Active'"            
         }
-        result = run_queries(queries, len(queries))
+        result = run_queries(queries, 'training', len(queries))
         # print(f"✅ Fetched base data for training summary cards: {len(result['offices'])} offices, {len(result['classes'])} classes, {len(result['request_stats'])} request stats, {len(result['attendance_stats'])} attendance stats, {len(result['active_members'])} active members")
         return result
 

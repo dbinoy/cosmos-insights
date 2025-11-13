@@ -1,60 +1,212 @@
-from dash import html
+from dash import html, dcc
 import dash_bootstrap_components as dbc
 
 def get_filters_layout():
-    return dbc.Card([
+    filters_layout = dbc.Card([
         dbc.CardBody([
-            html.H5("Filters", className="card-title mb-3"),
+            # Row 1: Date Range, AOR, Case Type (3 items - width 4 each)
             dbc.Row([
-                # Date Range Filter
                 dbc.Col([
-                    html.Label("Date Range", className="form-label"),
-                    dbc.Row([
-                        dbc.Col([
-                            html.Div(id="workflow-date-from-spinner", className="spinner-container"),
-                            html.Div(id="workflow-date-from-dropdown-container")
-                        ], width=6),
-                        dbc.Col([
-                            html.Div(id="workflow-date-to-spinner", className="spinner-container"),
-                            html.Div(id="workflow-date-to-dropdown-container")
-                        ], width=6)
-                    ])
-                ], width=12, md=3),
-
-                # Status Filter
+                    html.Div([
+                        html.Label("Date Range"),
+                        dcc.DatePickerRange(
+                            id="workflow-date-range-picker",
+                            start_date_placeholder_text="",
+                            end_date_placeholder_text="",
+                            disabled=False
+                        )
+                    ], className="d-grid gap-1")
+                ], width=4),                
                 dbc.Col([
-                    html.Label("Status", className="form-label"),
-                    html.Div(id="workflow-status-spinner", className="spinner-container"),
-                    html.Div(id="workflow-status-dropdown-container")
-                ], width=12, md=2),
-
-                # Priority Filter
+                    html.Div([
+                        html.Label("AOR"),                     
+                        dcc.Dropdown(
+                            id="workflow-aor-dropdown", 
+                            options=[],
+                            placeholder="Loading AORs...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-aor-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                        
+                    ], className="d-grid gap-1")
+                ], width=4),   
                 dbc.Col([
-                    html.Label("Priority", className="form-label"),
-                    html.Div(id="workflow-priority-spinner", className="spinner-container"),
-                    html.Div(id="workflow-priority-dropdown-container")
-                ], width=12, md=2),
-
-                # Product Filter
+                    html.Div([
+                        html.Label("Case Type"),
+                        dcc.Dropdown(
+                            id="workflow-case-type-dropdown", 
+                            options=[],
+                            placeholder="Loading Case Types...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-case-type-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=4)                                       
+            ], className="mb-2"),
+            
+            # Row 2: Product, Module, Feature, Issue (4 items - width 3 each)
+            dbc.Row([
                 dbc.Col([
-                    html.Label("Product", className="form-label"),
-                    html.Div(id="workflow-product-spinner", className="spinner-container"),
-                    html.Div(id="workflow-product-dropdown-container")
-                ], width=12, md=2),
-
-                # Assignee Filter
+                    html.Div([
+                        html.Label("Product"),
+                        dcc.Dropdown(
+                            id="workflow-product-dropdown", 
+                            options=[],
+                            placeholder="Loading Products...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-product-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=3),
                 dbc.Col([
-                    html.Label("Assignee", className="form-label"),
-                    html.Div(id="workflow-assignee-spinner", className="spinner-container"),
-                    html.Div(id="workflow-assignee-dropdown-container")
-                ], width=12, md=2),
-
-                # Case Origin Filter
+                    html.Div([
+                        html.Label("Module"),
+                        dcc.Dropdown(
+                            id="workflow-module-dropdown", 
+                            options=[],
+                            placeholder="Loading Modules...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-module-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=3),
                 dbc.Col([
-                    html.Label("Origin", className="form-label"),
-                    html.Div(id="workflow-origin-spinner", className="spinner-container"),
-                    html.Div(id="workflow-origin-dropdown-container")
-                ], width=12, md=1)
-            ])
-        ])
-    ], className="mb-4")
+                    html.Div([
+                        html.Label("Feature"),
+                        dcc.Dropdown(
+                            id="workflow-feature-dropdown", 
+                            options=[],
+                            placeholder="Loading Features...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-feature-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=3),
+                dbc.Col([
+                    html.Div([
+                        html.Label("Issue"),
+                        dcc.Dropdown(
+                            id="workflow-issue-dropdown", 
+                            options=[],
+                            placeholder="Loading Issues...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-issue-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=3)              
+            ], className="mb-2"),
+            
+            # Row 3: Case Origin, Case Reason, Status, Priority (4 items - width 3 each)
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        html.Label("Case Origin"),
+                        dcc.Dropdown(
+                            id="workflow-origin-dropdown", 
+                            options=[],
+                            placeholder="Loading Case Origins...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-origin-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=3),
+                dbc.Col([
+                    html.Div([
+                        html.Label("Case Reason"),
+                        dcc.Dropdown(
+                            id="workflow-case-reason-dropdown", 
+                            options=[],
+                            placeholder="Loading Case Reasons...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-case-reason-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=3),
+                dbc.Col([
+                    html.Div([
+                        html.Label("Status"),
+                        dcc.Dropdown(
+                            id="workflow-status-dropdown", 
+                            options=[],
+                            placeholder="Loading Statuses...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-status-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=3),
+                dbc.Col([
+                    html.Div([
+                        html.Label("Priority"),
+                        dcc.Dropdown(
+                            id="workflow-priority-dropdown", 
+                            options=[],
+                            placeholder="Loading Priorities...",
+                            multi=True,
+                            disabled=False
+                        ),
+                        dbc.Spinner(
+                            id="workflow-priority-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )                           
+                    ], className="d-grid gap-1")
+                ], width=3)              
+            ], className="mb-2"),
+        ]),
+        ], className="mb-3"
+    )    
+    return filters_layout

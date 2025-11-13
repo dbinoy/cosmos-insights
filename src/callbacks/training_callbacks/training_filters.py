@@ -33,49 +33,49 @@ def register_training_filter_callbacks(app):
     def get_aors_data():
         """Fetch AORs data - cached independently"""
         query = 'SELECT DISTINCT [AorID], [AorName], [AorShortName] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName]'
-        result = run_queries({"aors": query}, 1)
+        result = run_queries({"aors": query}, 'training', 1)
         return result["aors"]
 
     def get_offices_data():
         """Fetch offices data - cached independently"""
         query = 'SELECT DISTINCT [AorShortName], [OfficeCode] FROM [consumable].[Dim_Aors] ORDER BY [AorShortName], [OfficeCode]'
-        result = run_queries({"offices": query}, 1)
+        result = run_queries({"offices": query}, 'training', 1)
         return result["offices"]
 
     def get_topics_data():
         """Fetch topics data - cached independently"""
         query = 'SELECT DISTINCT [TopicId], [TopicName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName]'
-        result = run_queries({"topics": query}, 1)
+        result = run_queries({"topics": query}, 'training', 1)
         return result["topics"]
 
     def get_instructors_data():
         """Fetch instructors data - cached independently"""
         query = 'SELECT [InstructorID], [Name] FROM [consumable].[Dim_Instructors] ORDER BY [Name]'
-        result = run_queries({"instructors": query}, 1)
+        result = run_queries({"instructors": query}, 'training', 1)
         return result["instructors"]
 
     def get_locations_data():
         """Fetch locations data - cached independently"""
         query = 'SELECT [LocationID], [Name] FROM [consumable].[Dim_Locations] ORDER BY [Name]'
-        result = run_queries({"locations": query}, 1)
+        result = run_queries({"locations": query}, 'training', 1)
         return result["locations"]
 
     def get_classes_data():
         """Fetch classes data - cached independently"""
         query = 'SELECT [TopicId],[TopicName],[ClassId],[ClassName],[AorShortName],[StartTime],[InstructorId],[InstructorName],[LocationId],[LocationName] FROM [consumable].[Dim_ClassTopics] ORDER BY [TopicName], [ClassName], [StartTime]'
-        result = run_queries({"classes": query}, 1)
+        result = run_queries({"classes": query}, 'training', 1)
         return result["classes"]
 
     def get_request_stats_data():
         """Fetch request stats for filtering - cached independently"""
         query = 'SELECT [TrainingTopicId],[TrainingTopicName],[AorShortName],[AorName],[MemberOffice],[MembersRequested],[TotalRequests] FROM [consumable].[Fact_RequestStats]'
-        result = run_queries({"request_stats": query}, 1)
+        result = run_queries({"request_stats": query}, 'training', 1)
         return result["request_stats"]
 
     def get_attendance_stats_data():
         """Fetch attendance stats for filtering - cached independently"""
         query = 'SELECT [TrainingClassId],[ClassName],[TrainingTopicId],[TrainingTopicName],[LocationId],[LocationName],[InstructorId],[InstructorName],[AorShortName],[MemberOffice],[MembersAttended],[TotalAttendances] FROM [consumable].[Fact_AttendanceStats]'
-        result = run_queries({"attendance_stats": query}, 1)
+        result = run_queries({"attendance_stats": query}, 'training', 1)
         return result["attendance_stats"]
 
     # ✅ Initial filters - fetch only AORs data
