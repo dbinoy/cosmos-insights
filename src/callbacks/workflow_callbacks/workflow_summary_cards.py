@@ -34,7 +34,6 @@ def register_workflow_summary_cards_callbacks(app):
             "work_items": '''
                 SELECT 
                     w.WorkItemId,
-                    w.Title,
                     w.CreatedOn,
                     w.ClosedOn,
                     w.EscalatedOn,
@@ -73,7 +72,9 @@ def register_workflow_summary_cards_callbacks(app):
         if df.empty:
             return df
             
-        filtered_df = df.copy()
+        df['CreatedOn'] = pd.to_datetime(df['CreatedOn'], errors='coerce')
+        df['ClosedOn'] = pd.to_datetime(df['ClosedOn'], errors='coerce')            
+        filtered_df = df[df['ClosedOn'] >= df['CreatedOn']].copy()
         
         # Date range filter
         if start_date and end_date:

@@ -18,10 +18,13 @@ def get_ticket_volume_layout():
             ])
         ]),
         dbc.CardBody([
-            dcc.Loading(
-                dcc.Graph(id="workflow-ticket-volume-chart", style={'height': '400px'}),
-                type="default"
-            ),
+            # Chart wrapper for modal functionality
+            html.Div([
+                dcc.Loading(
+                    dcc.Graph(id="workflow-ticket-volume-chart", style={'height': '400px'}),
+                    type="dot"
+                )
+            ], id="workflow-volume-chart-wrapper", style={'cursor': 'pointer'}),
             html.Div(id="workflow-volume-insights", className="mt-3")
         ])
     ], className="mb-4")
