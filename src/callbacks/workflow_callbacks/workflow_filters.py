@@ -115,6 +115,7 @@ def register_workflow_filter_callbacks(app):
                     # ✅ Special case: if AOR is empty string and AorName is "Unspecified"
                     if aor_value == "" and aor_name == "Unspecified":
                         label = "Unspecified"
+                        aor_value = "-"  # Use placeholder value for empty string
                     else:
                         label = f"{aor_value} - {aor_name}"
                     
@@ -147,6 +148,7 @@ def register_workflow_filter_callbacks(app):
                     # ✅ Special case: if value is empty string, show "Unspecified" as label
                     if str_value == "":
                         label = "Unspecified"
+                        str_value = "-"  # Use placeholder value for empty string
                     else:
                         label = titleize(str_value)
                         label = label.replace("N/A", "").strip()                    
@@ -982,4 +984,4 @@ def register_workflow_filter_callbacks(app):
         
         return selections
 
-    print("✅ Workflow filter callbacks registered (no precedence - all filters equal)")
+    # print("✅ Workflow filter callbacks registered (no precedence - all filters equal)")

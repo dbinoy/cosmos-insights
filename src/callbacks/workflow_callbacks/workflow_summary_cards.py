@@ -62,7 +62,7 @@ def register_workflow_summary_cards_callbacks(app):
             '''
         }
         result = run_queries(queries, 'workflow', len(queries))
-        print(f"✅ Fetched workflow base data: {len(result['work_items'])} work items, {len(result['duration_summary'])} duration records")
+        # print(f"✅ Fetched workflow base data: {len(result['work_items'])} work items, {len(result['duration_summary'])} duration records")
         return result
 
     def apply_filters_to_dataset(df, selected_aor=None, selected_case_types=None, selected_status=None, 
@@ -90,7 +90,7 @@ def register_workflow_summary_cards_callbacks(app):
         
         # AOR filter
         if selected_aor is not None and len(selected_aor) > 0 and "All" not in selected_aor:
-            print(f"Applying AOR filter: {selected_aor}")
+            # print(f"Applying AOR filter: {selected_aor}")
             filtered_df = filtered_df[filtered_df["AorShortName"].isin(selected_aor)]
             
         # Case Type filter - using CaseTypeCode logic from filters
@@ -100,48 +100,49 @@ def register_workflow_summary_cards_callbacks(app):
             
         # Product filter
         if selected_products is not None and len(selected_products) > 0 and "All" not in selected_products:
-            print(f"Applying Product filter: {selected_products}")
+            # print(f"Applying Product filter: {selected_products}")
             filtered_df = filtered_df[filtered_df["Product"].isin(selected_products)]
 
         # Module filter
         if selected_modules is not None and len(selected_modules) > 0 and "All" not in selected_modules:
-            print(f"Applying Module filter: {selected_modules}")
+            # print(f"Applying Module filter: {selected_modules}")
             filtered_df = filtered_df[filtered_df["Module"].isin(selected_modules)]
 
         # Feature filter
         if selected_features is not None and len(selected_features) > 0 and "All" not in selected_features:
-            print(f"Applying Feature filter: {selected_features}")
+            # print(f"Applying Feature filter: {selected_features}")
             filtered_df = filtered_df[filtered_df["Feature"].isin(selected_features)]
             
         # Issue filter
         if selected_issues is not None and len(selected_issues) > 0 and "All" not in selected_issues:
-            print(f"Applying Issue filter: {selected_issues}")
+            # print(f"Applying Issue filter: {selected_issues}")
             filtered_df = filtered_df[filtered_df["Issue"].isin(selected_issues)]
 
         # Case Origin filter
         if selected_origins is not None and len(selected_origins) > 0 and "All" not in selected_origins:
-            print(f"Applying Case Origin filter: {selected_origins}")
+            # print(f"Applying Case Origin filter: {selected_origins}")
             filtered_df = filtered_df[filtered_df["CaseOrigin"].isin(selected_origins)]
             
         # Case Reason filter
         if selected_reasons is not None and len(selected_reasons) > 0 and "All" not in selected_reasons:
-            print(f"Applying Case Reason filter: {selected_reasons}")
+            # print(f"Applying Case Reason filter: {selected_reasons}")
             filtered_df = filtered_df[filtered_df["CaseReason"].isin(selected_reasons)]
 
         # Status filter
         if selected_status is not None and len(selected_status) > 0 and "All" not in selected_status:
-            print(f"Applying Status filter: {selected_status}")
+            # print(f"Applying Status filter: {selected_status}")
             filtered_df = filtered_df[filtered_df["WorkItemStatus"].isin(selected_status)]
             
         # Priority filter
         if selected_priority is not None and len(selected_priority) > 0 and "All" not in selected_priority:
-            print(f"Applying Priority filter: {selected_priority}")
+            # print(f"Applying Priority filter: {selected_priority}")
             filtered_df = filtered_df[filtered_df["Priority"].isin(selected_priority)]
             
         return filtered_df
 
     def parse_filter_selections(stored_selections):
         """Parse stored filter selections into individual components"""
+        # print(f"Parsing stored selections: {stored_selections}")
         if not stored_selections:
             return {}
             
@@ -149,16 +150,16 @@ def register_workflow_summary_cards_callbacks(app):
             # Extract filter values from stored selections
             # This should match the structure used in workflow_filters.py
             return {
-                'selected_aor': [item.strip("'") for item in stored_selections.get('AOR', '').split(', ') if item.strip("'")],
-                'selected_case_types': [item.strip("'") for item in stored_selections.get('CaseTypes', '').split(', ') if item.strip("'")],  
-                'selected_status': [item.strip("'") for item in stored_selections.get('Status', '').split(', ') if item.strip("'")],
-                'selected_priority': [item.strip("'") for item in stored_selections.get('Priority', '').split(', ') if item.strip("'")],
-                'selected_origins': [item.strip("'") for item in stored_selections.get('Origins', '').split(', ') if item.strip("'")],
-                'selected_reasons': [item.strip("'") for item in stored_selections.get('Reasons', '').split(', ') if item.strip("'")],
-                'selected_products': [item.strip("'") for item in stored_selections.get('Products', '').split(', ') if item.strip("'")],
-                'selected_features': [item.strip("'") for item in stored_selections.get('Features', '').split(', ') if item.strip("'")],
-                'selected_modules': [item.strip("'") for item in stored_selections.get('Modules', '').split(', ') if item.strip("'")],
-                'selected_issues': [item.strip("'") for item in stored_selections.get('Issues', '').split(', ') if item.strip("'")],
+                'selected_aor': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('AOR', '').split(', ') if item.strip("'")],
+                'selected_case_types': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('CaseTypes', '').split(', ') if item.strip("'")],  
+                'selected_status': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('Status', '').split(', ') if item.strip("'")],
+                'selected_priority': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('Priority', '').split(', ') if item.strip("'")],
+                'selected_origins': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('Origins', '').split(', ') if item.strip("'")],
+                'selected_reasons': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('Reasons', '').split(', ') if item.strip("'")],
+                'selected_products': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('Products', '').split(', ') if item.strip("'")],
+                'selected_features': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('Features', '').split(', ') if item.strip("'")],
+                'selected_modules': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('Modules', '').split(', ') if item.strip("'")],
+                'selected_issues': [item.strip("'") if item!= "'-'" else "" for item in stored_selections.get('Issues', '').split(', ') if item.strip("'")],
                 'start_date': stored_selections.get('Day_From'),
                 'end_date': stored_selections.get('Day_To')
             }
@@ -234,7 +235,7 @@ def register_workflow_summary_cards_callbacks(app):
             
             # Parse filter selections
             filters = parse_filter_selections(stored_selections)
-            
+            # print(f"Applying filters: {filters}")
             # Apply filters to work items
             filtered_df = apply_filters_to_dataset(df_work_items, **filters)
             
@@ -293,7 +294,7 @@ def register_workflow_summary_cards_callbacks(app):
             closed_tickets_formatted = f"{closed_this_month:,}"
             active_assignees_formatted = f"{active_assignees:,}"
             
-            print(f"📊 Workflow Summary Updated: Total={total_tickets}, Open={open_tickets}, Escalated={escalated_tickets}, Avg Res={avg_resolution_formatted}, Closed={closed_this_month}, Assignees={active_assignees}")
+            # print(f"📊 Workflow Summary Updated: Total={total_tickets}, Open={open_tickets}, Escalated={escalated_tickets}, Avg Res={avg_resolution_formatted}, Closed={closed_this_month}, Assignees={active_assignees}")
             
             return [
                 total_tickets_formatted,
