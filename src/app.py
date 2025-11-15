@@ -53,8 +53,8 @@ app.title = "Cosmos Insights"
 server = app.server
 cache.init_app(server)
 
-with server.app_context():
-    cache.clear()
+# with server.app_context():
+#     cache.clear()
 
 # Sidebar layout
 sidebar = dbc.Col(

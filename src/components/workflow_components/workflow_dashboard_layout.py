@@ -45,10 +45,10 @@ def create_workflow_dashboard_layout():
         dbc.Row([
             dbc.Col([
                 html.Div(get_ticket_volume_layout(), id="workflow-ticket-volume-container")
-            ], width=8, lg=8),
+            ], width=6, lg=6),
             dbc.Col([
                 html.Div(get_status_distribution_layout(), id="workflow-status-distribution-container")
-            ], width=4, lg=4)
+            ], width=6, lg=6)
         ]),
 
         # Charts Section - Row 2: Resolution Times & Classification

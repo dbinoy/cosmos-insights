@@ -41,24 +41,6 @@ def register_workflow_ticket_volume_callbacks(app):
                     w.Priority,
                     w.Product
                 FROM [consumable].[Fact_WorkFlowItems] w
-            """,
-            
-            # Get date dimension for proper time series
-            "date_info": """
-                SELECT DISTINCT
-                    [DateKey],
-                    [YearNumber],
-                    [QuarterNumber],
-                    [MonthNumber],
-                    [MonthName],
-                    [WeekNumber],
-                    [DayName],
-                    [DayOfWeek],
-                    [DayOfMonth],
-                    [DayOfYear]
-                FROM [consumable].[Dim_Date]
-                WHERE [DateKey] >= '2020-01-01'
-                ORDER BY [DateKey]
             """
         }
 
@@ -409,14 +391,14 @@ def register_workflow_ticket_volume_callbacks(app):
                     trend_direction = "stable"
                 
                 insights.extend([
-                    f"📊 **Volume Overview**: {total_created:,.0f} tickets created, {total_closed:,.0f} closed ({time_granularity.lower()})",
-                    f"🏆 **Peak Period**: {peak_created_period} had highest volume with {peak_created_count:,.0f} tickets created",
-                    f"📈 **Current Trend**: Ticket creation is {trend_direction} with {current_active:,.0f} currently active"
+                    f"📊 Volume Overview: {total_created:,.0f} tickets created, {total_closed:,.0f} closed ({time_granularity.lower()})",
+                    f"🏆 Peak Period: {peak_created_period} had highest volume with {peak_created_count:,.0f} tickets created",
+                    f"📈 Current Trend: Ticket creation is {trend_direction} with {current_active:,.0f} currently active"
                 ])
             else:
                 insights.extend([
-                    f"📊 **Volume Overview**: {total_created:,.0f} tickets created, {total_closed:,.0f} closed",
-                    f"📈 **Current Status**: {current_active:,.0f} tickets currently active"
+                    f"📊 Volume Overview: {total_created:,.0f} tickets created, {total_closed:,.0f} closed",
+                    f"📈 Current Status: {current_active:,.0f} tickets currently active"
                 ])
             
             # Create styled insight cards

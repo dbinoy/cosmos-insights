@@ -16,6 +16,8 @@ from src.callbacks.workflow_callbacks.workflow_filters import register_workflow_
 from src.callbacks.workflow_callbacks.workflow_summary_cards import register_workflow_summary_cards_callbacks
 from src.callbacks.workflow_callbacks.workflow_ticket_volume import register_workflow_ticket_volume_callbacks
 from src.callbacks.workflow_callbacks.workflow_ticket_volume import register_workflow_ticket_volume_modal_callbacks
+from src.callbacks.workflow_callbacks.workflow_status_distribution import register_workflow_status_distribution_callbacks
+from src.callbacks.workflow_callbacks.workflow_status_distribution import register_workflow_status_distribution_modal_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
@@ -36,3 +38,5 @@ def register_all_callbacks(app):
     register_workflow_summary_cards_callbacks(app)
     register_workflow_ticket_volume_callbacks(app)
     register_workflow_ticket_volume_modal_callbacks(app)
+    register_workflow_status_distribution_callbacks(app)
+    register_workflow_status_distribution_modal_callbacks(app)
