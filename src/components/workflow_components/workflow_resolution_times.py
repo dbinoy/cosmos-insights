@@ -6,6 +6,7 @@ def get_resolution_times_layout():
         # Hidden stores for state persistence
         dcc.Store(id="workflow-resolution-view-state", data="bar"),
         dcc.Store(id="workflow-resolution-population-state", data="all"),
+        dcc.Store(id="workflow-resolution-display-state", data="top"),  # NEW: Store for display preference
         
         dbc.CardHeader([
             dbc.Row([
@@ -34,7 +35,7 @@ def get_resolution_times_layout():
                             dcc.Dropdown(
                                 id="workflow-resolution-dimension-selector",
                                 options=[
-                                    {'label': 'Work Item Type', 'value': 'WorkItemDefinitionShortCode'},
+                                    {'label': 'Case Type', 'value': 'WorkItemDefinitionShortCode'},
                                     {'label': 'Priority', 'value': 'Priority'},
                                     {'label': 'Product', 'value': 'Product'},
                                     {'label': 'Module', 'value': 'Module'},
@@ -50,14 +51,29 @@ def get_resolution_times_layout():
                             )
                         ], width=4),
                         dbc.Col([
-                            # Space for future controls or info
-                        ], width=8)
+                            # NEW: Display preference dropdown
+                            html.Label("Display:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
+                            dcc.Dropdown(
+                                id="workflow-resolution-display-selector",
+                                options=[
+                                    {'label': 'Top Categories', 'value': 'top'},
+                                    {'label': 'All Categories', 'value': 'all'}
+                                ],
+                                value='top',
+                                clearable=False,
+                                style={'fontSize': '12px'},
+                                className="mb-3"
+                            )
+                        ], width=3),
+                        dbc.Col([
+                            # Remaining space for future controls or info
+                        ], width=5)
                     ])
                 ],
                 style={'display': 'block'}  # Will be controlled by callback
             ),
             
-            # Conditional population selector - only shown for Statistics view
+            # Conditional population selector - only shown for Statistics and Distribution views
             html.Div(
                 id="workflow-resolution-population-container",
                 children=[
@@ -82,7 +98,7 @@ def get_resolution_times_layout():
                         ], width=8)
                     ])
                 ],
-                style={'display': 'none', 'marginBottom': '15px'}  # Hidden by default, shown only for Statistics view
+                style={'display': 'none', 'marginBottom': '15px'}  # Hidden by default, shown only for Statistics and Distribution views
             ),
             
             # Chart container - will be conditionally hidden for statistics

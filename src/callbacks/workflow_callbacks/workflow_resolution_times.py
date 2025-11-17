@@ -44,9 +44,6 @@ def get_resolution_times_base_data():
                     ELSE NULL
                 END as ResolutionTimeMinutes
             FROM [consumable].[Fact_WorkFlowItems] w
-            WHERE w.ClosedOn IS NOT NULL  -- Only include resolved tickets
-                AND w.CreatedOn IS NOT NULL
-                AND DATEDIFF(MINUTE, w.CreatedOn, w.ClosedOn) > 0  -- Valid resolution times only
         """,
         
         # Get detailed duration summary - using FACT_DurationSummary for accurate metrics
@@ -63,9 +60,7 @@ def get_resolution_times_base_data():
                 ds.OpenToCanceled_Min,
                 ds.OpenToSelfFix_Min
             FROM [consumable].[Fact_DurationSummary] ds
-            WHERE ds.OpenToClosed_Min IS NOT NULL 
-                AND ds.OpenToClosed_Min > 0
-                AND ds.OpenToClosed_Min < 525600  -- Less than 1 year in minutes
+            WHERE (OpenToClosed_Min IS NOT NULL OR OpenToResolved_Min IS NOT NULL)
         """,
         
         # Get status transitions for workflow analysis - using FACT_StatusTransitions
@@ -163,7 +158,7 @@ def apply_resolution_times_filters(work_items, duration_summary, stored_selectio
 def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary, status_transitions_data):
     """
     Prepare comprehensive resolution times data for multiple visualization types
-    Uses FACT_DurationSummary for accurate metrics
+    Updated to use consistent Case Type labeling
     """
     if filtered_work_items.empty or filtered_duration_summary.empty:
         return pd.DataFrame(), {}, {}
@@ -173,19 +168,35 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
         merged_df = filtered_work_items.merge(
             filtered_duration_summary, 
             on='WorkItemId', 
-            how='inner'
+            how='left'
         )
+
+        total_tickets = len(merged_df)
         
         # Use FACT_DurationSummary data as primary source (more accurate)
-        merged_df['ResolutionTimeMinutes'] = merged_df['OpenToClosed_Min']
+        merged_df['ResolutionTimeMinutes'] = merged_df['OpenToClosed_Min'].fillna(merged_df['ResolutionTimeMinutes'])
         merged_df['ResolutionTimeHours'] = merged_df['ResolutionTimeMinutes'] / 60
         merged_df['ResolutionTimeDays'] = merged_df['ResolutionTimeHours'] / 24
         
-        # Remove outliers and invalid data
-        df = merged_df[
+        df_for_analysis = merged_df[
             (merged_df['ResolutionTimeMinutes'] > 0) & 
-            (merged_df['ResolutionTimeMinutes'] < 525600)  # Less than 1 year
+            (merged_df['ResolutionTimeMinutes'] < 525600) &  # Less than 1 year
+            (merged_df['ResolutionTimeMinutes'].notna())
         ].copy()
+
+        analyzable_tickets = len(df_for_analysis)
+        print(f"📊 Tickets available for resolution analysis: {analyzable_tickets} out of {total_tickets} total")
+        
+        if df_for_analysis.empty:
+            return merged_df, {
+                'total_tickets': total_tickets,
+                'analyzable_tickets': 0,
+                'total_resolved': 0,
+                'mean_hours': 0,
+                'median_hours': 0
+            }, {}
+        
+        df = df_for_analysis.copy()        
         
         # Categorize resolution times for distribution analysis
         def categorize_resolution_time(minutes):
@@ -208,6 +219,8 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
         
         # Calculate comprehensive summary statistics
         summary_stats = {
+            'total_tickets': total_tickets,  # NEW: Total tickets matching filters
+            'analyzable_tickets': analyzable_tickets,  # NEW: Tickets with valid resolution data
             'total_resolved': len(df),
             'mean_minutes': df['ResolutionTimeMinutes'].mean(),
             'median_minutes': df['ResolutionTimeMinutes'].median(),
@@ -238,16 +251,16 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
             summary_stats['escalated_count'] = 0
             summary_stats['non_escalated_count'] = len(df)
         
-        # Category analysis for detailed breakdowns
+        # Category analysis for detailed breakdowns - UPDATED KEY NAMES
         category_analysis = {}
         
-        # Analysis by Work Item Type (most important)
+        # Analysis by Case Type (updated key name)
         if 'WorkItemDefinitionShortCode' in df.columns:
             type_stats = df.groupby('WorkItemDefinitionShortCode')['ResolutionTimeHours'].agg([
                 'count', 'mean', 'median', 'std'
             ]).round(2)
             type_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
-            category_analysis['WorkItemType'] = type_stats.sort_values('Mean_Hours', ascending=False)
+            category_analysis['CaseType'] = type_stats.sort_values('Mean_Hours', ascending=False)  # CHANGED KEY
         
         # Analysis by Priority
         if 'Priority' in df.columns:
@@ -274,19 +287,20 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
         import traceback
         traceback.print_exc()
         return pd.DataFrame(), {}, {}
-
+    
 @monitor_performance("Resolution Times Data Preparation with Dimension")
 def prepare_resolution_times_data_with_dimension(filtered_work_items, filtered_duration_summary, status_transitions_data, selected_dimension):
     """
     Enhanced version that calculates statistics for any selected dimension
+    Updated to use consistent Case Type labeling
     """
     resolution_data, summary_stats, category_analysis = prepare_resolution_times_data(
         filtered_work_items, filtered_duration_summary, status_transitions_data
     )
     
-    # Add dynamic dimension analysis
+    # Add dynamic dimension analysis with updated key mapping
     if not resolution_data.empty and selected_dimension in resolution_data.columns:
-        dimension_key = selected_dimension.replace('WorkItemDefinitionShortCode', 'WorkItemType')
+        dimension_key = selected_dimension.replace('WorkItemDefinitionShortCode', 'CaseType')  # CHANGED
         
         if dimension_key not in category_analysis:
             dimension_stats = resolution_data.groupby(selected_dimension)['ResolutionTimeHours'].agg([
@@ -301,16 +315,20 @@ def register_workflow_resolution_times_callbacks(app):
     """
     Register resolution times analysis callbacks with multiple visualization options and dimensions
     """
-    
     @monitor_chart_performance("Resolution Times Bar Chart")
-    def create_resolution_times_bar_chart(resolution_data, summary_stats, category_analysis, dimension):
+    def create_resolution_times_bar_chart(resolution_data, summary_stats, category_analysis, dimension, show_all=False):
         """
-        Create horizontal bar chart showing mean vs median resolution times by selected dimension
+        Create vertical bar chart showing mean vs median resolution times by selected dimension
+        Updated to use vertical bars with fixed height and improved category handling
         """
         if resolution_data.empty:
+            # Show information about total tickets even when no resolution data
+            total_tickets = summary_stats.get('total_tickets', 0)
+            analyzable_tickets = summary_stats.get('analyzable_tickets', 0)
+            
             fig = go.Figure()
             fig.add_annotation(
-                text="No resolution time data available for selected filters",
+                text=f"No resolution time data available for analysis\n\n{analyzable_tickets:,} of {total_tickets:,} tickets have valid resolution data",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
                 showarrow=False,
@@ -325,8 +343,12 @@ def register_workflow_resolution_times_callbacks(app):
             return fig
         
         try:
-            # Get data for selected dimension
-            dimension_key = dimension.replace('WorkItemDefinitionShortCode', 'WorkItemType')
+            # Get total vs analyzable ticket counts
+            total_tickets = summary_stats.get('total_tickets', len(resolution_data))
+            analyzable_tickets = summary_stats.get('analyzable_tickets', len(resolution_data))
+            
+            # Get data for selected dimension - Updated mapping
+            dimension_key = dimension.replace('WorkItemDefinitionShortCode', 'CaseType')
             
             if dimension_key not in category_analysis:
                 # Calculate on-the-fly if not pre-calculated
@@ -335,53 +357,82 @@ def register_workflow_resolution_times_callbacks(app):
                         'count', 'mean', 'median', 'std'
                     ]).round(2)
                     dimension_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
-                    dimension_data = dimension_stats.sort_values('Mean_Hours', ascending=False).head(15)
+                    
+                    # Apply display preference
+                    if show_all:
+                        dimension_data = dimension_stats.sort_values('Mean_Hours', ascending=False)
+                        total_categories = len(dimension_stats)
+                        displayed_categories = total_categories
+                    else:
+                        dimension_data = dimension_stats.sort_values('Mean_Hours', ascending=False).head(15)
+                        total_categories = len(dimension_stats)
+                        displayed_categories = min(15, total_categories)
                 else:
                     return go.Figure()
             else:
-                dimension_data = category_analysis[dimension_key].head(15)
-            
-            # Create horizontal bar chart
+                # Apply display preference to pre-calculated data
+                if show_all:
+                    dimension_data = category_analysis[dimension_key].sort_values('Mean_Hours', ascending=False)
+                    total_categories = len(category_analysis[dimension_key])
+                    displayed_categories = total_categories
+                else:
+                    dimension_data = category_analysis[dimension_key].head(15)
+                    total_categories = len(category_analysis[dimension_key])
+                    displayed_categories = min(15, total_categories)
+
+            # Create vertical bar chart
             fig = go.Figure()
             
-            # Add mean times
+            # Truncate long category names for better display
+            category_names = [str(name)[:20] + "..." if len(str(name)) > 20 else str(name) 
+                            for name in dimension_data.index]
+            
+            # Add mean times (vertical bars)
             fig.add_trace(go.Bar(
-                y=dimension_data.index,
-                x=dimension_data['Mean_Hours'],
+                x=category_names,
+                y=dimension_data['Mean_Hours'],
                 name='Mean Time',
-                orientation='h',
                 marker_color='#3498DB',
                 text=[f"{x:.1f}h" for x in dimension_data['Mean_Hours']],
                 textposition='outside',
-                hovertemplate='%{y}<br>Mean: %{x:.1f}h<br>Count: %{customdata}<extra></extra>',
+                hovertemplate='<b>%{x}</b><br>Mean: %{y:.1f}h<br>Count: %{customdata}<extra></extra>',
                 customdata=dimension_data['Count']
             ))
             
-            # Add median times
+            # Add median times (vertical bars)
             fig.add_trace(go.Bar(
-                y=dimension_data.index,
-                x=dimension_data['Median_Hours'],
+                x=category_names,
+                y=dimension_data['Median_Hours'],
                 name='Median Time',
-                orientation='h',
                 marker_color='#2ECC71',
                 text=[f"{x:.1f}h" for x in dimension_data['Median_Hours']],
                 textposition='outside',
-                hovertemplate='%{y}<br>Median: %{x:.1f}h<extra></extra>'
+                hovertemplate='<b>%{x}</b><br>Median: %{y:.1f}h<extra></extra>'
             ))
             
-            dimension_label = dimension.replace('WorkItemDefinitionShortCode', 'Work Item Type')
+            # Updated dimension label
+            dimension_label = dimension.replace('WorkItemDefinitionShortCode', 'Case Type')
             
+            # Create title based on display preference
+            if show_all:
+                title_text = f"Mean & Median Resolution Times by {dimension_label} (All {displayed_categories} categories)"
+            else:
+                if displayed_categories < total_categories:
+                    title_text = f"Mean & Median Resolution Times by {dimension_label} (Top {displayed_categories} of {total_categories})"
+                else:
+                    title_text = f"Mean & Median Resolution Times by {dimension_label} (All {displayed_categories} categories)"
+                
             fig.update_layout(
                 title={
-                    'text': f"Mean & Median Resolution Times by {dimension_label}",
+                    'text': title_text,
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 16, 'color': '#2c3e50'}
                 },
-                xaxis_title="Resolution Time (Hours)",
-                yaxis_title=dimension_label,
-                height=450,
-                margin={'l': 120, 'r': 50, 't': 80, 'b': 60},
+                xaxis_title=dimension_label,
+                yaxis_title="Resolution Time (Hours)",
+                height=450,  # Fixed height
+                margin={'l': 60, 'r': 50, 't': 80, 'b': 120},  # Increased bottom margin for category names
                 plot_bgcolor='white',
                 paper_bgcolor='white',
                 showlegend=True,
@@ -392,7 +443,11 @@ def register_workflow_resolution_times_callbacks(app):
                     xanchor="center",
                     x=0.5
                 ),
-                barmode='group'
+                barmode='group',
+                xaxis=dict(
+                    tickangle=45,  # Angle category names for better readability
+                    tickfont=dict(size=10 if len(dimension_data) > 10 else 11)
+                )
             )
             
             return fig
@@ -400,16 +455,22 @@ def register_workflow_resolution_times_callbacks(app):
         except Exception as e:
             print(f"❌ Error creating resolution times bar chart: {e}")
             return go.Figure()
-    
+
+
     @monitor_chart_performance("Resolution Times Box Plot")
-    def create_resolution_times_box_plot(resolution_data, summary_stats, dimension):
+    def create_resolution_times_box_plot(resolution_data, summary_stats, dimension, show_all=False):
         """
         Create box plot showing resolution time distribution by selected dimension
+        Updated with fixed height and improved category handling
         """
         if resolution_data.empty or dimension not in resolution_data.columns:
+            # Show information about total tickets even when no resolution data
+            total_tickets = summary_stats.get('total_tickets', 0)
+            analyzable_tickets = summary_stats.get('analyzable_tickets', 0)
+            
             fig = go.Figure()
             fig.add_annotation(
-                text="No resolution time data available for selected filters",
+                text=f"No resolution time data available for analysis\n\n{analyzable_tickets:,} of {total_tickets:,} tickets have valid resolution data",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
                 showarrow=False,
@@ -424,28 +485,46 @@ def register_workflow_resolution_times_callbacks(app):
             return fig
         
         try:
+            # Get total vs analyzable ticket counts
+            total_tickets = summary_stats.get('total_tickets', len(resolution_data))
+            analyzable_tickets = summary_stats.get('analyzable_tickets', len(resolution_data))
+            
             # Filter out extreme outliers for better visualization
             q99 = resolution_data['ResolutionTimeHours'].quantile(0.99)
             display_data = resolution_data[resolution_data['ResolutionTimeHours'] <= q99].copy()
             
-            # Get top categories by count for readability
-            top_categories = display_data[dimension].value_counts().head(10).index.tolist()
+            # Use show_all parameter to determine categories
+            total_unique_categories = display_data[dimension].nunique()
+            
+            if show_all:
+                # Show all categories (sorted by frequency for consistency)
+                all_categories = display_data[dimension].value_counts().index.tolist()
+                top_categories = all_categories
+                displayed_categories = len(all_categories)
+            else:
+                # Show top categories by count for readability
+                top_categories = display_data[dimension].value_counts().head(10).index.tolist()
+                displayed_categories = min(10, total_unique_categories)
+            
             plot_data = display_data[display_data[dimension].isin(top_categories)]
             
             fig = go.Figure()
             
-            # Create box plot for each category
-            for category in top_categories:
+            # Create box plot for each category with truncated names
+            for i, category in enumerate(top_categories):
                 category_data = plot_data[plot_data[dimension] == category]['ResolutionTimeHours']
                 if len(category_data) > 0:
+                    # Truncate long category names for display
+                    display_name = str(category)[:20] + "..." if len(str(category)) > 20 else str(category)
+                    
                     fig.add_trace(go.Box(
                         y=category_data,
-                        name=str(category),
+                        name=display_name,
                         boxpoints='outliers',
-                        marker_color=px.colors.qualitative.Set3[len(fig.data) % len(px.colors.qualitative.Set3)]
+                        marker_color=px.colors.qualitative.Set3[i % len(px.colors.qualitative.Set3)]
                     ))
             
-            # Add overall mean line
+            # Add overall mean line (based on analyzable data)
             mean_hours = summary_stats.get('mean_hours', 0)
             if mean_hours > 0:
                 fig.add_hline(
@@ -456,22 +535,36 @@ def register_workflow_resolution_times_callbacks(app):
                     annotation_position="top left"
                 )
             
-            dimension_label = dimension.replace('WorkItemDefinitionShortCode', 'Work Item Type')
+            # Updated dimension label
+            dimension_label = dimension.replace('WorkItemDefinitionShortCode', 'Case Type')
+            
+            # Create title based on display preference
+            if show_all:
+                title_text = f"Resolution Times Distribution by {dimension_label} (All {displayed_categories} categories)"
+            else:
+                if displayed_categories < total_unique_categories:
+                    title_text = f"Resolution Times Distribution by {dimension_label} (Top {displayed_categories} of {total_unique_categories})"
+                else:
+                    title_text = f"Resolution Times Distribution by {dimension_label} (All {displayed_categories} categories)"
             
             fig.update_layout(
                 title={
-                    'text': f"Resolution Times Distribution by {dimension_label}",
+                    'text': title_text,
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 16, 'color': '#2c3e50'}
                 },
                 yaxis_title="Resolution Time (Hours)",
                 xaxis_title=dimension_label,
-                height=450,
-                margin={'l': 60, 'r': 50, 't': 80, 'b': 80},
+                height=450,  # Fixed height
+                margin={'l': 60, 'r': 50, 't': 80, 'b': 120},  # Increased bottom margin for category names
                 plot_bgcolor='white',
                 paper_bgcolor='white',
-                showlegend=False
+                showlegend=False,
+                xaxis=dict(
+                    tickangle=45,  # Angle labels for better readability
+                    tickfont=dict(size=10 if len(top_categories) > 10 else 11)
+                )
             )
             
             return fig
@@ -479,7 +572,7 @@ def register_workflow_resolution_times_callbacks(app):
         except Exception as e:
             print(f"❌ Error creating resolution times box plot: {e}")
             return go.Figure()
-    
+           
     @monitor_chart_performance("Resolution Times Statistics Figure")
     def create_resolution_times_statistics_figure(resolution_data, summary_stats, category_analysis, dimension, population="all"):
         """
@@ -500,14 +593,21 @@ def register_workflow_resolution_times_callbacks(app):
             )
             fig.update_layout(
                 title="Resolution Times Statistics",
-                height=450,
+                height=600,  # Increased height
                 plot_bgcolor='white',
                 paper_bgcolor='white'
             )
             return fig
 
         try:
-            # Filter data based on population selection
+            # Debug escalation data distribution
+            if 'IsEscalated' in resolution_data.columns:
+                escalation_counts = resolution_data['IsEscalated'].value_counts(dropna=False)
+                print(f"🔍 Statistics - Escalation data: {escalation_counts.to_dict()}")
+            else:
+                print(f"⚠️ No IsEscalated column found in data")
+            
+            # Filter data based on population selection with improved logic
             if population == "escalated":
                 if 'IsEscalated' not in resolution_data.columns:
                     fig = go.Figure()
@@ -518,10 +618,17 @@ def register_workflow_resolution_times_callbacks(app):
                         showarrow=False,
                         font=dict(size=16, color="gray")
                     )
-                    fig.update_layout(title="Escalated Tickets Statistics", height=450)
+                    fig.update_layout(title="Escalated Tickets Statistics", height=600)
                     return fig
-                    
-                filtered_data = resolution_data[resolution_data['IsEscalated'] == '1'].copy()
+                
+                # Improved escalated tickets filtering - handle various representations
+                filtered_data = resolution_data[
+                    (resolution_data['IsEscalated'] == '1') | 
+                    (resolution_data['IsEscalated'] == 1) |
+                    (resolution_data['IsEscalated'] == True) |
+                    (resolution_data['IsEscalated'].astype(str).str.upper() == 'TRUE')
+                ].copy()
+                
                 if filtered_data.empty:
                     fig = go.Figure()
                     fig.add_annotation(
@@ -531,7 +638,7 @@ def register_workflow_resolution_times_callbacks(app):
                         showarrow=False,
                         font=dict(size=16, color="green")
                     )
-                    fig.update_layout(title="Escalated Tickets Statistics", height=450, plot_bgcolor='white', paper_bgcolor='white')
+                    fig.update_layout(title="Escalated Tickets Statistics", height=600, plot_bgcolor='white', paper_bgcolor='white')
                     return fig
                     
                 population_title = "Escalated Tickets"
@@ -539,9 +646,23 @@ def register_workflow_resolution_times_callbacks(app):
                 
             elif population == "non_escalated":
                 if 'IsEscalated' not in resolution_data.columns:
-                    filtered_data = resolution_data.copy()  # Assume all non-escalated if no escalation data
+                    # If no escalation data, treat all tickets as non-escalated
+                    filtered_data = resolution_data.copy()
+                    print(f"📊 Statistics - No escalation column, treating all {len(filtered_data)} as non-escalated")
                 else:
-                    filtered_data = resolution_data[resolution_data['IsEscalated'] == '0'].copy()
+                    # Improved non-escalated tickets filtering
+                    # Include tickets that are explicitly non-escalated OR have missing/null escalation data
+                    filtered_data = resolution_data[
+                        (resolution_data['IsEscalated'] == '0') | 
+                        (resolution_data['IsEscalated'] == 0) |
+                        (resolution_data['IsEscalated'] == False) |
+                        (resolution_data['IsEscalated'].astype(str).str.upper() == 'FALSE') |
+                        (resolution_data['IsEscalated'].isna()) |
+                        (resolution_data['IsEscalated'] == '') |
+                        (resolution_data['IsEscalated'].astype(str).str.upper() == 'NULL')
+                    ].copy()
+                    
+                    print(f"📊 Statistics - Non-escalated filtering: {len(filtered_data)} from {len(resolution_data)} total")
                     
                 if filtered_data.empty:
                     fig = go.Figure()
@@ -552,7 +673,7 @@ def register_workflow_resolution_times_callbacks(app):
                         showarrow=False,
                         font=dict(size=16, color="gray")
                     )
-                    fig.update_layout(title="Non-Escalated Tickets Statistics", height=450)
+                    fig.update_layout(title="Non-Escalated Tickets Statistics", height=600)
                     return fig
                     
                 population_title = "Non-Escalated Tickets"
@@ -563,18 +684,20 @@ def register_workflow_resolution_times_callbacks(app):
                 population_title = "All Tickets"
                 population_color = "#3498DB"
             
+            print(f"📊 Statistics population filtering result: {population} = {len(filtered_data)} tickets")
+            
             # Calculate statistics for the filtered population
             hours_data = filtered_data['ResolutionTimeHours']
             pop_stats = {
                 'count': len(filtered_data),
-                'mean_hours': hours_data.mean(),
-                'median_hours': hours_data.median(),
-                'p75_hours': hours_data.quantile(0.75),
-                'p90_hours': hours_data.quantile(0.90),
-                'p95_hours': hours_data.quantile(0.95),
-                'min_hours': hours_data.min(),
-                'max_hours': hours_data.max(),
-                'std_hours': hours_data.std()
+                'mean_hours': float(hours_data.mean()),
+                'median_hours': float(hours_data.median()),
+                'p75_hours': float(hours_data.quantile(0.75)),
+                'p90_hours': float(hours_data.quantile(0.90)),
+                'p95_hours': float(hours_data.quantile(0.95)),
+                'min_hours': float(hours_data.min()),
+                'max_hours': float(hours_data.max()),
+                'std_hours': float(hours_data.std())
             }
             
             # Create the visualization
@@ -596,29 +719,59 @@ def register_workflow_resolution_times_callbacks(app):
                 )
             )
             
-            # Add vertical lines for key statistics
+            # Add vertical lines for key statistics with improved annotations
             stats_lines = [
-                {'value': pop_stats['median_hours'], 'name': 'Median', 'color': '#2ECC71', 'dash': 'solid'},
-                {'value': pop_stats['mean_hours'], 'name': 'Mean', 'color': '#3498DB', 'dash': 'dash'},
-                {'value': pop_stats['p75_hours'], 'name': '75th %ile', 'color': '#F39C12', 'dash': 'dot'},
-                {'value': pop_stats['p90_hours'], 'name': '90th %ile', 'color': '#E67E22', 'dash': 'dashdot'},
-                {'value': pop_stats['p95_hours'], 'name': '95th %ile', 'color': '#E74C3C', 'dash': 'longdash'}
+                {'value': pop_stats['median_hours'], 'name': 'Median', 'color': '#2ECC71', 'dash': 'solid', 'position': 'top', 'angle': 0},
+                {'value': pop_stats['mean_hours'], 'name': 'Mean', 'color': '#3498DB', 'dash': 'dash', 'position': 'top right', 'angle': -45},
+                {'value': pop_stats['p75_hours'], 'name': '75th %ile', 'color': '#F39C12', 'dash': 'dot', 'position': 'middle right', 'angle': -90},
+                {'value': pop_stats['p90_hours'], 'name': '90th %ile', 'color': '#E67E22', 'dash': 'dashdot', 'position': 'bottom right', 'angle': -45},
+                {'value': pop_stats['p95_hours'], 'name': '95th %ile', 'color': '#E74C3C', 'dash': 'longdash', 'position': 'bottom', 'angle': 0}
             ]
             
-            # Add the statistical markers as vertical lines
-            for stat in stats_lines:
-                if not pd.isna(stat['value']) and stat['value'] > 0:
-                    fig.add_vline(
-                        x=stat['value'],
-                        line_dash=stat['dash'],
-                        line_color=stat['color'],
-                        line_width=2,
-                        annotation_text=f"{stat['name']}: {stat['value']:.1f}h",
-                        annotation_position="top",
-                        annotation_font_size=9
-                    )
+            # Sort stats by value to avoid overlapping lines
+            valid_stats = [stat for stat in stats_lines if not pd.isna(stat['value']) and stat['value'] > 0]
+            valid_stats.sort(key=lambda x: x['value'])
             
-            # Update layout
+            # Add the statistical markers as vertical lines with rotated annotations
+            for i, stat in enumerate(valid_stats):
+                # Calculate annotation position based on index to spread them out
+                y_positions = [0.95, 0.85, 0.75, 0.65, 0.55]  # Different heights
+                y_pos = y_positions[i % len(y_positions)]
+                
+                # Add vertical line without annotation first
+                fig.add_vline(
+                    x=stat['value'],
+                    line_dash=stat['dash'],
+                    line_color=stat['color'],
+                    line_width=2
+                )
+                
+                # Add separate rotated annotation
+                fig.add_annotation(
+                    x=stat['value'],
+                    y=y_pos,
+                    xref="x",
+                    yref="paper",
+                    text=f"{stat['name']}: {stat['value']:.1f}h",
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowsize=1,
+                    arrowwidth=1,
+                    arrowcolor=stat['color'],
+                    ax=30,  # Arrow offset
+                    ay=-20,
+                    font=dict(
+                        size=9,
+                        color=stat['color']
+                    ),
+                    bgcolor="rgba(255, 255, 255, 0.8)",
+                    bordercolor=stat['color'],
+                    borderwidth=1,
+                    borderpad=2,
+                    textangle=-45  # Rotate text 45 degrees
+                )
+            
+            # Update layout with improved spacing and positioning
             fig.update_layout(
                 title={
                     'text': f"{population_title} - Resolution Times Distribution ({pop_stats['count']:,} tickets)",
@@ -628,10 +781,10 @@ def register_workflow_resolution_times_callbacks(app):
                 },
                 xaxis_title="Resolution Time (Hours)",
                 yaxis_title="Number of Tickets",
-                height=450,
+                height=600,  # Increased height from 450 to 600
                 plot_bgcolor='white',
                 paper_bgcolor='white',
-                margin={'l': 60, 'r': 200, 't': 100, 'b': 80}  # Increased right margin for legend
+                margin={'l': 70, 'r': 50, 't': 120, 'b': 80}  # Adjusted margins
             )
             
             # Create consolidated legend with all information
@@ -642,17 +795,20 @@ def register_workflow_resolution_times_callbacks(app):
             if mean_hours > 0 and median_hours > 0:
                 skew_ratio = mean_hours / median_hours
                 if skew_ratio > 1.3:
-                    distribution_note = "Right-skewed"
+                    distribution_note = "Right-skewed (few long outliers)"
                     distribution_icon = "📈"
                 elif skew_ratio < 0.8:
-                    distribution_note = "Left-skewed"
+                    distribution_note = "Left-skewed (consistently fast)"
                     distribution_icon = "📉"
                 else:
-                    distribution_note = "Balanced"
+                    distribution_note = "Balanced distribution"
                     distribution_icon = "⚖️"
             else:
                 distribution_note = "Insufficient data"
                 distribution_icon = "❓"
+            
+            # Create more compact reference for statistical lines
+            stats_reference = f"""<span style='color:#2ECC71'>━</span> Median  <span style='color:#3498DB'>╌</span> Mean  <span style='color:#F39C12'>⋯</span> 75%ile  <span style='color:#E67E22'>┄</span> 90%ile  <span style='color:#E74C3C'>━</span> 95%ile"""
             
             # Add comparison to overall population if this is a subset
             comparison_text = ""
@@ -661,49 +817,55 @@ def register_workflow_resolution_times_callbacks(app):
                 pop_mean = pop_stats['mean_hours']
                 if pop_mean > overall_mean:
                     diff_pct = ((pop_mean - overall_mean) / overall_mean) * 100
-                    comparison_text = f"↗️ {diff_pct:.0f}% slower than overall\n"
+                    comparison_text = f"↗️ {diff_pct:.0f}% slower than overall<br>"
                 elif pop_mean < overall_mean:
                     diff_pct = ((overall_mean - pop_mean) / overall_mean) * 100
-                    comparison_text = f"↘️ {diff_pct:.0f}% faster than overall\n"
+                    comparison_text = f"↘️ {diff_pct:.0f}% faster than overall<br>"
                 else:
-                    comparison_text = "➡️ Same as overall average\n"
+                    comparison_text = "➡️ Same as overall average<br>"
             
-            # Consolidated legend text
-            legend_text = f"""<b>📊 Statistics & Interpretation</b><br><br>
-
-<b>Key Metrics:</b><br>
-• Median: {median_hours:.1f}h (50% resolve faster)<br>
-• Mean: {mean_hours:.1f}h<br>
-• 75th percentile: {pop_stats['p75_hours']:.1f}h (75% within)<br>
-• 90th percentile: {pop_stats['p90_hours']:.1f}h (90% within)<br>
-• 95th percentile: {pop_stats['p95_hours']:.1f}h (only 5% exceed)<br><br>
-
-<b>Distribution:</b><br>
-{distribution_icon} {distribution_note}<br>
-{comparison_text}<br>
-
-<b>Vertical Lines:</b><br>
-<span style='color:#2ECC71'>●</span> Green solid: Median<br>
-<span style='color:#3498DB'>●</span> Blue dashed: Mean<br>
-<span style='color:#F39C12'>●</span> Orange dotted: 75th percentile<br>
-<span style='color:#E67E22'>●</span> Red dash-dot: 90th percentile<br>
-<span style='color:#E74C3C'>●</span> Dark red long-dash: 95th percentile"""
+            # Add validation info if available
+            validation_text = ""
+            if population == "all" and 'IsEscalated' in resolution_data.columns:
+                escalated_count = len(resolution_data[
+                    (resolution_data['IsEscalated'] == '1') | 
+                    (resolution_data['IsEscalated'] == 1) |
+                    (resolution_data['IsEscalated'] == True) |
+                    (resolution_data['IsEscalated'].astype(str).str.upper() == 'TRUE')
+                ])
+                non_escalated_count = len(resolution_data[
+                    (resolution_data['IsEscalated'] == '0') | 
+                    (resolution_data['IsEscalated'] == 0) |
+                    (resolution_data['IsEscalated'] == False) |
+                    (resolution_data['IsEscalated'].astype(str).str.upper() == 'FALSE') |
+                    (resolution_data['IsEscalated'].isna()) |
+                    (resolution_data['IsEscalated'] == '') |
+                    (resolution_data['IsEscalated'].astype(str).str.upper() == 'NULL')
+                ])
+                total_classified = escalated_count + non_escalated_count
+                
+                if total_classified == len(resolution_data):
+                    validation_text = f"<br><b>Breakdown:</b> {escalated_count:,} escalated + {non_escalated_count:,} non-escalated"
             
-            # Add single consolidated annotation in top-right corner
+            # More compact legend positioned in top-right corner
+            legend_text = f"""<b>📊 Key Metrics</b><br>Median: {median_hours:.1f}h • Mean: {mean_hours:.1f}h<br>75th: {pop_stats['p75_hours']:.1f}h • 90th: {pop_stats['p90_hours']:.1f}h • 95th: {pop_stats['p95_hours']:.1f}h<br><br><b>Distribution</b><br>{distribution_icon} {distribution_note}<br>{comparison_text}<br><b>Legend:</b> {stats_reference}{validation_text}"""
+            
+            # Position legend in top-right corner without overlapping the histogram
             fig.add_annotation(
                 text=legend_text,
                 xref="paper", yref="paper",
-                x=0.99, y=0.98,
+                x=0.98, y=0.98,  # Top-right corner
                 xanchor='right', yanchor='top',
                 showarrow=False,
-                font=dict(size=10, color="#2c3e50"),
+                font=dict(size=9, color="#2c3e50"),  # Smaller font
                 align="left",
                 bgcolor="rgba(248, 249, 250, 0.95)",
                 bordercolor="rgba(52, 152, 219, 0.3)",
                 borderwidth=1,
-                borderpad=12
+                borderpad=8  # Reduced padding
             )
             
+            print(f"✅ Statistics figure created successfully for {population} population")
             return fig
             
         except Exception as e:
@@ -722,281 +884,17 @@ def register_workflow_resolution_times_callbacks(app):
             )
             fig.update_layout(
                 title="Resolution Times Statistics - Error",
-                height=450,
+                height=600,  # Increased height
                 plot_bgcolor='white',
                 paper_bgcolor='white'
             )
             return fig
-    
-    # @monitor_chart_performance("Resolution Times Statistics Figure")
-    # def create_resolution_times_statistics_figure(resolution_data, summary_stats, category_analysis, dimension, population="all"):
-    #     """
-    #     Create focused statistics view showing distribution with statistical markers
-    #     Population parameter controls which subset of data to analyze:
-    #     - "all": All tickets
-    #     - "escalated": Only escalated tickets  
-    #     - "non_escalated": Only non-escalated tickets
-    #     """
-    #     if resolution_data.empty or not summary_stats:
-    #         fig = go.Figure()
-    #         fig.add_annotation(
-    #             text="No resolution data available for current filters",
-    #             xref="paper", yref="paper",
-    #             x=0.5, y=0.5, xanchor='center', yanchor='middle',
-    #             showarrow=False,
-    #             font=dict(size=16, color="gray")
-    #         )
-    #         fig.update_layout(
-    #             title="Resolution Times Statistics",
-    #             height=450,
-    #             plot_bgcolor='white',
-    #             paper_bgcolor='white'
-    #         )
-    #         return fig
-
-    #     try:
-    #         # Filter data based on population selection
-    #         if population == "escalated":
-    #             if 'IsEscalated' not in resolution_data.columns:
-    #                 fig = go.Figure()
-    #                 fig.add_annotation(
-    #                     text="Escalation data not available",
-    #                     xref="paper", yref="paper",
-    #                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
-    #                     showarrow=False,
-    #                     font=dict(size=16, color="gray")
-    #                 )
-    #                 fig.update_layout(title="Escalated Tickets Statistics", height=450)
-    #                 return fig
-                    
-    #             filtered_data = resolution_data[resolution_data['IsEscalated'] == '1'].copy()
-    #             if filtered_data.empty:
-    #                 fig = go.Figure()
-    #                 fig.add_annotation(
-    #                     text="🎯 No Escalated Tickets Found!\n\nExcellent performance - all tickets resolved at first contact",
-    #                     xref="paper", yref="paper",
-    #                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
-    #                     showarrow=False,
-    #                     font=dict(size=16, color="green")
-    #                 )
-    #                 fig.update_layout(title="Escalated Tickets Statistics", height=450, plot_bgcolor='white', paper_bgcolor='white')
-    #                 return fig
-                    
-    #             population_title = "Escalated Tickets"
-    #             population_color = "#E74C3C"
-                
-    #         elif population == "non_escalated":
-    #             if 'IsEscalated' not in resolution_data.columns:
-    #                 filtered_data = resolution_data.copy()  # Assume all non-escalated if no escalation data
-    #             else:
-    #                 filtered_data = resolution_data[resolution_data['IsEscalated'] == '0'].copy()
-                    
-    #             if filtered_data.empty:
-    #                 fig = go.Figure()
-    #                 fig.add_annotation(
-    #                     text="No non-escalated tickets found",
-    #                     xref="paper", yref="paper",
-    #                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
-    #                     showarrow=False,
-    #                     font=dict(size=16, color="gray")
-    #                 )
-    #                 fig.update_layout(title="Non-Escalated Tickets Statistics", height=450)
-    #                 return fig
-                    
-    #             population_title = "Non-Escalated Tickets"
-    #             population_color = "#27AE60"
-                
-    #         else:  # "all"
-    #             filtered_data = resolution_data.copy()
-    #             population_title = "All Tickets"
-    #             population_color = "#3498DB"
-            
-    #         # Calculate statistics for the filtered population
-    #         hours_data = filtered_data['ResolutionTimeHours']
-            
-    #         # Check if we have valid data
-    #         if hours_data.empty or hours_data.isna().all():
-    #             fig = go.Figure()
-    #             fig.add_annotation(
-    #                 text="No valid resolution time data available",
-    #                 xref="paper", yref="paper",
-    #                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
-    #                 showarrow=False,
-    #                 font=dict(size=16, color="gray")
-    #             )
-    #             fig.update_layout(title=f"{population_title} Statistics", height=450)
-    #             return fig
-            
-    #         pop_stats = {
-    #             'count': len(filtered_data),
-    #             'mean_hours': float(hours_data.mean()),
-    #             'median_hours': float(hours_data.median()),
-    #             'p75_hours': float(hours_data.quantile(0.75)),
-    #             'p90_hours': float(hours_data.quantile(0.90)),
-    #             'p95_hours': float(hours_data.quantile(0.95)),
-    #             'min_hours': float(hours_data.min()),
-    #             'max_hours': float(hours_data.max()),
-    #             'std_hours': float(hours_data.std())
-    #         }
-            
-    #         # Create the visualization
-    #         fig = go.Figure()
-            
-    #         # Filter outliers for better visualization (keep 99% of data)
-    #         q99 = hours_data.quantile(0.99)
-    #         display_hours = hours_data[hours_data <= q99]
-            
-    #         # Create histogram
-    #         fig.add_trace(
-    #             go.Histogram(
-    #                 x=display_hours,
-    #                 nbinsx=min(30, max(10, len(display_hours) // 10)),  # Adaptive bin count
-    #                 opacity=0.7,
-    #                 marker_color=population_color,
-    #                 name='Ticket Distribution',
-    #                 showlegend=False
-    #             )
-    #         )
-            
-    #         # Add vertical lines for key statistics
-    #         stats_lines = [
-    #             {'value': pop_stats['median_hours'], 'name': 'Median', 'color': '#2ECC71', 'dash': 'solid'},
-    #             {'value': pop_stats['mean_hours'], 'name': 'Mean', 'color': '#3498DB', 'dash': 'dash'},
-    #             {'value': pop_stats['p75_hours'], 'name': '75th %ile', 'color': '#F39C12', 'dash': 'dot'},
-    #             {'value': pop_stats['p90_hours'], 'name': '90th %ile', 'color': '#E67E22', 'dash': 'dashdot'},
-    #             {'value': pop_stats['p95_hours'], 'name': '95th %ile', 'color': '#E74C3C', 'dash': 'longdash'}
-    #         ]
-            
-    #         # Add the statistical markers as vertical lines without individual annotations
-    #         for stat in stats_lines:
-    #             if not pd.isna(stat['value']) and stat['value'] > 0:
-    #                 fig.add_vline(
-    #                     x=stat['value'],
-    #                     line_dash=stat['dash'],
-    #                     line_color=stat['color'],
-    #                     line_width=2
-    #                 )
-            
-    #         # Create a compact statistical lines reference for the legend
-    #         stats_reference = ""
-    #         for stat in stats_lines:
-    #             if not pd.isna(stat['value']) and stat['value'] > 0:
-    #                 stats_reference += f"<span style='color:{stat['color']}'>●</span> {stat['name']}: {stat['value']:.1f}h<br>"
-                    
-    #         # Update layout
-    #         fig.update_layout(
-    #             title={
-    #                 'text': f"{population_title} - Resolution Times Distribution ({pop_stats['count']:,} tickets)",
-    #                 'x': 0.5,
-    #                 'xanchor': 'center',
-    #                 'font': {'size': 18, 'color': '#2c3e50'}
-    #             },
-    #             xaxis_title="Resolution Time (Hours)",
-    #             yaxis_title="Number of Tickets",
-    #             height=450,
-    #             plot_bgcolor='white',
-    #             paper_bgcolor='white',
-    #             margin={'l': 60, 'r': 250, 't': 100, 'b': 80}  # Increased right margin for legend
-    #         )
-            
-    #         # Create consolidated legend with all information
-    #         mean_hours = pop_stats['mean_hours']
-    #         median_hours = pop_stats['median_hours']
-            
-    #         # Determine distribution characteristics
-    #         if mean_hours > 0 and median_hours > 0:
-    #             skew_ratio = mean_hours / median_hours
-    #             if skew_ratio > 1.3:
-    #                 distribution_note = "Right-skewed"
-    #                 distribution_icon = "📈"
-    #             elif skew_ratio < 0.8:
-    #                 distribution_note = "Left-skewed"
-    #                 distribution_icon = "📉"
-    #             else:
-    #                 distribution_note = "Balanced"
-    #                 distribution_icon = "⚖️"
-    #         else:
-    #             distribution_note = "Insufficient data"
-    #             distribution_icon = "❓"
-            
-    #         # Add comparison to overall population if this is a subset
-    #         comparison_text = ""
-    #         if population != "all" and summary_stats.get('mean_hours', 0) > 0:
-    #             overall_mean = summary_stats['mean_hours']
-    #             pop_mean = pop_stats['mean_hours']
-    #             if pop_mean > overall_mean:
-    #                 diff_pct = ((pop_mean - overall_mean) / overall_mean) * 100
-    #                 comparison_text = f"↗️ {diff_pct:.0f}% slower than overall<br>"
-    #             elif pop_mean < overall_mean:
-    #                 diff_pct = ((overall_mean - pop_mean) / overall_mean) * 100
-    #                 comparison_text = f"↘️ {diff_pct:.0f}% faster than overall<br>"
-    #             else:
-    #                 comparison_text = "➡️ Same as overall average<br>"
-            
-    #         # Consolidated legend text with integrated statistical lines
-    #         legend_text = f"""<b>📊 Statistics & Interpretation</b><br><br>
-
-    # <b>Key Metrics:</b><br>
-    # • Median: {median_hours:.1f}h (50% resolve faster)<br>
-    # • Mean: {mean_hours:.1f}h<br>
-    # • 75th percentile: {pop_stats['p75_hours']:.1f}h (75% within)<br>
-    # • 90th percentile: {pop_stats['p90_hours']:.1f}h (90% within)<br>
-    # • 95th percentile: {pop_stats['p95_hours']:.1f}h (only 5% exceed)<br><br>
-
-    # <b>Distribution:</b><br>
-    # {distribution_icon} {distribution_note}<br>
-    # {comparison_text}<br>
-
-    # <b>Statistical Lines:</b><br>
-    # {stats_reference}"""
-            
-    #         # Add single consolidated annotation in top-right corner
-    #         fig.add_annotation(
-    #             text=legend_text,
-    #             xref="paper", yref="paper",
-    #             x=0.99, y=0.98,
-    #             xanchor='right', yanchor='top',
-    #             showarrow=False,
-    #             font=dict(size=10, color="#2c3e50"),
-    #             align="left",
-    #             bgcolor="rgba(248, 249, 250, 0.95)",
-    #             bordercolor="rgba(52, 152, 219, 0.3)",
-    #             borderwidth=1,
-    #             borderpad=12
-    #         )
-            
-    #         return fig
-            
-    #     except Exception as e:
-    #         print(f"❌ Error creating statistics dashboard: {e}")
-    #         import traceback
-    #         traceback.print_exc()
-            
-    #         # Fallback to simple figure
-    #         fig = go.Figure()
-    #         fig.add_annotation(
-    #             text=f"Error creating statistics dashboard: {str(e)}",
-    #             xref="paper", yref="paper",
-    #             x=0.5, y=0.5, xanchor='center', yanchor='middle',
-    #             showarrow=False,
-    #             font=dict(size=14, color="red")
-    #         )
-    #         fig.update_layout(
-    #             title="Resolution Times Statistics - Error",
-    #             height=450,
-    #             plot_bgcolor='white',
-    #             paper_bgcolor='white'
-    #         )
-    #         return fig
-                   
+                                    
     @monitor_chart_performance("Resolution Times Distribution Chart")
     def create_resolution_times_distribution_chart(resolution_data, summary_stats, category_analysis, population="all"):
         """
         Create pie chart showing resolution time distribution by categories
-        Population parameter controls which subset of data to analyze:
-        - "all": All tickets
-        - "escalated": Only escalated tickets  
-        - "non_escalated": Only non-escalated tickets
+        Population parameter controls which subset of data to analyze with improved escalation handling
         """
         if resolution_data.empty:
             fig = go.Figure()
@@ -1016,7 +914,12 @@ def register_workflow_resolution_times_callbacks(app):
             return fig
         
         try:
-            # Filter data based on population selection
+            # Debug escalation data distribution
+            if 'IsEscalated' in resolution_data.columns:
+                escalation_counts = resolution_data['IsEscalated'].value_counts(dropna=False)
+                print(f"🔍 Distribution - Escalation data: {escalation_counts.to_dict()}")
+            
+            # Filter data based on population selection with improved logic
             if population == "escalated":
                 if 'IsEscalated' not in resolution_data.columns:
                     fig = go.Figure()
@@ -1029,8 +932,15 @@ def register_workflow_resolution_times_callbacks(app):
                     )
                     fig.update_layout(title="Escalated Tickets Distribution", height=450)
                     return fig
-                    
-                filtered_data = resolution_data[resolution_data['IsEscalated'] == '1'].copy()
+                
+                # Improved escalated tickets filtering
+                filtered_data = resolution_data[
+                    (resolution_data['IsEscalated'] == '1') | 
+                    (resolution_data['IsEscalated'] == 1) |
+                    (resolution_data['IsEscalated'] == True) |
+                    (resolution_data['IsEscalated'].astype(str).str.upper() == 'TRUE')
+                ].copy()
+                
                 if filtered_data.empty:
                     fig = go.Figure()
                     fig.add_annotation(
@@ -1048,9 +958,21 @@ def register_workflow_resolution_times_callbacks(app):
                 
             elif population == "non_escalated":
                 if 'IsEscalated' not in resolution_data.columns:
-                    filtered_data = resolution_data.copy()  # Assume all non-escalated if no escalation data
+                    filtered_data = resolution_data.copy()  # Treat all as non-escalated if no escalation data
+                    print(f"📊 Distribution - No escalation column, treating all {len(filtered_data)} as non-escalated")
                 else:
-                    filtered_data = resolution_data[resolution_data['IsEscalated'] == '0'].copy()
+                    # Improved non-escalated tickets filtering
+                    filtered_data = resolution_data[
+                        (resolution_data['IsEscalated'] == '0') | 
+                        (resolution_data['IsEscalated'] == 0) |
+                        (resolution_data['IsEscalated'] == False) |
+                        (resolution_data['IsEscalated'].astype(str).str.upper() == 'FALSE') |
+                        (resolution_data['IsEscalated'].isna()) |
+                        (resolution_data['IsEscalated'] == '') |
+                        (resolution_data['IsEscalated'].astype(str).str.upper() == 'NULL')
+                    ].copy()
+                    
+                    print(f"📊 Distribution - Non-escalated filtering: {len(filtered_data)} from {len(resolution_data)} total")
                     
                 if filtered_data.empty:
                     fig = go.Figure()
@@ -1072,6 +994,8 @@ def register_workflow_resolution_times_callbacks(app):
                 population_title = "All Tickets"
                 population_colors = ['#3498DB', '#2980B9', '#1F618D', '#1A5276', '#154360', '#5DADE2', '#85C1E9']
             
+            print(f"📊 Distribution population filtering: {population} = {len(filtered_data)} tickets")
+            
             # Recalculate distribution for the filtered population
             def categorize_resolution_time(minutes):
                 if pd.isna(minutes) or minutes <= 0:
@@ -1089,7 +1013,9 @@ def register_workflow_resolution_times_callbacks(app):
                 else:
                     return '7+ days'
             
-            filtered_data['ResolutionCategory'] = filtered_data['ResolutionTimeMinutes'].apply(categorize_resolution_time)
+            # Add resolution category if not already present
+            if 'ResolutionCategory' not in filtered_data.columns:
+                filtered_data['ResolutionCategory'] = filtered_data['ResolutionTimeMinutes'].apply(categorize_resolution_time)
             
             # Create distribution analysis for this population
             distribution_analysis = filtered_data.groupby('ResolutionCategory').size()
@@ -1226,7 +1152,7 @@ def register_workflow_resolution_times_callbacks(app):
             import traceback
             traceback.print_exc()
             
-            # Return error figure
+            # Return error figure - FIXED: Always create fig before returning
             fig = go.Figure()
             fig.add_annotation(
                 text=f"Error creating distribution chart: {str(e)}",
@@ -1242,15 +1168,12 @@ def register_workflow_resolution_times_callbacks(app):
                 paper_bgcolor='white'
             )
             return fig
-                    
+                           
     @monitor_performance("Resolution Times Insights Generation")
     def generate_resolution_times_insights(resolution_data, summary_stats, category_analysis):
         """
         Generate automated insights from resolution times data
-        Always returns exactly 3 insights for consistency:
-        1. Performance Summary with Mean vs Median analysis
-        2. Escalation Impact Analysis
-        3. Distribution & Performance Patterns
+        Updated to use consistent Case Type terminology
         """
         if resolution_data.empty or not summary_stats:
             return html.Div([
@@ -1319,14 +1242,14 @@ def register_workflow_resolution_times_callbacks(app):
                 else:
                     insights.append(f"🔍 **Escalation Analysis**: {escalated_count:,} escalated tickets detected, impact analysis requires more complete data")
             
-            # Insight 3: Distribution & Performance Patterns Analysis
-            if 'WorkItemType' in category_analysis and not category_analysis['WorkItemType'].empty:
-                # Analysis based on work item types
-                work_item_data = category_analysis['WorkItemType']
-                slowest_type = work_item_data.index[0]  # Already sorted by Mean_Hours desc
-                slowest_time = work_item_data.iloc[0]['Mean_Hours']
-                fastest_type = work_item_data.index[-1]
-                fastest_time = work_item_data.iloc[-1]['Mean_Hours']
+            # Insight 3: Distribution & Performance Patterns Analysis - UPDATED KEY
+            if 'CaseType' in category_analysis and not category_analysis['CaseType'].empty:  # CHANGED KEY
+                # Analysis based on case types
+                case_type_data = category_analysis['CaseType']  # CHANGED
+                slowest_type = case_type_data.index[0]  # Already sorted by Mean_Hours desc
+                slowest_time = case_type_data.iloc[0]['Mean_Hours']
+                fastest_type = case_type_data.index[-1]
+                fastest_time = case_type_data.iloc[-1]['Mean_Hours']
                 
                 # Calculate performance variance
                 if slowest_time > 0 and fastest_time > 0:
@@ -1340,10 +1263,10 @@ def register_workflow_resolution_times_callbacks(app):
                 else:
                     variance_level = "insufficient data"
                 
-                insights.append(f"📊 **Type Performance**: '{slowest_type}' takes longest ({slowest_time:.1f}h avg), '{fastest_type}' fastest ({fastest_time:.1f}h), 90% resolve within {p90_hours:.1f}h ({variance_level})")
+                insights.append(f"📊 **Case Type Performance**: '{slowest_type}' takes longest ({slowest_time:.1f}h avg), '{fastest_type}' fastest ({fastest_time:.1f}h), 90% resolve within {p90_hours:.1f}h ({variance_level})")  # CHANGED LABEL
                 
             elif 'Distribution' in category_analysis and not category_analysis['Distribution'].empty:
-                # Fallback to distribution analysis when work item type data not available
+                # Fallback to distribution analysis when case type data not available
                 dist_data = category_analysis['Distribution']
                 
                 # Calculate same-day resolution percentage
@@ -1403,7 +1326,7 @@ def register_workflow_resolution_times_callbacks(app):
                 html.Div([html.Span("🔧 **Issue**: Data processing error occurred", style={'fontSize': '13px'})], className="mb-2"),
                 html.Div([html.Span("🔄 **Action**: Try refreshing or adjusting filters", style={'fontSize': '13px'})], className="mb-2")
             ], className="insights-container")
-
+    
     @callback(
         Output("workflow-resolution-view-state", "data"),
         [Input("workflow-resolution-bar-btn", "n_clicks"),
@@ -1446,31 +1369,41 @@ def register_workflow_resolution_times_callbacks(app):
         """Store the selected population for statistics view"""
         return selected_population or "all"
     
+    @callback(
+        Output("workflow-resolution-display-state", "data"),
+        [Input("workflow-resolution-display-selector", "value")],
+        prevent_initial_call=False
+    )
+    def update_display_state(selected_display):
+        """Store the selected display preference"""
+        return selected_display or "top"
+    
     # Main callback 
     @callback(
         [Output("workflow-resolution-times-chart", "figure"),
-         Output("workflow-resolution-insights", "children")],
+        Output("workflow-resolution-insights", "children")],
         [Input("workflow-filtered-query-store", "data"),
-         Input("workflow-resolution-dimension-selector", "value"),
-         Input("workflow-resolution-view-state", "data"),
-         Input("workflow-resolution-population-state", "data")],
+        Input("workflow-resolution-dimension-selector", "value"),
+        Input("workflow-resolution-view-state", "data"),
+        Input("workflow-resolution-population-state", "data"),
+        Input("workflow-resolution-display-state", "data")],  
         prevent_initial_call=False
     )
     @monitor_performance("Resolution Times Chart Update")
-    def update_resolution_times_chart(stored_selections, selected_dimension, view_state, selected_population):
+    def update_resolution_times_chart(stored_selections, selected_dimension, view_state, selected_population, display_preference):
         """
         Update resolution times chart based on filter selections, dimension, view type, and population
         """
         try:
-            print(f"🔄 Updating resolution times chart - Dimension: {selected_dimension}, View: {view_state}, Population: {selected_population}")
+            print(f"🔄 Updating resolution times chart - Dimension: {selected_dimension}, View: {view_state}, Population: {selected_population}, Display: {display_preference}")
             
-            # Default to bar chart if no view state
+            # Default states
             if view_state is None:
-                view_state = "bar"
-            
-            # Default to all population if none selected
+                view_state = "box"
             if selected_population is None:
                 selected_population = "all"
+            if display_preference is None:
+                display_preference = "top"       
             
             # Get base data
             base_data = get_resolution_times_base_data()
@@ -1493,6 +1426,9 @@ def register_workflow_resolution_times_callbacks(app):
             # Generate insights (always generated for all views)
             insights = generate_resolution_times_insights(resolution_data, summary_stats, category_analysis)
             
+            # Determine show_all parameter
+            show_all = (display_preference == "all")
+
             # Create appropriate visualization based on view state
             if view_state == "stats":
                 # For statistics view, pass the population parameter
@@ -1501,14 +1437,16 @@ def register_workflow_resolution_times_callbacks(app):
                     selected_dimension, selected_population
                 )
             elif view_state == "box":
-                fig = create_resolution_times_box_plot(resolution_data, summary_stats, selected_dimension)
+                # UPDATED: Pass show_all parameter
+                fig = create_resolution_times_box_plot(resolution_data, summary_stats, selected_dimension, show_all)
             elif view_state == "dist":
                 # For distribution view, also pass the population parameter
                 fig = create_resolution_times_distribution_chart(
                     resolution_data, summary_stats, category_analysis, selected_population
                 )
             else:  # bar chart (default)
-                fig = create_resolution_times_bar_chart(resolution_data, summary_stats, category_analysis, selected_dimension)
+                # UPDATED: Pass show_all parameter
+                fig = create_resolution_times_bar_chart(resolution_data, summary_stats, category_analysis, selected_dimension, show_all)
             
             print(f"✅ Resolution times chart updated successfully - View: {view_state}, Population: {selected_population}")
             return fig, insights
@@ -1579,18 +1517,5 @@ def register_workflow_resolution_times_callbacks(app):
             return {'display': 'block', 'marginBottom': '15px'}
         else:
             return {'display': 'none'}
-        
-    # Callback to conditionally hide/show chart container for statistics view
-    # @callback(
-    #     Output("workflow-resolution-times-chart", "style"),
-    #     [Input("workflow-resolution-view-state", "data")],
-    #     prevent_initial_call=False
-    # )
-    # def toggle_chart_visibility(view_state):
-    #     """Hide chart completely when showing statistics view, show for all others"""
-    #     if view_state == "stats":
-    #         return {'display': 'none'}
-    #     else:
-    #         return {'display': 'block', 'height': '450px'}  # Explicitly set height and display   
-    
+   
     print("✅ Workflow resolution times callbacks registered")
