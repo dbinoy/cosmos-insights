@@ -2,6 +2,7 @@ from dash import callback, ctx, dcc, html, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
+from inflection import titleize, pluralize
 import plotly.express as px
 from datetime import datetime, timedelta
 from src.utils.db import run_queries
@@ -158,7 +159,7 @@ def apply_resolution_times_filters(work_items, duration_summary, stored_selectio
 def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary, status_transitions_data):
     """
     Prepare comprehensive resolution times data for multiple visualization types
-    Updated to use consistent Case Type labeling
+    Updated to properly handle empty values and use consistent labeling
     """
     if filtered_work_items.empty or filtered_duration_summary.empty:
         return pd.DataFrame(), {}, {}
@@ -197,6 +198,17 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
             }, {}
         
         df = df_for_analysis.copy()        
+        
+        # Handle empty values consistently across all dimensions
+        dimension_columns = ['WorkItemDefinitionShortCode', 'Priority', 'Product', 'Module', 
+                        'Feature', 'Issue', 'CaseOrigin', 'AorShortName']
+        
+        for col in dimension_columns:
+            if col in df.columns:
+                # Replace empty strings, None, and NaN with "Unspecified"
+                df[col] = df[col].fillna('').astype(str)
+                df[col] = df[col].replace('', 'Unspecified')
+                df[col] = df[col].replace('nan', 'Unspecified')
         
         # Categorize resolution times for distribution analysis
         def categorize_resolution_time(minutes):
@@ -254,21 +266,25 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
         # Category analysis for detailed breakdowns - UPDATED KEY NAMES
         category_analysis = {}
         
-        # Analysis by Case Type (updated key name)
+        # Analysis by Case Type (updated key name) - now handles "Unspecified"
         if 'WorkItemDefinitionShortCode' in df.columns:
             type_stats = df.groupby('WorkItemDefinitionShortCode')['ResolutionTimeHours'].agg([
                 'count', 'mean', 'median', 'std'
             ]).round(2)
             type_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
             category_analysis['CaseType'] = type_stats.sort_values('Mean_Hours', ascending=False)  # CHANGED KEY
+            
+            print(f"📊 Case Type analysis includes: {list(type_stats.index)}")
         
-        # Analysis by Priority
+        # Analysis by Priority - now handles "Unspecified"
         if 'Priority' in df.columns:
             priority_stats = df.groupby('Priority')['ResolutionTimeHours'].agg([
                 'count', 'mean', 'median'
             ]).round(2)
             priority_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours']
             category_analysis['Priority'] = priority_stats.sort_values('Mean_Hours', ascending=False)
+            
+            print(f"📊 Priority analysis includes: {list(priority_stats.index)}")
         
         # Resolution time distribution
         distribution_analysis = df.groupby('ResolutionCategory').size().sort_index()
@@ -287,12 +303,12 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
         import traceback
         traceback.print_exc()
         return pd.DataFrame(), {}, {}
-    
+
 @monitor_performance("Resolution Times Data Preparation with Dimension")
 def prepare_resolution_times_data_with_dimension(filtered_work_items, filtered_duration_summary, status_transitions_data, selected_dimension):
     """
     Enhanced version that calculates statistics for any selected dimension
-    Updated to use consistent Case Type labeling
+    Updated to handle empty values and use consistent labeling
     """
     resolution_data, summary_stats, category_analysis = prepare_resolution_times_data(
         filtered_work_items, filtered_duration_summary, status_transitions_data
@@ -303,11 +319,19 @@ def prepare_resolution_times_data_with_dimension(filtered_work_items, filtered_d
         dimension_key = selected_dimension.replace('WorkItemDefinitionShortCode', 'CaseType')  # CHANGED
         
         if dimension_key not in category_analysis:
-            dimension_stats = resolution_data.groupby(selected_dimension)['ResolutionTimeHours'].agg([
+            # Make sure empty values are handled properly
+            working_data = resolution_data.copy()
+            working_data[selected_dimension] = working_data[selected_dimension].fillna('').astype(str)
+            working_data[selected_dimension] = working_data[selected_dimension].replace('', 'Unspecified')
+            working_data[selected_dimension] = working_data[selected_dimension].replace('nan', 'Unspecified')
+            
+            dimension_stats = working_data.groupby(selected_dimension)['ResolutionTimeHours'].agg([
                 'count', 'mean', 'median', 'std'
             ]).round(2)
             dimension_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
             category_analysis[dimension_key] = dimension_stats.sort_values('Mean_Hours', ascending=False)
+            
+            print(f"📊 Dynamic {dimension_key} analysis includes: {list(dimension_stats.index)}")
     
     return resolution_data, summary_stats, category_analysis
 
@@ -315,11 +339,33 @@ def register_workflow_resolution_times_callbacks(app):
     """
     Register resolution times analysis callbacks with multiple visualization options and dimensions
     """
+    @monitor_performance("Case Type Name Mapping")
+    def get_case_type_name_mapping():
+        """Get mapping from CaseTypeCode to CaseTypeName"""
+        try:
+            query = """
+                SELECT DISTINCT CaseTypeCode, CaseTypeName
+                FROM [consumable].[Dim_WorkItemAttributes]
+                WHERE CaseTypeCode IS NOT NULL AND CaseTypeName IS NOT NULL
+            """
+            result = run_queries({"case_type_mapping": query}, 'workflow', 1)
+            case_type_df = result["case_type_mapping"]
+            
+            # Create mapping dictionary
+            case_type_mapping = dict(zip(case_type_df['CaseTypeCode'], case_type_df['CaseTypeName']))
+            case_type_mapping['Unspecified'] = 'Unspecified'  # Handle our special case
+            case_type_mapping[''] = 'Unspecified'  # Handle empty strings
+            
+            return case_type_mapping
+        except Exception as e:
+            print(f"❌ Error getting case type name mapping: {e}")
+            return {}
+
     @monitor_chart_performance("Resolution Times Bar Chart")
     def create_resolution_times_bar_chart(resolution_data, summary_stats, category_analysis, dimension, show_all=False):
         """
         Create vertical bar chart showing mean vs median resolution times by selected dimension
-        Updated to use vertical bars with fixed height and improved category handling
+        Updated to handle empty values and use consistent labels matching filter dropdowns
         """
         if resolution_data.empty:
             # Show information about total tickets even when no resolution data
@@ -347,45 +393,119 @@ def register_workflow_resolution_times_callbacks(app):
             total_tickets = summary_stats.get('total_tickets', len(resolution_data))
             analyzable_tickets = summary_stats.get('analyzable_tickets', len(resolution_data))
             
+            # Create a working copy of resolution data
+            working_data = resolution_data.copy()
+            
+            # Handle empty strings and None values - map to "Unspecified"
+            if dimension in working_data.columns:
+                # Replace empty strings, None, and NaN with "Unspecified"
+                working_data[dimension] = working_data[dimension].fillna('').astype(str)
+                working_data[dimension] = working_data[dimension].replace('', 'Unspecified')
+                working_data[dimension] = working_data[dimension].replace('nan', 'Unspecified')
+            
+            # Get case type name mapping for special handling
+            case_type_mapping = get_case_type_name_mapping() if dimension == 'WorkItemDefinitionShortCode' else {}
+            
             # Get data for selected dimension - Updated mapping
             dimension_key = dimension.replace('WorkItemDefinitionShortCode', 'CaseType')
             
             if dimension_key not in category_analysis:
                 # Calculate on-the-fly if not pre-calculated
-                if dimension in resolution_data.columns:
-                    dimension_stats = resolution_data.groupby(dimension)['ResolutionTimeHours'].agg([
+                if dimension in working_data.columns:
+                    dimension_stats = working_data.groupby(dimension)['ResolutionTimeHours'].agg([
                         'count', 'mean', 'median', 'std'
                     ]).round(2)
                     dimension_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
                     
-                    # Apply display preference
+                    # UPDATED: Consistent sorting and filtering logic
                     if show_all:
+                        # Sort by Mean_Hours descending for consistent ordering
                         dimension_data = dimension_stats.sort_values('Mean_Hours', ascending=False)
                         total_categories = len(dimension_stats)
                         displayed_categories = total_categories
                     else:
-                        dimension_data = dimension_stats.sort_values('Mean_Hours', ascending=False).head(15)
+                        # CHANGED: Use top 10 instead of 15 to match box plot
+                        dimension_data = dimension_stats.sort_values('Mean_Hours', ascending=False).head(10)
                         total_categories = len(dimension_stats)
-                        displayed_categories = min(15, total_categories)
+                        displayed_categories = min(10, total_categories)
                 else:
                     return go.Figure()
             else:
-                # Apply display preference to pre-calculated data
+                # Use pre-calculated data but ensure it handles empty values
+                base_category_data = category_analysis[dimension_key].copy()
+                
+                # Check if we need to recalculate to include "Unspecified" values
+                if 'Unspecified' not in base_category_data.index:
+                    # Recalculate with proper empty value handling
+                    dimension_stats = working_data.groupby(dimension)['ResolutionTimeHours'].agg([
+                        'count', 'mean', 'median', 'std'
+                    ]).round(2)
+                    dimension_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
+                    base_category_data = dimension_stats
+                
+                # UPDATED: Consistent sorting and filtering logic
                 if show_all:
-                    dimension_data = category_analysis[dimension_key].sort_values('Mean_Hours', ascending=False)
-                    total_categories = len(category_analysis[dimension_key])
+                    # Sort by Mean_Hours descending for consistent ordering
+                    dimension_data = base_category_data.sort_values('Mean_Hours', ascending=False)
+                    total_categories = len(base_category_data)
                     displayed_categories = total_categories
                 else:
-                    dimension_data = category_analysis[dimension_key].head(15)
-                    total_categories = len(category_analysis[dimension_key])
-                    displayed_categories = min(15, total_categories)
+                    # CHANGED: Use top 10 instead of 15 to match box plot
+                    dimension_data = base_category_data.sort_values('Mean_Hours', ascending=False).head(10)
+                    total_categories = len(base_category_data)
+                    displayed_categories = min(10, total_categories)
 
             # Create vertical bar chart
             fig = go.Figure()
             
-            # Truncate long category names for better display
-            category_names = [str(name)[:20] + "..." if len(str(name)) > 20 else str(name) 
-                            for name in dimension_data.index]
+            # Create display labels that match filter dropdown labels using same transformation logic
+            def create_display_label(raw_value, dimension):
+                """Create display labels that match filter dropdown labels using same transformations"""
+                if pd.isna(raw_value) or str(raw_value) == '' or str(raw_value) == 'nan':
+                    return "Unspecified"
+                
+                raw_str = str(raw_value)
+                
+                # Handle specific dimension mappings matching filter callback logic
+                if dimension == 'WorkItemDefinitionShortCode':
+                    # UPDATED: Use CaseTypeName mapping like in filter dropdown
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    
+                    # Try to get the CaseTypeName from mapping
+                    if case_type_mapping and raw_str in case_type_mapping:
+                        return case_type_mapping[raw_str]
+                    else:
+                        # Fallback to titleized code if mapping not available
+                        return titleize(raw_str)
+                        
+                elif dimension == 'AorShortName':
+                    # For AOR - would need AorName mapping, but for now use raw value
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    return raw_str  # AOR codes are typically fine as-is
+                    
+                else:
+                    # For other dimensions, use same transformation as filter callback
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    
+                    # Apply titleize and remove "N/A" like in filter callback
+                    transformed_label = titleize(raw_str)
+                    transformed_label = transformed_label.replace("N/A", "").strip()
+                    
+                    return transformed_label if transformed_label else raw_str
+            
+            # Create category names with proper labels matching filter dropdown format
+            category_names = []
+            for raw_name in dimension_data.index:
+                display_label = create_display_label(raw_name, dimension)
+                # Truncate long labels but keep "Unspecified" intact
+                if display_label == "Unspecified":
+                    category_names.append(display_label)
+                else:
+                    truncated = display_label[:20] + "..." if len(display_label) > 20 else display_label
+                    category_names.append(truncated)
             
             # Add mean times (vertical bars)
             fig.add_trace(go.Bar(
@@ -410,7 +530,7 @@ def register_workflow_resolution_times_callbacks(app):
                 hovertemplate='<b>%{x}</b><br>Median: %{y:.1f}h<extra></extra>'
             ))
             
-            # Updated dimension label
+            # Updated dimension label using same transformation
             dimension_label = dimension.replace('WorkItemDefinitionShortCode', 'Case Type')
             
             # Create title based on display preference
@@ -454,14 +574,15 @@ def register_workflow_resolution_times_callbacks(app):
             
         except Exception as e:
             print(f"❌ Error creating resolution times bar chart: {e}")
+            import traceback
+            traceback.print_exc()
             return go.Figure()
-
 
     @monitor_chart_performance("Resolution Times Box Plot")
     def create_resolution_times_box_plot(resolution_data, summary_stats, dimension, show_all=False):
         """
         Create box plot showing resolution time distribution by selected dimension
-        Updated with fixed height and improved category handling
+        Updated to handle empty values and use consistent labels matching filter dropdowns
         """
         if resolution_data.empty or dimension not in resolution_data.columns:
             # Show information about total tickets even when no resolution data
@@ -489,33 +610,100 @@ def register_workflow_resolution_times_callbacks(app):
             total_tickets = summary_stats.get('total_tickets', len(resolution_data))
             analyzable_tickets = summary_stats.get('analyzable_tickets', len(resolution_data))
             
+            # Create a working copy of resolution data
+            working_data = resolution_data.copy()
+            
+            # Handle empty strings and None values - map to "Unspecified"
+            working_data[dimension] = working_data[dimension].fillna('').astype(str)
+            working_data[dimension] = working_data[dimension].replace('', 'Unspecified')
+            working_data[dimension] = working_data[dimension].replace('nan', 'Unspecified')
+            
+            # Get case type name mapping for special handling
+            case_type_mapping = get_case_type_name_mapping() if dimension == 'WorkItemDefinitionShortCode' else {}
+            
             # Filter out extreme outliers for better visualization
-            q99 = resolution_data['ResolutionTimeHours'].quantile(0.99)
-            display_data = resolution_data[resolution_data['ResolutionTimeHours'] <= q99].copy()
+            q99 = working_data['ResolutionTimeHours'].quantile(0.99)
+            display_data = working_data[working_data['ResolutionTimeHours'] <= q99].copy()
             
-            # Use show_all parameter to determine categories
-            total_unique_categories = display_data[dimension].nunique()
+            # UPDATED: Use EXACTLY the same logic as bar chart for consistency
+            dimension_key = dimension.replace('WorkItemDefinitionShortCode', 'CaseType')
             
+            # Calculate statistics exactly the same way as bar chart
+            dimension_stats = working_data.groupby(dimension)['ResolutionTimeHours'].agg([
+                'count', 'mean', 'median', 'std'
+            ]).round(2)
+            dimension_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
+            
+            # UPDATED: Use EXACTLY the same sorting and filtering logic as bar chart
             if show_all:
-                # Show all categories (sorted by frequency for consistency)
-                all_categories = display_data[dimension].value_counts().index.tolist()
-                top_categories = all_categories
-                displayed_categories = len(all_categories)
+                # Sort by Mean_Hours descending for consistent ordering (same as bar chart)
+                sorted_dimension_data = dimension_stats.sort_values('Mean_Hours', ascending=False)
+                top_categories = sorted_dimension_data.index.tolist()
+                displayed_categories = len(sorted_dimension_data)
             else:
-                # Show top categories by count for readability
-                top_categories = display_data[dimension].value_counts().head(10).index.tolist()
-                displayed_categories = min(10, total_unique_categories)
+                # UPDATED: Use top 10 categories sorted by Mean_Hours descending (exactly same as bar chart)
+                sorted_dimension_data = dimension_stats.sort_values('Mean_Hours', ascending=False).head(10)
+                top_categories = sorted_dimension_data.index.tolist()
+                displayed_categories = min(10, len(dimension_stats))
             
+            total_unique_categories = working_data[dimension].nunique()
+            
+            # Use the filtered display_data but only for the selected top categories
             plot_data = display_data[display_data[dimension].isin(top_categories)]
             
             fig = go.Figure()
             
-            # Create box plot for each category with truncated names
+            # Create display labels that match filter dropdown labels using same transformation logic
+            def create_display_label(raw_value, dimension):
+                """Create display labels that match filter dropdown labels using same transformations"""
+                if pd.isna(raw_value) or str(raw_value) == '' or str(raw_value) == 'nan':
+                    return "Unspecified"
+                
+                raw_str = str(raw_value)
+                
+                # Handle specific dimension mappings matching filter callback logic
+                if dimension == 'WorkItemDefinitionShortCode':
+                    # UPDATED: Use CaseTypeName mapping like in filter dropdown
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    
+                    # Try to get the CaseTypeName from mapping
+                    if case_type_mapping and raw_str in case_type_mapping:
+                        return case_type_mapping[raw_str]
+                    else:
+                        # Fallback to titleized code if mapping not available
+                        return titleize(raw_str)
+                        
+                elif dimension == 'AorShortName':
+                    # For AOR - would need AorName mapping, but for now use raw value
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    return raw_str  # AOR codes are typically fine as-is
+                    
+                else:
+                    # For other dimensions, use same transformation as filter callback
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    
+                    # Apply titleize and remove "N/A" like in filter callback
+                    transformed_label = titleize(raw_str)
+                    transformed_label = transformed_label.replace("N/A", "").strip()
+                    
+                    return transformed_label if transformed_label else raw_str
+            
+            # CRITICAL FIX: Create box plot in the EXACT same order as bar chart
+            # Use top_categories list which is already sorted by Mean_Hours descending
             for i, category in enumerate(top_categories):
                 category_data = plot_data[plot_data[dimension] == category]['ResolutionTimeHours']
                 if len(category_data) > 0:
-                    # Truncate long category names for display
-                    display_name = str(category)[:20] + "..." if len(str(category)) > 20 else str(category)
+                    # Create display label that matches filter dropdown using same transformations
+                    display_label = create_display_label(category, dimension)
+                    
+                    # Truncate long labels but keep "Unspecified" intact
+                    if display_label == "Unspecified":
+                        display_name = display_label
+                    else:
+                        display_name = display_label[:20] + "..." if len(display_label) > 20 else display_label
                     
                     fig.add_trace(go.Box(
                         y=category_data,
@@ -535,7 +723,7 @@ def register_workflow_resolution_times_callbacks(app):
                     annotation_position="top left"
                 )
             
-            # Updated dimension label
+            # Updated dimension label using same transformation
             dimension_label = dimension.replace('WorkItemDefinitionShortCode', 'Case Type')
             
             # Create title based on display preference
@@ -571,8 +759,10 @@ def register_workflow_resolution_times_callbacks(app):
             
         except Exception as e:
             print(f"❌ Error creating resolution times box plot: {e}")
+            import traceback
+            traceback.print_exc()
             return go.Figure()
-           
+                          
     @monitor_chart_performance("Resolution Times Statistics Figure")
     def create_resolution_times_statistics_figure(resolution_data, summary_stats, category_analysis, dimension, population="all"):
         """
