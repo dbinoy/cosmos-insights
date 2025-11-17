@@ -480,178 +480,14 @@ def register_workflow_resolution_times_callbacks(app):
             print(f"❌ Error creating resolution times box plot: {e}")
             return go.Figure()
     
-    # @monitor_chart_performance("Resolution Times Statistics")
-    # def create_resolution_times_statistics(resolution_data, summary_stats, category_analysis, dimension):
-    #     """
-    #     Create comprehensive statistics view showing all the calculated metrics
-    #     """
-    #     if resolution_data.empty or not summary_stats:
-    #         return html.Div([
-    #             html.H5("Resolution Times Statistics", className="text-center text-muted mb-3"),
-    #             html.P("No resolution data available for current filters", className="text-center text-muted")
-    #         ], className="p-4")
-        
-    #     try:
-    #         # Overall Statistics Cards
-    #         stats_cards = dbc.Row([
-    #             dbc.Col([
-    #                 dbc.Card([
-    #                     dbc.CardBody([
-    #                         html.H4(f"{summary_stats['total_resolved']:,}", className="text-primary mb-0"),
-    #                         html.P("Total Resolved", className="text-muted small mb-0")
-    #                     ])
-    #                 ], className="text-center")
-    #             ], width=2),
-    #             dbc.Col([
-    #                 dbc.Card([
-    #                     dbc.CardBody([
-    #                         html.H4(f"{summary_stats['mean_hours']:.1f}h", className="text-info mb-0"),
-    #                         html.P("Mean Time", className="text-muted small mb-0")
-    #                     ])
-    #                 ], className="text-center")
-    #             ], width=2),
-    #             dbc.Col([
-    #                 dbc.Card([
-    #                     dbc.CardBody([
-    #                         html.H4(f"{summary_stats['median_hours']:.1f}h", className="text-success mb-0"),
-    #                         html.P("Median Time", className="text-muted small mb-0")
-    #                     ])
-    #                 ], className="text-center")
-    #             ], width=2),
-    #             dbc.Col([
-    #                 dbc.Card([
-    #                     dbc.CardBody([
-    #                         html.H4(f"{summary_stats['p75_hours']:.1f}h", className="text-warning mb-0"),
-    #                         html.P("75th Percentile", className="text-muted small mb-0")
-    #                     ])
-    #                 ], className="text-center")
-    #             ], width=2),
-    #             dbc.Col([
-    #                 dbc.Card([
-    #                     dbc.CardBody([
-    #                         html.H4(f"{summary_stats['p90_hours']:.1f}h", className="text-warning mb-0"),
-    #                         html.P("90th Percentile", className="text-muted small mb-0")
-    #                     ])
-    #                 ], className="text-center")
-    #             ], width=2),
-    #             dbc.Col([
-    #                 dbc.Card([
-    #                     dbc.CardBody([
-    #                         html.H4(f"{summary_stats['p95_hours']:.1f}h", className="text-danger mb-0"),
-    #                         html.P("95th Percentile", className="text-muted small mb-0")
-    #                     ])
-    #                 ], className="text-center")
-    #             ], width=2)
-    #         ], className="mb-4")
-            
-    #         # Escalation Impact Cards
-    #         escalation_cards = dbc.Row([
-    #             dbc.Col([
-    #                 dbc.Card([
-    #                     dbc.CardBody([
-    #                         html.H5("Escalation Impact Analysis", className="text-primary mb-3"),
-    #                         dbc.Row([
-    #                             dbc.Col([
-    #                                 html.H4(f"{summary_stats.get('escalated_count', 0):,}", className="text-danger mb-0"),
-    #                                 html.P("Escalated Tickets", className="text-muted small mb-0")
-    #                             ], width=4),
-    #                             dbc.Col([
-    #                                 html.H4(f"{summary_stats.get('escalated_mean_hours', 0):.1f}h", className="text-danger mb-0"),
-    #                                 html.P("Escalated Avg", className="text-muted small mb-0")
-    #                             ], width=4),
-    #                             dbc.Col([
-    #                                 html.H4(f"{summary_stats.get('non_escalated_mean_hours', 0):.1f}h", className="text-success mb-0"),
-    #                                 html.P("Non-Escalated Avg", className="text-muted small mb-0")
-    #                             ], width=4)
-    #                         ])
-    #                     ])
-    #                 ])
-    #             ], width=12)
-    #         ], className="mb-4")
-            
-    #         # Detailed Breakdown Table by Selected Dimension
-    #         dimension_key = dimension.replace('WorkItemDefinitionShortCode', 'WorkItemType')
-    #         detail_table = None
-            
-    #         if dimension_key in category_analysis and not category_analysis[dimension_key].empty:
-    #             dimension_data = category_analysis[dimension_key].head(20)
-    #             dimension_label = dimension.replace('WorkItemDefinitionShortCode', 'Work Item Type')
-                
-    #             table_rows = []
-    #             for category, row in dimension_data.iterrows():
-    #                 table_rows.append(html.Tr([
-    #                     html.Td(str(category), style={'fontWeight': 'bold'}),
-    #                     html.Td(f"{row['Count']:,}", className="text-end"),
-    #                     html.Td(f"{row['Mean_Hours']:.1f}h", className="text-end"),
-    #                     html.Td(f"{row['Median_Hours']:.1f}h", className="text-end"),
-    #                     html.Td(f"{row['Std_Hours']:.1f}h" if pd.notna(row['Std_Hours']) else "—", className="text-end"),
-    #                     html.Td(f"{(row['Mean_Hours'] - summary_stats['mean_hours']):.1f}h", 
-    #                            className="text-end text-success" if row['Mean_Hours'] < summary_stats['mean_hours'] else "text-end text-danger")
-    #                 ]))
-                
-    #             detail_table = html.Div([
-    #                 html.H5(f"Resolution Times by {dimension_label}", className="mb-3"),
-    #                 html.Div([
-    #                     html.Table([
-    #                         html.Thead([
-    #                             html.Tr([
-    #                                 html.Th(dimension_label),
-    #                                 html.Th("Count", className="text-end"),
-    #                                 html.Th("Mean Time", className="text-end"),
-    #                                 html.Th("Median Time", className="text-end"), 
-    #                                 html.Th("Std Dev", className="text-end"),
-    #                                 html.Th("vs Overall", className="text-end")
-    #                             ])
-    #                         ]),
-    #                         html.Tbody(table_rows)
-    #                     ], className="table table-striped table-hover table-sm")
-    #                 ], style={'maxHeight': '400px', 'overflowY': 'auto'})
-    #             ])
-            
-    #         # Resolution Time Distribution Table
-    #         distribution_table = None
-    #         if 'Distribution' in category_analysis:
-    #             dist_data = category_analysis['Distribution']
-                
-    #             dist_rows = []
-    #             for category, row in dist_data.iterrows():
-    #                 dist_rows.append(html.Tr([
-    #                     html.Td(str(category), style={'fontWeight': 'bold'}),
-    #                     html.Td(f"{row['Count']:,}", className="text-end"),
-    #                     html.Td(f"{row['Percentage']:.1f}%", className="text-end")
-    #                 ]))
-                
-    #             distribution_table = html.Div([
-    #                 html.H5("Resolution Time Distribution", className="mb-3"),
-    #                 html.Table([
-    #                     html.Thead([
-    #                         html.Tr([
-    #                             html.Th("Time Range"),
-    #                             html.Th("Count", className="text-end"),
-    #                             html.Th("Percentage", className="text-end")
-    #                         ])
-    #                     ]),
-    #                     html.Tbody(dist_rows)
-    #                 ], className="table table-striped table-sm")
-    #             ])
-            
-    #         return html.Div([
-    #             stats_cards,
-    #             escalation_cards,
-    #             dbc.Row([
-    #                 dbc.Col([detail_table], width=8) if detail_table else html.Div(),
-    #                 dbc.Col([distribution_table], width=4) if distribution_table else html.Div()
-    #             ])
-    #         ])
-            
-    #     except Exception as e:
-    #         print(f"❌ Error creating resolution times statistics: {e}")
-    #         return html.Div("Error creating statistics view", className="text-center text-danger p-4")
-
     @monitor_chart_performance("Resolution Times Statistics Figure")
-    def create_resolution_times_statistics_figure(resolution_data, summary_stats, category_analysis, dimension):
+    def create_resolution_times_statistics_figure(resolution_data, summary_stats, category_analysis, dimension, population="all"):
         """
-        Create statistics view as a plotly figure with annotations (consistent with other chart types)
+        Create focused statistics view showing distribution with statistical markers
+        Population parameter controls which subset of data to analyze:
+        - "all": All tickets
+        - "escalated": Only escalated tickets  
+        - "non_escalated": Only non-escalated tickets
         """
         if resolution_data.empty or not summary_stats:
             fig = go.Figure()
@@ -671,71 +507,214 @@ def register_workflow_resolution_times_callbacks(app):
             return fig
 
         try:
+            # Filter data based on population selection
+            if population == "escalated":
+                if 'IsEscalated' not in resolution_data.columns:
+                    fig = go.Figure()
+                    fig.add_annotation(
+                        text="Escalation data not available",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                        showarrow=False,
+                        font=dict(size=16, color="gray")
+                    )
+                    fig.update_layout(title="Escalated Tickets Statistics", height=450)
+                    return fig
+                    
+                filtered_data = resolution_data[resolution_data['IsEscalated'] == '1'].copy()
+                if filtered_data.empty:
+                    fig = go.Figure()
+                    fig.add_annotation(
+                        text="🎯 No Escalated Tickets Found!\n\nExcellent performance - all tickets resolved at first contact",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                        showarrow=False,
+                        font=dict(size=16, color="green")
+                    )
+                    fig.update_layout(title="Escalated Tickets Statistics", height=450, plot_bgcolor='white', paper_bgcolor='white')
+                    return fig
+                    
+                population_title = "Escalated Tickets"
+                population_color = "#E74C3C"
+                
+            elif population == "non_escalated":
+                if 'IsEscalated' not in resolution_data.columns:
+                    filtered_data = resolution_data.copy()  # Assume all non-escalated if no escalation data
+                else:
+                    filtered_data = resolution_data[resolution_data['IsEscalated'] == '0'].copy()
+                    
+                if filtered_data.empty:
+                    fig = go.Figure()
+                    fig.add_annotation(
+                        text="No non-escalated tickets found",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                        showarrow=False,
+                        font=dict(size=16, color="gray")
+                    )
+                    fig.update_layout(title="Non-Escalated Tickets Statistics", height=450)
+                    return fig
+                    
+                population_title = "Non-Escalated Tickets"
+                population_color = "#27AE60"
+                
+            else:  # "all"
+                filtered_data = resolution_data.copy()
+                population_title = "All Tickets"
+                population_color = "#3498DB"
+            
+            # Calculate statistics for the filtered population
+            hours_data = filtered_data['ResolutionTimeHours']
+            pop_stats = {
+                'count': len(filtered_data),
+                'mean_hours': hours_data.mean(),
+                'median_hours': hours_data.median(),
+                'p75_hours': hours_data.quantile(0.75),
+                'p90_hours': hours_data.quantile(0.90),
+                'p95_hours': hours_data.quantile(0.95),
+                'min_hours': hours_data.min(),
+                'max_hours': hours_data.max(),
+                'std_hours': hours_data.std()
+            }
+            
+            # Create the visualization
             fig = go.Figure()
             
-            # Create statistics as text annotations on the figure
-            stats_text = f"""
-            <b>Resolution Times Statistics</b><br><br>
+            # Filter outliers for better visualization (keep 99% of data)
+            q99 = hours_data.quantile(0.99)
+            display_hours = hours_data[hours_data <= q99]
             
-            <b>Overall Metrics:</b><br>
-            Total Resolved: {summary_stats['total_resolved']:,}<br>
-            Mean Time: {summary_stats['mean_hours']:.1f} hours<br>
-            Median Time: {summary_stats['median_hours']:.1f} hours<br>
-            75th Percentile: {summary_stats['p75_hours']:.1f} hours<br>
-            90th Percentile: {summary_stats['p90_hours']:.1f} hours<br>
-            95th Percentile: {summary_stats['p95_hours']:.1f} hours<br><br>
-            
-            <b>Escalation Analysis:</b><br>
-            Escalated Tickets: {summary_stats.get('escalated_count', 0):,}<br>
-            Escalated Avg: {summary_stats.get('escalated_mean_hours', 0):.1f} hours<br>
-            Non-Escalated Avg: {summary_stats.get('non_escalated_mean_hours', 0):.1f} hours<br>
-            Impact: {summary_stats.get('escalation_impact_hours', 0):.1f} hours difference
-            """
-            
-            # Add distribution data if available
-            if 'Distribution' in category_analysis:
-                dist_data = category_analysis['Distribution']
-                stats_text += "<br><br><b>Time Distribution:</b><br>"
-                for category, row in dist_data.head(6).iterrows():
-                    stats_text += f"{category}: {row['Count']:,} ({row['Percentage']:.1f}%)<br>"
-            
-            # Add the statistics as annotation
-            fig.add_annotation(
-                text=stats_text,
-                xref="paper", yref="paper",
-                x=0.5, y=0.5,
-                xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=12, color="#2c3e50"),
-                align="left",
-                bgcolor="rgba(248, 249, 250, 0.8)",
-                bordercolor="rgba(0, 0, 0, 0.1)",
-                borderwidth=1
+            # Create histogram
+            fig.add_trace(
+                go.Histogram(
+                    x=display_hours,
+                    nbinsx=min(30, max(10, len(display_hours) // 10)),  # Adaptive bin count
+                    opacity=0.7,
+                    marker_color=population_color,
+                    name='Ticket Distribution',
+                    showlegend=False
+                )
             )
             
+            # Add vertical lines for key statistics
+            stats_lines = [
+                {'value': pop_stats['median_hours'], 'name': 'Median', 'color': '#2ECC71', 'dash': 'solid'},
+                {'value': pop_stats['mean_hours'], 'name': 'Mean', 'color': '#3498DB', 'dash': 'dash'},
+                {'value': pop_stats['p75_hours'], 'name': '75th %ile', 'color': '#F39C12', 'dash': 'dot'},
+                {'value': pop_stats['p90_hours'], 'name': '90th %ile', 'color': '#E67E22', 'dash': 'dashdot'},
+                {'value': pop_stats['p95_hours'], 'name': '95th %ile', 'color': '#E74C3C', 'dash': 'longdash'}
+            ]
+            
+            # Add the statistical markers as vertical lines
+            for stat in stats_lines:
+                if not pd.isna(stat['value']) and stat['value'] > 0:
+                    fig.add_vline(
+                        x=stat['value'],
+                        line_dash=stat['dash'],
+                        line_color=stat['color'],
+                        line_width=2,
+                        annotation_text=f"{stat['name']}: {stat['value']:.1f}h",
+                        annotation_position="top",
+                        annotation_font_size=9
+                    )
+            
+            # Update layout
             fig.update_layout(
                 title={
-                    'text': "Resolution Times Statistics",
+                    'text': f"{population_title} - Resolution Times Distribution ({pop_stats['count']:,} tickets)",
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 18, 'color': '#2c3e50'}
                 },
+                xaxis_title="Resolution Time (Hours)",
+                yaxis_title="Number of Tickets",
                 height=450,
                 plot_bgcolor='white',
                 paper_bgcolor='white',
-                margin={'l': 50, 'r': 50, 't': 80, 'b': 50},
-                showlegend=False,
-                xaxis=dict(visible=False),
-                yaxis=dict(visible=False)
+                margin={'l': 60, 'r': 200, 't': 100, 'b': 80}  # Increased right margin for legend
+            )
+            
+            # Create consolidated legend with all information
+            mean_hours = pop_stats['mean_hours']
+            median_hours = pop_stats['median_hours']
+            
+            # Determine distribution characteristics
+            if mean_hours > 0 and median_hours > 0:
+                skew_ratio = mean_hours / median_hours
+                if skew_ratio > 1.3:
+                    distribution_note = "Right-skewed"
+                    distribution_icon = "📈"
+                elif skew_ratio < 0.8:
+                    distribution_note = "Left-skewed"
+                    distribution_icon = "📉"
+                else:
+                    distribution_note = "Balanced"
+                    distribution_icon = "⚖️"
+            else:
+                distribution_note = "Insufficient data"
+                distribution_icon = "❓"
+            
+            # Add comparison to overall population if this is a subset
+            comparison_text = ""
+            if population != "all" and summary_stats.get('mean_hours', 0) > 0:
+                overall_mean = summary_stats['mean_hours']
+                pop_mean = pop_stats['mean_hours']
+                if pop_mean > overall_mean:
+                    diff_pct = ((pop_mean - overall_mean) / overall_mean) * 100
+                    comparison_text = f"↗️ {diff_pct:.0f}% slower than overall\n"
+                elif pop_mean < overall_mean:
+                    diff_pct = ((overall_mean - pop_mean) / overall_mean) * 100
+                    comparison_text = f"↘️ {diff_pct:.0f}% faster than overall\n"
+                else:
+                    comparison_text = "➡️ Same as overall average\n"
+            
+            # Consolidated legend text
+            legend_text = f"""<b>📊 Statistics & Interpretation</b><br><br>
+
+<b>Key Metrics:</b><br>
+• Median: {median_hours:.1f}h (50% resolve faster)<br>
+• Mean: {mean_hours:.1f}h<br>
+• 75th percentile: {pop_stats['p75_hours']:.1f}h (75% within)<br>
+• 90th percentile: {pop_stats['p90_hours']:.1f}h (90% within)<br>
+• 95th percentile: {pop_stats['p95_hours']:.1f}h (only 5% exceed)<br><br>
+
+<b>Distribution:</b><br>
+{distribution_icon} {distribution_note}<br>
+{comparison_text}<br>
+
+<b>Vertical Lines:</b><br>
+<span style='color:#2ECC71'>●</span> Green solid: Median<br>
+<span style='color:#3498DB'>●</span> Blue dashed: Mean<br>
+<span style='color:#F39C12'>●</span> Orange dotted: 75th percentile<br>
+<span style='color:#E67E22'>●</span> Red dash-dot: 90th percentile<br>
+<span style='color:#E74C3C'>●</span> Dark red long-dash: 95th percentile"""
+            
+            # Add single consolidated annotation in top-right corner
+            fig.add_annotation(
+                text=legend_text,
+                xref="paper", yref="paper",
+                x=0.99, y=0.98,
+                xanchor='right', yanchor='top',
+                showarrow=False,
+                font=dict(size=10, color="#2c3e50"),
+                align="left",
+                bgcolor="rgba(248, 249, 250, 0.95)",
+                bordercolor="rgba(52, 152, 219, 0.3)",
+                borderwidth=1,
+                borderpad=12
             )
             
             return fig
             
         except Exception as e:
-            print(f"❌ Error creating statistics figure: {e}")
+            print(f"❌ Error creating statistics dashboard: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Fallback to simple figure
             fig = go.Figure()
             fig.add_annotation(
-                text=f"Error creating statistics: {str(e)}",
+                text=f"Error creating statistics dashboard: {str(e)}",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
                 showarrow=False,
@@ -748,11 +727,276 @@ def register_workflow_resolution_times_callbacks(app):
                 paper_bgcolor='white'
             )
             return fig
-        
+    
+    # @monitor_chart_performance("Resolution Times Statistics Figure")
+    # def create_resolution_times_statistics_figure(resolution_data, summary_stats, category_analysis, dimension, population="all"):
+    #     """
+    #     Create focused statistics view showing distribution with statistical markers
+    #     Population parameter controls which subset of data to analyze:
+    #     - "all": All tickets
+    #     - "escalated": Only escalated tickets  
+    #     - "non_escalated": Only non-escalated tickets
+    #     """
+    #     if resolution_data.empty or not summary_stats:
+    #         fig = go.Figure()
+    #         fig.add_annotation(
+    #             text="No resolution data available for current filters",
+    #             xref="paper", yref="paper",
+    #             x=0.5, y=0.5, xanchor='center', yanchor='middle',
+    #             showarrow=False,
+    #             font=dict(size=16, color="gray")
+    #         )
+    #         fig.update_layout(
+    #             title="Resolution Times Statistics",
+    #             height=450,
+    #             plot_bgcolor='white',
+    #             paper_bgcolor='white'
+    #         )
+    #         return fig
+
+    #     try:
+    #         # Filter data based on population selection
+    #         if population == "escalated":
+    #             if 'IsEscalated' not in resolution_data.columns:
+    #                 fig = go.Figure()
+    #                 fig.add_annotation(
+    #                     text="Escalation data not available",
+    #                     xref="paper", yref="paper",
+    #                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
+    #                     showarrow=False,
+    #                     font=dict(size=16, color="gray")
+    #                 )
+    #                 fig.update_layout(title="Escalated Tickets Statistics", height=450)
+    #                 return fig
+                    
+    #             filtered_data = resolution_data[resolution_data['IsEscalated'] == '1'].copy()
+    #             if filtered_data.empty:
+    #                 fig = go.Figure()
+    #                 fig.add_annotation(
+    #                     text="🎯 No Escalated Tickets Found!\n\nExcellent performance - all tickets resolved at first contact",
+    #                     xref="paper", yref="paper",
+    #                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
+    #                     showarrow=False,
+    #                     font=dict(size=16, color="green")
+    #                 )
+    #                 fig.update_layout(title="Escalated Tickets Statistics", height=450, plot_bgcolor='white', paper_bgcolor='white')
+    #                 return fig
+                    
+    #             population_title = "Escalated Tickets"
+    #             population_color = "#E74C3C"
+                
+    #         elif population == "non_escalated":
+    #             if 'IsEscalated' not in resolution_data.columns:
+    #                 filtered_data = resolution_data.copy()  # Assume all non-escalated if no escalation data
+    #             else:
+    #                 filtered_data = resolution_data[resolution_data['IsEscalated'] == '0'].copy()
+                    
+    #             if filtered_data.empty:
+    #                 fig = go.Figure()
+    #                 fig.add_annotation(
+    #                     text="No non-escalated tickets found",
+    #                     xref="paper", yref="paper",
+    #                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
+    #                     showarrow=False,
+    #                     font=dict(size=16, color="gray")
+    #                 )
+    #                 fig.update_layout(title="Non-Escalated Tickets Statistics", height=450)
+    #                 return fig
+                    
+    #             population_title = "Non-Escalated Tickets"
+    #             population_color = "#27AE60"
+                
+    #         else:  # "all"
+    #             filtered_data = resolution_data.copy()
+    #             population_title = "All Tickets"
+    #             population_color = "#3498DB"
+            
+    #         # Calculate statistics for the filtered population
+    #         hours_data = filtered_data['ResolutionTimeHours']
+            
+    #         # Check if we have valid data
+    #         if hours_data.empty or hours_data.isna().all():
+    #             fig = go.Figure()
+    #             fig.add_annotation(
+    #                 text="No valid resolution time data available",
+    #                 xref="paper", yref="paper",
+    #                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
+    #                 showarrow=False,
+    #                 font=dict(size=16, color="gray")
+    #             )
+    #             fig.update_layout(title=f"{population_title} Statistics", height=450)
+    #             return fig
+            
+    #         pop_stats = {
+    #             'count': len(filtered_data),
+    #             'mean_hours': float(hours_data.mean()),
+    #             'median_hours': float(hours_data.median()),
+    #             'p75_hours': float(hours_data.quantile(0.75)),
+    #             'p90_hours': float(hours_data.quantile(0.90)),
+    #             'p95_hours': float(hours_data.quantile(0.95)),
+    #             'min_hours': float(hours_data.min()),
+    #             'max_hours': float(hours_data.max()),
+    #             'std_hours': float(hours_data.std())
+    #         }
+            
+    #         # Create the visualization
+    #         fig = go.Figure()
+            
+    #         # Filter outliers for better visualization (keep 99% of data)
+    #         q99 = hours_data.quantile(0.99)
+    #         display_hours = hours_data[hours_data <= q99]
+            
+    #         # Create histogram
+    #         fig.add_trace(
+    #             go.Histogram(
+    #                 x=display_hours,
+    #                 nbinsx=min(30, max(10, len(display_hours) // 10)),  # Adaptive bin count
+    #                 opacity=0.7,
+    #                 marker_color=population_color,
+    #                 name='Ticket Distribution',
+    #                 showlegend=False
+    #             )
+    #         )
+            
+    #         # Add vertical lines for key statistics
+    #         stats_lines = [
+    #             {'value': pop_stats['median_hours'], 'name': 'Median', 'color': '#2ECC71', 'dash': 'solid'},
+    #             {'value': pop_stats['mean_hours'], 'name': 'Mean', 'color': '#3498DB', 'dash': 'dash'},
+    #             {'value': pop_stats['p75_hours'], 'name': '75th %ile', 'color': '#F39C12', 'dash': 'dot'},
+    #             {'value': pop_stats['p90_hours'], 'name': '90th %ile', 'color': '#E67E22', 'dash': 'dashdot'},
+    #             {'value': pop_stats['p95_hours'], 'name': '95th %ile', 'color': '#E74C3C', 'dash': 'longdash'}
+    #         ]
+            
+    #         # Add the statistical markers as vertical lines without individual annotations
+    #         for stat in stats_lines:
+    #             if not pd.isna(stat['value']) and stat['value'] > 0:
+    #                 fig.add_vline(
+    #                     x=stat['value'],
+    #                     line_dash=stat['dash'],
+    #                     line_color=stat['color'],
+    #                     line_width=2
+    #                 )
+            
+    #         # Create a compact statistical lines reference for the legend
+    #         stats_reference = ""
+    #         for stat in stats_lines:
+    #             if not pd.isna(stat['value']) and stat['value'] > 0:
+    #                 stats_reference += f"<span style='color:{stat['color']}'>●</span> {stat['name']}: {stat['value']:.1f}h<br>"
+                    
+    #         # Update layout
+    #         fig.update_layout(
+    #             title={
+    #                 'text': f"{population_title} - Resolution Times Distribution ({pop_stats['count']:,} tickets)",
+    #                 'x': 0.5,
+    #                 'xanchor': 'center',
+    #                 'font': {'size': 18, 'color': '#2c3e50'}
+    #             },
+    #             xaxis_title="Resolution Time (Hours)",
+    #             yaxis_title="Number of Tickets",
+    #             height=450,
+    #             plot_bgcolor='white',
+    #             paper_bgcolor='white',
+    #             margin={'l': 60, 'r': 250, 't': 100, 'b': 80}  # Increased right margin for legend
+    #         )
+            
+    #         # Create consolidated legend with all information
+    #         mean_hours = pop_stats['mean_hours']
+    #         median_hours = pop_stats['median_hours']
+            
+    #         # Determine distribution characteristics
+    #         if mean_hours > 0 and median_hours > 0:
+    #             skew_ratio = mean_hours / median_hours
+    #             if skew_ratio > 1.3:
+    #                 distribution_note = "Right-skewed"
+    #                 distribution_icon = "📈"
+    #             elif skew_ratio < 0.8:
+    #                 distribution_note = "Left-skewed"
+    #                 distribution_icon = "📉"
+    #             else:
+    #                 distribution_note = "Balanced"
+    #                 distribution_icon = "⚖️"
+    #         else:
+    #             distribution_note = "Insufficient data"
+    #             distribution_icon = "❓"
+            
+    #         # Add comparison to overall population if this is a subset
+    #         comparison_text = ""
+    #         if population != "all" and summary_stats.get('mean_hours', 0) > 0:
+    #             overall_mean = summary_stats['mean_hours']
+    #             pop_mean = pop_stats['mean_hours']
+    #             if pop_mean > overall_mean:
+    #                 diff_pct = ((pop_mean - overall_mean) / overall_mean) * 100
+    #                 comparison_text = f"↗️ {diff_pct:.0f}% slower than overall<br>"
+    #             elif pop_mean < overall_mean:
+    #                 diff_pct = ((overall_mean - pop_mean) / overall_mean) * 100
+    #                 comparison_text = f"↘️ {diff_pct:.0f}% faster than overall<br>"
+    #             else:
+    #                 comparison_text = "➡️ Same as overall average<br>"
+            
+    #         # Consolidated legend text with integrated statistical lines
+    #         legend_text = f"""<b>📊 Statistics & Interpretation</b><br><br>
+
+    # <b>Key Metrics:</b><br>
+    # • Median: {median_hours:.1f}h (50% resolve faster)<br>
+    # • Mean: {mean_hours:.1f}h<br>
+    # • 75th percentile: {pop_stats['p75_hours']:.1f}h (75% within)<br>
+    # • 90th percentile: {pop_stats['p90_hours']:.1f}h (90% within)<br>
+    # • 95th percentile: {pop_stats['p95_hours']:.1f}h (only 5% exceed)<br><br>
+
+    # <b>Distribution:</b><br>
+    # {distribution_icon} {distribution_note}<br>
+    # {comparison_text}<br>
+
+    # <b>Statistical Lines:</b><br>
+    # {stats_reference}"""
+            
+    #         # Add single consolidated annotation in top-right corner
+    #         fig.add_annotation(
+    #             text=legend_text,
+    #             xref="paper", yref="paper",
+    #             x=0.99, y=0.98,
+    #             xanchor='right', yanchor='top',
+    #             showarrow=False,
+    #             font=dict(size=10, color="#2c3e50"),
+    #             align="left",
+    #             bgcolor="rgba(248, 249, 250, 0.95)",
+    #             bordercolor="rgba(52, 152, 219, 0.3)",
+    #             borderwidth=1,
+    #             borderpad=12
+    #         )
+            
+    #         return fig
+            
+    #     except Exception as e:
+    #         print(f"❌ Error creating statistics dashboard: {e}")
+    #         import traceback
+    #         traceback.print_exc()
+            
+    #         # Fallback to simple figure
+    #         fig = go.Figure()
+    #         fig.add_annotation(
+    #             text=f"Error creating statistics dashboard: {str(e)}",
+    #             xref="paper", yref="paper",
+    #             x=0.5, y=0.5, xanchor='center', yanchor='middle',
+    #             showarrow=False,
+    #             font=dict(size=14, color="red")
+    #         )
+    #         fig.update_layout(
+    #             title="Resolution Times Statistics - Error",
+    #             height=450,
+    #             plot_bgcolor='white',
+    #             paper_bgcolor='white'
+    #         )
+    #         return fig
+                   
     @monitor_chart_performance("Resolution Times Distribution Chart")
-    def create_resolution_times_distribution_chart(resolution_data, summary_stats, category_analysis):
+    def create_resolution_times_distribution_chart(resolution_data, summary_stats, category_analysis, population="all"):
         """
         Create pie chart showing resolution time distribution by categories
+        Population parameter controls which subset of data to analyze:
+        - "all": All tickets
+        - "escalated": Only escalated tickets  
+        - "non_escalated": Only non-escalated tickets
         """
         if resolution_data.empty:
             fig = go.Figure()
@@ -772,50 +1016,121 @@ def register_workflow_resolution_times_callbacks(app):
             return fig
         
         try:
-            # Check if we have distribution data
-            if 'Distribution' not in category_analysis or category_analysis['Distribution'].empty:
-                print("📊 No distribution data found")
-                fig = go.Figure()
-                fig.add_annotation(
-                    text="No distribution categories available",
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                    showarrow=False,
-                    font=dict(size=16, color="gray")
-                )
-                fig.update_layout(
-                    title="Resolution Time Distribution Analysis",
-                    height=450,
-                    plot_bgcolor='white',
-                    paper_bgcolor='white'
-                )
-                return fig
+            # Filter data based on population selection
+            if population == "escalated":
+                if 'IsEscalated' not in resolution_data.columns:
+                    fig = go.Figure()
+                    fig.add_annotation(
+                        text="Escalation data not available",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                        showarrow=False,
+                        font=dict(size=16, color="gray")
+                    )
+                    fig.update_layout(title="Escalated Tickets Distribution", height=450)
+                    return fig
+                    
+                filtered_data = resolution_data[resolution_data['IsEscalated'] == '1'].copy()
+                if filtered_data.empty:
+                    fig = go.Figure()
+                    fig.add_annotation(
+                        text="🎯 No Escalated Tickets Found!\n\nExcellent performance - all tickets resolved at first contact",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                        showarrow=False,
+                        font=dict(size=16, color="green")
+                    )
+                    fig.update_layout(title="Escalated Tickets Distribution", height=450, plot_bgcolor='white', paper_bgcolor='white')
+                    return fig
+                    
+                population_title = "Escalated Tickets"
+                population_colors = ['#E74C3C', '#C0392B', '#A93226', '#922B21', '#7B241C', '#6B2737', '#5B2C6F']
+                
+            elif population == "non_escalated":
+                if 'IsEscalated' not in resolution_data.columns:
+                    filtered_data = resolution_data.copy()  # Assume all non-escalated if no escalation data
+                else:
+                    filtered_data = resolution_data[resolution_data['IsEscalated'] == '0'].copy()
+                    
+                if filtered_data.empty:
+                    fig = go.Figure()
+                    fig.add_annotation(
+                        text="No non-escalated tickets found",
+                        xref="paper", yref="paper",
+                        x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                        showarrow=False,
+                        font=dict(size=16, color="gray")
+                    )
+                    fig.update_layout(title="Non-Escalated Tickets Distribution", height=450)
+                    return fig
+                    
+                population_title = "Non-Escalated Tickets"
+                population_colors = ['#27AE60', '#229954', '#1E8449', '#196F3D', '#145A32', '#0E4B99', '#2E86AB']
+                
+            else:  # "all"
+                filtered_data = resolution_data.copy()
+                population_title = "All Tickets"
+                population_colors = ['#3498DB', '#2980B9', '#1F618D', '#1A5276', '#154360', '#5DADE2', '#85C1E9']
             
-            # Get distribution data
-            distribution_data = category_analysis['Distribution']
-            print(f"📊 Distribution data:\n{distribution_data}")
+            # Recalculate distribution for the filtered population
+            def categorize_resolution_time(minutes):
+                if pd.isna(minutes) or minutes <= 0:
+                    return 'Invalid'
+                elif minutes <= 15:
+                    return '≤15 min'
+                elif minutes <= 60:
+                    return '15-60 min'
+                elif minutes <= 240:  # 4 hours
+                    return '1-4 hours'
+                elif minutes <= 1440:  # 24 hours
+                    return '4-24 hours'
+                elif minutes <= 10080:  # 7 days
+                    return '1-7 days'
+                else:
+                    return '7+ days'
             
-            # Filter out zero counts
-            pie_data = distribution_data[distribution_data['Count'] > 0].copy()
+            filtered_data['ResolutionCategory'] = filtered_data['ResolutionTimeMinutes'].apply(categorize_resolution_time)
+            
+            # Create distribution analysis for this population
+            distribution_analysis = filtered_data.groupby('ResolutionCategory').size()
+            distribution_percentages = (distribution_analysis / len(filtered_data) * 100).round(1)
+            
+            population_distribution = pd.DataFrame({
+                'Count': distribution_analysis,
+                'Percentage': distribution_percentages
+            })
+            
+            # Filter out zero counts and invalid data
+            pie_data = population_distribution[population_distribution['Count'] > 0].copy()
+            pie_data = pie_data[pie_data.index != 'Invalid']  # Remove invalid entries
             
             if pie_data.empty:
                 fig = go.Figure()
                 fig.add_annotation(
-                    text="No valid distribution data available",
+                    text="No valid distribution data available for this population",
                     xref="paper", yref="paper",
                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
                     showarrow=False,
                     font=dict(size=16, color="gray")
                 )
                 fig.update_layout(
-                    title="Resolution Time Distribution Analysis",
+                    title=f"{population_title} - Distribution Analysis",
                     height=450,
                     plot_bgcolor='white',
                     paper_bgcolor='white'
                 )
                 return fig
             
-            # Create pie chart
+            # Calculate population-specific statistics
+            pop_hours_data = filtered_data['ResolutionTimeHours']
+            pop_stats = {
+                'total_tickets': len(filtered_data),
+                'mean_hours': pop_hours_data.mean(),
+                'median_hours': pop_hours_data.median(),
+                'p90_hours': pop_hours_data.quantile(0.90)
+            }
+            
+            # Create pie chart with population-specific colors
             fig = go.Figure()
             
             fig.add_trace(
@@ -826,7 +1141,7 @@ def register_workflow_resolution_times_callbacks(app):
                     textinfo='label+percent+value',
                     textposition='outside',
                     marker=dict(
-                        colors=['#E74C3C', '#F39C12', '#F1C40F', '#2ECC71', '#3498DB', '#9B59B6', '#95A5A6'],
+                        colors=population_colors[:len(pie_data)],
                         line=dict(color='white', width=2)
                     ),
                     hovertemplate='<b>%{label}</b><br>' +
@@ -836,13 +1151,13 @@ def register_workflow_resolution_times_callbacks(app):
                 )
             )
             
-            # Add center text with summary stats
-            total_tickets = pie_data['Count'].sum()
-            mean_hours = summary_stats.get('mean_hours', 0)
-            median_hours = summary_stats.get('median_hours', 0)
+            # Add center text with population-specific summary stats
+            total_tickets = pop_stats['total_tickets']
+            mean_hours = pop_stats['mean_hours']
+            median_hours = pop_stats['median_hours']
             
             fig.add_annotation(
-                text=f"<b>{total_tickets:,}</b><br>Total Tickets<br><br>" +
+                text=f"<b>{total_tickets:,}</b><br>{population_title}<br><br>" +
                     f"Mean: {mean_hours:.1f}h<br>" +
                     f"Median: {median_hours:.1f}h",
                 x=0.5, y=0.5,
@@ -851,10 +1166,24 @@ def register_workflow_resolution_times_callbacks(app):
                 align="center"
             )
             
-            # Update layout
+            # Add comparison insight if this is a subset
+            comparison_insight = ""
+            if population != "all" and summary_stats.get('mean_hours', 0) > 0:
+                overall_mean = summary_stats['mean_hours']
+                pop_mean = pop_stats['mean_hours']
+                if pop_mean > overall_mean:
+                    diff_pct = ((pop_mean - overall_mean) / overall_mean) * 100
+                    comparison_insight = f"↗️ {diff_pct:.0f}% slower than overall average"
+                elif pop_mean < overall_mean:
+                    diff_pct = ((overall_mean - pop_mean) / overall_mean) * 100
+                    comparison_insight = f"↘️ {diff_pct:.0f}% faster than overall average"
+                else:
+                    comparison_insight = "➡️ Same as overall average"
+            
+            # Update layout with population-specific title
             fig.update_layout(
                 title={
-                    'text': "Resolution Time Distribution by Category",
+                    'text': f"{population_title} - Resolution Time Distribution",
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 18, 'color': '#2c3e50'}
@@ -862,7 +1191,7 @@ def register_workflow_resolution_times_callbacks(app):
                 height=450,
                 plot_bgcolor='white',
                 paper_bgcolor='white',
-                margin={'l': 50, 'r': 50, 't': 80, 'b': 50},
+                margin={'l': 50, 'r': 180, 't': 80, 'b': 50},  # Increased right margin for legend
                 showlegend=True,
                 legend=dict(
                     orientation="v",
@@ -870,11 +1199,26 @@ def register_workflow_resolution_times_callbacks(app):
                     y=0.5,
                     xanchor="left",
                     x=1.05,
-                    font=dict(size=12)
+                    font=dict(size=11)
                 )
             )
             
-            print(f"📊 Distribution pie chart created successfully")
+            # Add comparison insight annotation if available
+            if comparison_insight:
+                fig.add_annotation(
+                    text=comparison_insight,
+                    xref="paper", yref="paper",
+                    x=0.02, y=0.02,
+                    xanchor='left', yanchor='bottom',
+                    showarrow=False,
+                    font=dict(size=11, color="#2c3e50"),
+                    bgcolor="rgba(255, 255, 255, 0.9)",
+                    bordercolor="rgba(0, 0, 0, 0.2)",
+                    borderwidth=1,
+                    borderpad=3
+                )
+            
+            print(f"📊 Distribution pie chart created successfully for {population} population")
             return fig
             
         except Exception as e:
@@ -892,13 +1236,13 @@ def register_workflow_resolution_times_callbacks(app):
                 font=dict(size=14, color="red")
             )
             fig.update_layout(
-                title="Resolution Time Distribution Analysis - Error",
+                title=f"{population_title if 'population_title' in locals() else 'Population'} Distribution Analysis - Error",
                 height=450,
                 plot_bgcolor='white',
                 paper_bgcolor='white'
             )
             return fig
-             
+                    
     @monitor_performance("Resolution Times Insights Generation")
     def generate_resolution_times_insights(resolution_data, summary_stats, category_analysis):
         """
@@ -1093,27 +1437,40 @@ def register_workflow_resolution_times_callbacks(app):
         # Return existing state for other triggers (like dimension changes)
         return current_state
 
+    @callback(
+        Output("workflow-resolution-population-state", "data"),
+        [Input("workflow-resolution-population-selector", "value")],
+        prevent_initial_call=False
+    )
+    def update_population_state(selected_population):
+        """Store the selected population for statistics view"""
+        return selected_population or "all"
+    
     # Main callback 
     @callback(
         [Output("workflow-resolution-times-chart", "figure"),
          Output("workflow-resolution-insights", "children")],
         [Input("workflow-filtered-query-store", "data"),
          Input("workflow-resolution-dimension-selector", "value"),
-         Input("workflow-resolution-view-state", "data")],
+         Input("workflow-resolution-view-state", "data"),
+         Input("workflow-resolution-population-state", "data")],
         prevent_initial_call=False
     )
     @monitor_performance("Resolution Times Chart Update")
-    def update_resolution_times_chart(stored_selections, selected_dimension, view_state):
+    def update_resolution_times_chart(stored_selections, selected_dimension, view_state, selected_population):
         """
-        Update resolution times chart based on filter selections, dimension, and view type
-        Uses stored view state to persist view across dimension changes
+        Update resolution times chart based on filter selections, dimension, view type, and population
         """
         try:
-            print(f"🔄 Updating resolution times chart - Dimension: {selected_dimension}, View: {view_state}")
+            print(f"🔄 Updating resolution times chart - Dimension: {selected_dimension}, View: {view_state}, Population: {selected_population}")
             
             # Default to bar chart if no view state
             if view_state is None:
                 view_state = "bar"
+            
+            # Default to all population if none selected
+            if selected_population is None:
+                selected_population = "all"
             
             # Get base data
             base_data = get_resolution_times_base_data()
@@ -1138,16 +1495,22 @@ def register_workflow_resolution_times_callbacks(app):
             
             # Create appropriate visualization based on view state
             if view_state == "stats":
-                # For statistics view, create the stats content as a plotly figure
-                fig = create_resolution_times_statistics_figure(resolution_data, summary_stats, category_analysis, selected_dimension)
+                # For statistics view, pass the population parameter
+                fig = create_resolution_times_statistics_figure(
+                    resolution_data, summary_stats, category_analysis, 
+                    selected_dimension, selected_population
+                )
             elif view_state == "box":
                 fig = create_resolution_times_box_plot(resolution_data, summary_stats, selected_dimension)
             elif view_state == "dist":
-                fig = create_resolution_times_distribution_chart(resolution_data, summary_stats, category_analysis)
+                # For distribution view, also pass the population parameter
+                fig = create_resolution_times_distribution_chart(
+                    resolution_data, summary_stats, category_analysis, selected_population
+                )
             else:  # bar chart (default)
                 fig = create_resolution_times_bar_chart(resolution_data, summary_stats, category_analysis, selected_dimension)
             
-            print(f"✅ Resolution times chart updated successfully - View: {view_state}")
+            print(f"✅ Resolution times chart updated successfully - View: {view_state}, Population: {selected_population}")
             return fig, insights
             
         except Exception as e:
@@ -1173,7 +1536,7 @@ def register_workflow_resolution_times_callbacks(app):
             ], className="insights-container")
             
             return fig, error_insights
-        
+               
     @callback(
         [Output("workflow-resolution-bar-btn", "active"),
          Output("workflow-resolution-box-btn", "active"),
@@ -1205,6 +1568,18 @@ def register_workflow_resolution_times_callbacks(app):
         else:
             return {'display': 'none'}
 
+    @callback(
+        Output("workflow-resolution-population-container", "style"),
+        [Input("workflow-resolution-view-state", "data")],
+        prevent_initial_call=False
+    )
+    def toggle_population_selector_visibility(view_state):
+        """Show population selector for Statistics and Distribution views"""
+        if view_state in ["stats", "dist"]:
+            return {'display': 'block', 'marginBottom': '15px'}
+        else:
+            return {'display': 'none'}
+        
     # Callback to conditionally hide/show chart container for statistics view
     # @callback(
     #     Output("workflow-resolution-times-chart", "style"),

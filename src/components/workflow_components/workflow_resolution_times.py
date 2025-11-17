@@ -3,8 +3,9 @@ import dash_bootstrap_components as dbc
 
 def get_resolution_times_layout():
     return dbc.Card([
-        # Hidden store for view state persistence
+        # Hidden stores for state persistence
         dcc.Store(id="workflow-resolution-view-state", data="bar"),
+        dcc.Store(id="workflow-resolution-population-state", data="all"),
         
         dbc.CardHeader([
             dbc.Row([
@@ -54,6 +55,34 @@ def get_resolution_times_layout():
                     ])
                 ],
                 style={'display': 'block'}  # Will be controlled by callback
+            ),
+            
+            # Conditional population selector - only shown for Statistics view
+            html.Div(
+                id="workflow-resolution-population-container",
+                children=[
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Population:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
+                            dcc.Dropdown(
+                                id="workflow-resolution-population-selector",
+                                options=[
+                                    {'label': 'All Tickets', 'value': 'all'},
+                                    {'label': 'Escalated Tickets', 'value': 'escalated'},
+                                    {'label': 'Non-Escalated Tickets', 'value': 'non_escalated'}
+                                ],
+                                value='all',
+                                clearable=False,
+                                style={'fontSize': '12px'},
+                                className="mb-3"
+                            )
+                        ], width=4),
+                        dbc.Col([
+                            # Space for future controls or info
+                        ], width=8)
+                    ])
+                ],
+                style={'display': 'none', 'marginBottom': '15px'}  # Hidden by default, shown only for Statistics view
             ),
             
             # Chart container - will be conditionally hidden for statistics
