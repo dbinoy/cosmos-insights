@@ -7,6 +7,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 from src.utils.db import run_queries
 import time
+import copy
 import numpy as np
 from functools import wraps
 from src.utils.performance import monitor_performance, monitor_query_performance, monitor_chart_performance
@@ -583,6 +584,7 @@ def register_workflow_resolution_times_callbacks(app):
         """
         Create box plot showing resolution time distribution by selected dimension
         Updated to handle empty values and use consistent labels matching filter dropdowns
+        Enhanced to better handle categories with few data points
         """
         if resolution_data.empty or dimension not in resolution_data.columns:
             # Show information about total tickets even when no resolution data
@@ -691,11 +693,15 @@ def register_workflow_resolution_times_callbacks(app):
                     
                     return transformed_label if transformed_label else raw_str
             
-            # CRITICAL FIX: Create box plot in the EXACT same order as bar chart
-            # Use top_categories list which is already sorted by Mean_Hours descending
+            # ENHANCED: Create box plot with better handling for sparse data categories
+            categories_with_data = []
+            categories_without_data = []
+            
             for i, category in enumerate(top_categories):
                 category_data = plot_data[plot_data[dimension] == category]['ResolutionTimeHours']
-                if len(category_data) > 0:
+                category_count = len(category_data)
+                
+                if category_count > 0:
                     # Create display label that matches filter dropdown using same transformations
                     display_label = create_display_label(category, dimension)
                     
@@ -705,12 +711,51 @@ def register_workflow_resolution_times_callbacks(app):
                     else:
                         display_name = display_label[:20] + "..." if len(display_label) > 20 else display_label
                     
+                    # ENHANCED: Adjust box plot settings based on data characteristics
+                    if category_count >= 5:
+                        # Sufficient data for proper box plot
+                        boxpoints_setting = 'outliers'
+                        jitter = 0.3
+                    elif category_count >= 2:
+                        # Few data points - show all points with box
+                        boxpoints_setting = 'all'
+                        jitter = 0.5
+                    else:
+                        # Single data point - show as point only
+                        boxpoints_setting = 'all'
+                        jitter = 0.8
+                    
+                    # Add box plot trace with enhanced settings
                     fig.add_trace(go.Box(
                         y=category_data,
-                        name=display_name,
-                        boxpoints='outliers',
-                        marker_color=px.colors.qualitative.Set3[i % len(px.colors.qualitative.Set3)]
+                        name=f"{display_name} (n={category_count})",  # Show count in legend
+                        boxpoints=boxpoints_setting,
+                        jitter=jitter,
+                        pointpos=0,  # Center points on box
+                        marker=dict(
+                            color=px.colors.qualitative.Set3[i % len(px.colors.qualitative.Set3)],
+                            size=6 if category_count <= 2 else 4,  # Larger points for sparse data
+                            line=dict(width=1, color='white')
+                        ),
+                        line=dict(
+                            color=px.colors.qualitative.Set3[i % len(px.colors.qualitative.Set3)],
+                            width=2
+                        ),
+                        fillcolor=px.colors.qualitative.Set3[i % len(px.colors.qualitative.Set3)],
+                        # Enhanced hover information
+                        hovertemplate=(
+                            f'<b>{display_name}</b><br>' +
+                            'Value: %{y:.1f}h<br>' +
+                            f'Count: {category_count}<br>' +
+                            f'Mean: {category_data.mean():.1f}h<br>' +
+                            f'Median: {category_data.median():.1f}h<br>' +
+                            '<extra></extra>'
+                        )
                     ))
+                    
+                    categories_with_data.append(display_name)
+                else:
+                    categories_without_data.append(create_display_label(category, dimension))
             
             # Add overall mean line (based on analyzable data)
             mean_hours = summary_stats.get('mean_hours', 0)
@@ -726,7 +771,7 @@ def register_workflow_resolution_times_callbacks(app):
             # Updated dimension label using same transformation
             dimension_label = dimension.replace('WorkItemDefinitionShortCode', 'Case Type')
             
-            # Create title based on display preference
+            # Create title with data availability information
             if show_all:
                 title_text = f"Resolution Times Distribution by {dimension_label} (All {displayed_categories} categories)"
             else:
@@ -748,13 +793,33 @@ def register_workflow_resolution_times_callbacks(app):
                 margin={'l': 60, 'r': 50, 't': 80, 'b': 120},  # Increased bottom margin for category names
                 plot_bgcolor='white',
                 paper_bgcolor='white',
-                showlegend=False,
+                showlegend=False,  # Hide legend since we show count in names
                 xaxis=dict(
                     tickangle=45,  # Angle labels for better readability
                     tickfont=dict(size=10 if len(top_categories) > 10 else 11)
                 )
             )
             
+            # Add informational annotation if some categories have no data
+            if categories_without_data:
+                missing_categories = ", ".join(categories_without_data[:3])  # Show first 3
+                if len(categories_without_data) > 3:
+                    missing_categories += f" (+{len(categories_without_data)-3} more)"
+                
+                fig.add_annotation(
+                    text=f"⚠️ No data: {missing_categories}",
+                    xref="paper", yref="paper",
+                    x=0.02, y=0.98,
+                    xanchor='left', yanchor='top',
+                    showarrow=False,
+                    font=dict(size=10, color="orange"),
+                    bgcolor="rgba(255, 255, 255, 0.8)",
+                    bordercolor="orange",
+                    borderwidth=1,
+                    borderpad=3
+                )
+            
+            print(f"✅ Box plot created: {len(categories_with_data)} categories with data, {len(categories_without_data)} without data")
             return fig
             
         except Exception as e:
@@ -762,7 +827,7 @@ def register_workflow_resolution_times_callbacks(app):
             import traceback
             traceback.print_exc()
             return go.Figure()
-                          
+             
     @monitor_chart_performance("Resolution Times Statistics Figure")
     def create_resolution_times_statistics_figure(resolution_data, summary_stats, category_analysis, dimension, population="all"):
         """
@@ -1360,10 +1425,10 @@ def register_workflow_resolution_times_callbacks(app):
             return fig
                            
     @monitor_performance("Resolution Times Insights Generation")
-    def generate_resolution_times_insights(resolution_data, summary_stats, category_analysis):
+    def generate_resolution_times_insights(resolution_data, summary_stats, category_analysis, selected_dimension="WorkItemDefinitionShortCode"):
         """
         Generate automated insights from resolution times data
-        Updated to use consistent Case Type terminology
+        Updated to use the selected dimension and proper case type names
         """
         if resolution_data.empty or not summary_stats:
             return html.Div([
@@ -1374,6 +1439,57 @@ def register_workflow_resolution_times_callbacks(app):
         
         try:
             insights = []
+            
+            # Get case type name mapping for proper display names
+            case_type_mapping = {}
+            if selected_dimension == 'WorkItemDefinitionShortCode':
+                try:
+                    query = """
+                        SELECT DISTINCT CaseTypeCode, CaseTypeName
+                        FROM [consumable].[Dim_WorkItemAttributes]
+                        WHERE CaseTypeCode IS NOT NULL AND CaseTypeName IS NOT NULL
+                    """
+                    result = run_queries({"case_type_mapping": query}, 'workflow', 1)
+                    case_type_df = result["case_type_mapping"]
+                    case_type_mapping = dict(zip(case_type_df['CaseTypeCode'], case_type_df['CaseTypeName']))
+                    case_type_mapping['Unspecified'] = 'Unspecified'
+                    case_type_mapping[''] = 'Unspecified'
+                except Exception as e:
+                    print(f"❌ Error getting case type mapping for insights: {e}")
+                    case_type_mapping = {}
+
+            # Helper function to create display labels matching the chart labels
+            def create_insight_display_label(raw_value, dimension):
+                """Create display labels that match chart labels for insights"""
+                if pd.isna(raw_value) or str(raw_value) == '' or str(raw_value) == 'nan':
+                    return "Unspecified"
+                
+                raw_str = str(raw_value)
+                
+                if dimension == 'WorkItemDefinitionShortCode':
+                    # Use CaseTypeName mapping like in charts
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    
+                    if case_type_mapping and raw_str in case_type_mapping:
+                        return case_type_mapping[raw_str]
+                    else:
+                        return titleize(raw_str)
+                        
+                elif dimension == 'AorShortName':
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    return raw_str  # AOR codes are typically fine as-is
+                    
+                else:
+                    # For other dimensions, use titleize and remove "N/A"
+                    if raw_str == 'Unspecified':
+                        return "Unspecified"
+                    
+                    transformed_label = titleize(raw_str)
+                    transformed_label = transformed_label.replace("N/A", "").strip()
+                    
+                    return transformed_label if transformed_label else raw_str
             
             # Insight 1: Performance Summary with Mean vs Median Analysis
             mean_hours = summary_stats.get('mean_hours', 0)
@@ -1403,7 +1519,7 @@ def register_workflow_resolution_times_callbacks(app):
             else:
                 performance_level = "needs improvement"
             
-            insights.append(f"⏱️ **Performance Summary**: {total_resolved:,} tickets resolved with {mean_hours:.1f}h mean, {median_hours:.1f}h median ({performance_level}, {skew_indicator})")
+            insights.append(f"⏱️ Performance Summary: {total_resolved:,} tickets resolved with {mean_hours:.1f}h mean, {median_hours:.1f}h median ({performance_level}, {skew_indicator})")
             
             # Insight 2: Escalation Impact Analysis
             escalated_count = summary_stats.get('escalated_count', 0)
@@ -1424,22 +1540,45 @@ def register_workflow_resolution_times_callbacks(app):
                 else:
                     impact_severity = "no"
                     
-                insights.append(f"🚨 **Escalation Impact**: {escalated_count:,} escalated tickets ({escalation_rate:.1f}%) take {escalated_mean:.1f}h vs {non_escalated_mean:.1f}h ({impact_multiplier:.1f}x longer, {impact_severity} impact)")
+                insights.append(f"🚨 Escalation Impact: {escalated_count:,} escalated tickets ({escalation_rate:.1f}%) take {escalated_mean:.1f}h vs {non_escalated_mean:.1f}h ({impact_multiplier:.1f}x longer, {impact_severity} impact)")
             else:
                 # Handle cases with no escalated tickets or missing data
                 if escalated_count == 0:
-                    insights.append(f"🎯 **Escalation Analysis**: No escalated tickets found - excellent first-contact resolution performance")
+                    insights.append(f"🎯 Escalation Analysis: No escalated tickets found - excellent first-contact resolution performance")
                 else:
-                    insights.append(f"🔍 **Escalation Analysis**: {escalated_count:,} escalated tickets detected, impact analysis requires more complete data")
+                    insights.append(f"🔍 Escalation Analysis: {escalated_count:,} escalated tickets detected, impact analysis requires more complete data")
             
-            # Insight 3: Distribution & Performance Patterns Analysis - UPDATED KEY
-            if 'CaseType' in category_analysis and not category_analysis['CaseType'].empty:  # CHANGED KEY
-                # Analysis based on case types
-                case_type_data = category_analysis['CaseType']  # CHANGED
-                slowest_type = case_type_data.index[0]  # Already sorted by Mean_Hours desc
-                slowest_time = case_type_data.iloc[0]['Mean_Hours']
-                fastest_type = case_type_data.index[-1]
-                fastest_time = case_type_data.iloc[-1]['Mean_Hours']
+            # Insight 3: UPDATED - Dynamic dimension-based performance analysis
+            # Map dimension to category analysis key
+            dimension_key = selected_dimension.replace('WorkItemDefinitionShortCode', 'CaseType')
+            
+            # Get dimension-friendly label for the insight
+            dimension_labels = {
+                'WorkItemDefinitionShortCode': 'Case Type',
+                'Priority': 'Priority',
+                'Product': 'Product',
+                'Module': 'Module',
+                'Feature': 'Feature',
+                'Issue': 'Issue',
+                'CaseOrigin': 'Case Origin',
+                'AorShortName': 'AOR'
+            }
+            dimension_label = dimension_labels.get(selected_dimension, selected_dimension)
+            
+            # Look for the selected dimension's analysis data
+            if dimension_key in category_analysis and not category_analysis[dimension_key].empty:
+                # Analysis based on selected dimension
+                dimension_data = category_analysis[dimension_key]
+                
+                # Get slowest and fastest items with proper display names
+                slowest_raw = dimension_data.index[0]  # Already sorted by Mean_Hours desc
+                slowest_time = dimension_data.iloc[0]['Mean_Hours']
+                fastest_raw = dimension_data.index[-1]
+                fastest_time = dimension_data.iloc[-1]['Mean_Hours']
+                
+                # Apply proper display label transformation
+                slowest_display = create_insight_display_label(slowest_raw, selected_dimension)
+                fastest_display = create_insight_display_label(fastest_raw, selected_dimension)
                 
                 # Calculate performance variance
                 if slowest_time > 0 and fastest_time > 0:
@@ -1453,10 +1592,10 @@ def register_workflow_resolution_times_callbacks(app):
                 else:
                     variance_level = "insufficient data"
                 
-                insights.append(f"📊 **Case Type Performance**: '{slowest_type}' takes longest ({slowest_time:.1f}h avg), '{fastest_type}' fastest ({fastest_time:.1f}h), 90% resolve within {p90_hours:.1f}h ({variance_level})")  # CHANGED LABEL
+                insights.append(f"📊 {dimension_label} Performance: '{slowest_display}' takes longest ({slowest_time:.1f}h avg), '{fastest_display}' fastest ({fastest_time:.1f}h), 90% resolve within {p90_hours:.1f}h ({variance_level})")
                 
             elif 'Distribution' in category_analysis and not category_analysis['Distribution'].empty:
-                # Fallback to distribution analysis when case type data not available
+                # Fallback to distribution analysis when dimension-specific data not available
                 dist_data = category_analysis['Distribution']
                 
                 # Calculate same-day resolution percentage
@@ -1479,7 +1618,7 @@ def register_workflow_resolution_times_callbacks(app):
                 else:
                     speed_assessment = "improvement needed"
                 
-                insights.append(f"📈 **Resolution Pattern**: {same_day_pct:.1f}% resolve within 24h, most tickets in '{top_category}' category ({top_category_pct:.1f}%), 90% within {p90_hours:.1f}h ({speed_assessment})")
+                insights.append(f"📈 Resolution Pattern: {same_day_pct:.1f}% resolve within 24h, most tickets in '{top_category}' category ({top_category_pct:.1f}%), 90% within {p90_hours:.1f}h ({speed_assessment})")
                 
             else:
                 # Ultimate fallback using basic statistics
@@ -1491,9 +1630,9 @@ def register_workflow_resolution_times_callbacks(app):
                     else:
                         pattern_assessment = "slow resolution pattern"
                         
-                    insights.append(f"📊 **Resolution Pattern**: 90% of tickets resolve within {p90_hours:.1f}h with {mean_hours:.1f}h average ({pattern_assessment})")
+                    insights.append(f"📊 {dimension_label} Pattern: 90% of tickets resolve within {p90_hours:.1f}h with {mean_hours:.1f}h average ({pattern_assessment})")
                 else:
-                    insights.append(f"📊 **Resolution Pattern**: Analysis requires more complete resolution time data")
+                    insights.append(f"📊 {dimension_label} Pattern: Analysis requires more complete resolution time data")
             
             # Create exactly 3 styled insight cards
             insight_components = []
@@ -1516,7 +1655,7 @@ def register_workflow_resolution_times_callbacks(app):
                 html.Div([html.Span("🔧 **Issue**: Data processing error occurred", style={'fontSize': '13px'})], className="mb-2"),
                 html.Div([html.Span("🔄 **Action**: Try refreshing or adjusting filters", style={'fontSize': '13px'})], className="mb-2")
             ], className="insights-container")
-    
+           
     @callback(
         Output("workflow-resolution-view-state", "data"),
         [Input("workflow-resolution-bar-btn", "n_clicks"),
@@ -1535,7 +1674,7 @@ def register_workflow_resolution_times_callbacks(app):
         
         # Initialize with bar chart if no state exists
         if current_state is None:
-            current_state = "bar"
+            current_state = "box"
         
         # Update state only when a view button is clicked
         if triggered_id == "workflow-resolution-bar-btn":
@@ -1586,14 +1725,14 @@ def register_workflow_resolution_times_callbacks(app):
         """
         try:
             print(f"🔄 Updating resolution times chart - Dimension: {selected_dimension}, View: {view_state}, Population: {selected_population}, Display: {display_preference}")
-            
+        
             # Default states
             if view_state is None:
                 view_state = "box"
             if selected_population is None:
                 selected_population = "all"
             if display_preference is None:
-                display_preference = "top"       
+                display_preference = "all"       
             
             # Get base data
             base_data = get_resolution_times_base_data()
@@ -1614,7 +1753,7 @@ def register_workflow_resolution_times_callbacks(app):
             )
             
             # Generate insights (always generated for all views)
-            insights = generate_resolution_times_insights(resolution_data, summary_stats, category_analysis)
+            insights = generate_resolution_times_insights(resolution_data, summary_stats, category_analysis, selected_dimension)
             
             # Determine show_all parameter
             show_all = (display_preference == "all")
@@ -1709,3 +1848,151 @@ def register_workflow_resolution_times_callbacks(app):
             return {'display': 'none'}
    
     print("✅ Workflow resolution times callbacks registered")
+
+# Add this function to the existing workflow_resolution_times.py file
+
+def register_workflow_resolution_times_modal_callbacks(app):
+    """
+    Register callbacks for workflow resolution times chart modal functionality
+    """
+    print("Registering Workflow Resolution Times Chart Modal callbacks...")
+    
+    @monitor_chart_performance("Enlarged Resolution Times Chart")
+    def create_enlarged_resolution_times_chart(original_figure):
+        """
+        Create an enlarged version of the resolution times chart for modal display
+        """
+        if not original_figure:
+            return html.Div("No chart data available", className="text-center p-4")
+        
+        try:
+            # Create a deep copy of the original figure
+            enlarged_fig = copy.deepcopy(original_figure)
+            
+            # Update layout for larger modal display
+            enlarged_fig['layout'].update({
+                'height': 650,  # Increased height for modal
+                'margin': {'l': 80, 'r': 60, 't': 100, 'b': 140},  # More space for labels
+                'title': {
+                    **enlarged_fig['layout'].get('title', {}),
+                    'font': {'size': 20, 'color': '#2c3e50'}  
+                },
+                'xaxis': {
+                    **enlarged_fig['layout'].get('xaxis', {}),
+                    'title': {
+                        **enlarged_fig['layout'].get('xaxis', {}).get('title', {}),
+                        'font': {'size': 14}
+                    },
+                    'tickfont': {'size': 12}  
+                },
+                'yaxis': {
+                    **enlarged_fig['layout'].get('yaxis', {}),
+                    'title': {
+                        **enlarged_fig['layout'].get('yaxis', {}).get('title', {}),
+                        'font': {'size': 14}
+                    },
+                    'tickfont': {'size': 12} 
+                },
+                'legend': {
+                    **enlarged_fig['layout'].get('legend', {}),
+                    'font': {'size': 12}
+                }
+            })
+            
+            # Update traces for better visibility in larger chart
+            if 'data' in enlarged_fig and enlarged_fig['data']:
+                for trace in enlarged_fig['data']:
+                    # Handle different chart types (bar, box, scatter)
+                    if trace.get('type') == 'bar':
+                        # Make bar chart elements more visible
+                        trace.update({
+                            'marker': {
+                                **trace.get('marker', {}),
+                                'line': {'width': 2, 'color': 'white'}  # Thicker borders
+                            },
+                            'textfont': {'size': 12}  # Larger text
+                        })
+                    elif trace.get('type') == 'box':
+                        # Make box plot elements more visible
+                        trace.update({
+                            'line': {
+                                **trace.get('line', {}),
+                                'width': 2  # Thicker lines
+                            },
+                            'marker': {
+                                **trace.get('marker', {}),
+                                'size': 6,  # Larger markers
+                                'line': {'width': 1, 'color': 'white'}
+                            }
+                        })
+                    elif trace.get('type') == 'scatter':
+                        # Make scatter plot elements more visible
+                        trace.update({
+                            'line': {
+                                **trace.get('line', {}),
+                                'width': 3  # Thicker lines
+                            },
+                            'marker': {
+                                **trace.get('marker', {}),
+                                'size': 8  # Larger markers
+                            }
+                        })
+            
+            # Create the chart component
+            return dcc.Graph(
+                figure=enlarged_fig,
+                config={
+                    'displayModeBar': True, 
+                    'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
+                    'displaylogo': False,
+                    'toImageButtonOptions': {
+                        'format': 'png',
+                        'filename': 'workflow_resolution_times_chart',
+                        'height': 650,
+                        'width': 1200,
+                        'scale': 1
+                    }
+                },
+                style={'height': '650px'}
+            )
+            
+        except Exception as e:
+            print(f"❌ Error creating enlarged resolution times chart: {str(e)}")
+            return html.Div(
+                f"Error displaying chart: {str(e)}", 
+                className="text-center p-4 text-danger"
+            )
+            
+    @callback(
+        [Output("workflow-chart-modal", "is_open", allow_duplicate=True),
+        Output("workflow-modal-chart-content", "children", allow_duplicate=True)],
+        [Input("workflow-resolution-chart-wrapper", "n_clicks")],
+        [State("workflow-chart-modal", "is_open"),
+        State("workflow-resolution-times-chart", "figure")],
+        prevent_initial_call=True
+    )
+    @monitor_performance("Resolution Times Modal Toggle")
+    def toggle_resolution_times_chart_modal(chart_wrapper_clicks, is_open, chart_figure):
+        """
+        Handle opening of resolution times chart modal using SHARED modal
+        """
+        triggered = ctx.triggered
+        triggered_id = triggered[0]['prop_id'].split('.')[0] if triggered else None
+        
+        print(f"🔄 Resolution Times Modal callback triggered by: {triggered_id}")
+        
+        # Open modal if chart wrapper clicked and modal is not already open
+        if triggered_id == "workflow-resolution-chart-wrapper" and chart_wrapper_clicks and not is_open:
+            print("📊 Resolution times chart wrapper clicked! Opening modal...")
+            
+            if not chart_figure or not chart_figure.get('data'):
+                print("⚠️ No resolution times chart figure data available")
+                return no_update, no_update
+            
+            print("✅ Opening resolution times modal with chart data")
+            enlarged_chart = create_enlarged_resolution_times_chart(chart_figure)
+            return True, enlarged_chart
+        
+        return no_update, no_update
+    
+    print("✅ Workflow Resolution Times Chart Modal callbacks registered successfully")    
