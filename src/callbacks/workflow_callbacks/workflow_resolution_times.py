@@ -88,7 +88,7 @@ def apply_resolution_times_filters(work_items, duration_summary, stored_selectio
     Apply filters to resolution times data using pandas
     Same pattern as other workflow components
     """
-    print(f"🔍 Applying resolution times filters: {stored_selections}")
+    # print(f"🔍 Applying resolution times filters: {stored_selections}")
     if not stored_selections:
         stored_selections = {}
     
@@ -96,7 +96,7 @@ def apply_resolution_times_filters(work_items, duration_summary, stored_selectio
     df_work_items = pd.DataFrame(work_items).copy()
     df_duration_summary = pd.DataFrame(duration_summary).copy()
     
-    print(f"📊 Starting resolution times filtering: {len(df_work_items)} work item records")
+    # print(f"📊 Starting resolution times filtering: {len(df_work_items)} work item records")
     
     if df_work_items.empty:
         return df_work_items, df_duration_summary
@@ -125,26 +125,26 @@ def apply_resolution_times_filters(work_items, duration_summary, stored_selectio
                     (df_work_items['CreatedOn'] >= start_dt) & 
                     (df_work_items['CreatedOn'] <= end_dt)
                 ].copy()
-                print(f"📅 Date filter applied: {len(df_work_items)} work item records")
+                # print(f"📅 Date filter applied: {len(df_work_items)} work item records")
             except Exception as e:
                 print(f"❌ Error applying date filter: {e}")
     
     # Apply other filters
     if selected_aor and len(selected_aor) > 0 and "All" not in selected_aor:
         df_work_items = df_work_items.loc[df_work_items['AorShortName'].isin(selected_aor)].copy()
-        print(f"🎯 AOR filter applied: {len(df_work_items)} records")
+        # print(f"🎯 AOR filter applied: {len(df_work_items)} records")
 
     if selected_case_types and len(selected_case_types) > 0 and "All" not in selected_case_types:
         df_work_items = df_work_items.loc[df_work_items['WorkItemDefinitionShortCode'].isin(selected_case_types)].copy()
-        print(f"📋 Case Type filter applied: {len(df_work_items)} records")
+        # print(f"📋 Case Type filter applied: {len(df_work_items)} records")
 
     if selected_products and len(selected_products) > 0 and "All" not in selected_products:
         df_work_items = df_work_items.loc[df_work_items['Product'].isin(selected_products)].copy()
-        print(f"🛍️ Product filter applied: {len(df_work_items)} records")
+        # print(f"🛍️ Product filter applied: {len(df_work_items)} records")
 
     if selected_priority and len(selected_priority) > 0 and "All" not in selected_priority:
         df_work_items = df_work_items.loc[df_work_items['Priority'].isin(selected_priority)].copy()
-        print(f"⚡ Priority filter applied: {len(df_work_items)} records")
+        # print(f"⚡ Priority filter applied: {len(df_work_items)} records")
     
     # Filter duration summary to match filtered work items
     if not df_duration_summary.empty and not df_work_items.empty:
@@ -152,7 +152,7 @@ def apply_resolution_times_filters(work_items, duration_summary, stored_selectio
         df_duration_summary = df_duration_summary[
             df_duration_summary['WorkItemId'].isin(filtered_work_item_ids)
         ].copy()
-        print(f"📊 Duration summary filtered: {len(df_duration_summary)} records")
+        # print(f"📊 Duration summary filtered: {len(df_duration_summary)} records")
     
     return df_work_items, df_duration_summary
 
@@ -187,7 +187,7 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
         ].copy()
 
         analyzable_tickets = len(df_for_analysis)
-        print(f"📊 Tickets available for resolution analysis: {analyzable_tickets} out of {total_tickets} total")
+        # print(f"📊 Tickets available for resolution analysis: {analyzable_tickets} out of {total_tickets} total")
         
         if df_for_analysis.empty:
             return merged_df, {
@@ -275,7 +275,7 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
             type_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
             category_analysis['CaseType'] = type_stats.sort_values('Mean_Hours', ascending=False)  # CHANGED KEY
             
-            print(f"📊 Case Type analysis includes: {list(type_stats.index)}")
+            # print(f"📊 Case Type analysis includes: {list(type_stats.index)}")
         
         # Analysis by Priority - now handles "Unspecified"
         if 'Priority' in df.columns:
@@ -285,7 +285,7 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
             priority_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours']
             category_analysis['Priority'] = priority_stats.sort_values('Mean_Hours', ascending=False)
             
-            print(f"📊 Priority analysis includes: {list(priority_stats.index)}")
+            # print(f"📊 Priority analysis includes: {list(priority_stats.index)}")
         
         # Resolution time distribution
         distribution_analysis = df.groupby('ResolutionCategory').size().sort_index()
@@ -296,7 +296,7 @@ def prepare_resolution_times_data(filtered_work_items, filtered_duration_summary
             'Percentage': distribution_percentages
         })
         
-        print(f"📊 Prepared comprehensive resolution times data: {len(df)} resolved tickets")
+        # print(f"📊 Prepared comprehensive resolution times data: {len(df)} resolved tickets")
         return df, summary_stats, category_analysis
         
     except Exception as e:
@@ -332,7 +332,7 @@ def prepare_resolution_times_data_with_dimension(filtered_work_items, filtered_d
             dimension_stats.columns = ['Count', 'Mean_Hours', 'Median_Hours', 'Std_Hours']
             category_analysis[dimension_key] = dimension_stats.sort_values('Mean_Hours', ascending=False)
             
-            print(f"📊 Dynamic {dimension_key} analysis includes: {list(dimension_stats.index)}")
+            # print(f"📊 Dynamic {dimension_key} analysis includes: {list(dimension_stats.index)}")
     
     return resolution_data, summary_stats, category_analysis
 
@@ -819,7 +819,7 @@ def register_workflow_resolution_times_callbacks(app):
                     borderpad=3
                 )
             
-            print(f"✅ Box plot created: {len(categories_with_data)} categories with data, {len(categories_without_data)} without data")
+            # print(f"✅ Box plot created: {len(categories_with_data)} categories with data, {len(categories_without_data)} without data")
             return fig
             
         except Exception as e:
@@ -858,9 +858,9 @@ def register_workflow_resolution_times_callbacks(app):
             # Debug escalation data distribution
             if 'IsEscalated' in resolution_data.columns:
                 escalation_counts = resolution_data['IsEscalated'].value_counts(dropna=False)
-                print(f"🔍 Statistics - Escalation data: {escalation_counts.to_dict()}")
-            else:
-                print(f"⚠️ No IsEscalated column found in data")
+                # print(f"🔍 Statistics - Escalation data: {escalation_counts.to_dict()}")
+            # else:
+                # print(f"⚠️ No IsEscalated column found in data")
             
             # Filter data based on population selection with improved logic
             if population == "escalated":
@@ -903,7 +903,7 @@ def register_workflow_resolution_times_callbacks(app):
                 if 'IsEscalated' not in resolution_data.columns:
                     # If no escalation data, treat all tickets as non-escalated
                     filtered_data = resolution_data.copy()
-                    print(f"📊 Statistics - No escalation column, treating all {len(filtered_data)} as non-escalated")
+                    # print(f"📊 Statistics - No escalation column, treating all {len(filtered_data)} as non-escalated")
                 else:
                     # Improved non-escalated tickets filtering
                     # Include tickets that are explicitly non-escalated OR have missing/null escalation data
@@ -917,7 +917,7 @@ def register_workflow_resolution_times_callbacks(app):
                         (resolution_data['IsEscalated'].astype(str).str.upper() == 'NULL')
                     ].copy()
                     
-                    print(f"📊 Statistics - Non-escalated filtering: {len(filtered_data)} from {len(resolution_data)} total")
+                    # print(f"📊 Statistics - Non-escalated filtering: {len(filtered_data)} from {len(resolution_data)} total")
                     
                 if filtered_data.empty:
                     fig = go.Figure()
@@ -939,7 +939,7 @@ def register_workflow_resolution_times_callbacks(app):
                 population_title = "All Tickets"
                 population_color = "#3498DB"
             
-            print(f"📊 Statistics population filtering result: {population} = {len(filtered_data)} tickets")
+            # print(f"📊 Statistics population filtering result: {population} = {len(filtered_data)} tickets")
             
             # Calculate statistics for the filtered population
             hours_data = filtered_data['ResolutionTimeHours']
@@ -1120,7 +1120,7 @@ def register_workflow_resolution_times_callbacks(app):
                 borderpad=8  # Reduced padding
             )
             
-            print(f"✅ Statistics figure created successfully for {population} population")
+            # print(f"✅ Statistics figure created successfully for {population} population")
             return fig
             
         except Exception as e:
@@ -1172,7 +1172,7 @@ def register_workflow_resolution_times_callbacks(app):
             # Debug escalation data distribution
             if 'IsEscalated' in resolution_data.columns:
                 escalation_counts = resolution_data['IsEscalated'].value_counts(dropna=False)
-                print(f"🔍 Distribution - Escalation data: {escalation_counts.to_dict()}")
+                # print(f"🔍 Distribution - Escalation data: {escalation_counts.to_dict()}")
             
             # Filter data based on population selection with improved logic
             if population == "escalated":
@@ -1214,7 +1214,7 @@ def register_workflow_resolution_times_callbacks(app):
             elif population == "non_escalated":
                 if 'IsEscalated' not in resolution_data.columns:
                     filtered_data = resolution_data.copy()  # Treat all as non-escalated if no escalation data
-                    print(f"📊 Distribution - No escalation column, treating all {len(filtered_data)} as non-escalated")
+                    # print(f"📊 Distribution - No escalation column, treating all {len(filtered_data)} as non-escalated")
                 else:
                     # Improved non-escalated tickets filtering
                     filtered_data = resolution_data[
@@ -1227,7 +1227,7 @@ def register_workflow_resolution_times_callbacks(app):
                         (resolution_data['IsEscalated'].astype(str).str.upper() == 'NULL')
                     ].copy()
                     
-                    print(f"📊 Distribution - Non-escalated filtering: {len(filtered_data)} from {len(resolution_data)} total")
+                    # print(f"📊 Distribution - Non-escalated filtering: {len(filtered_data)} from {len(resolution_data)} total")
                     
                 if filtered_data.empty:
                     fig = go.Figure()
@@ -1249,7 +1249,7 @@ def register_workflow_resolution_times_callbacks(app):
                 population_title = "All Tickets"
                 population_colors = ['#3498DB', '#2980B9', '#1F618D', '#1A5276', '#154360', '#5DADE2', '#85C1E9']
             
-            print(f"📊 Distribution population filtering: {population} = {len(filtered_data)} tickets")
+            # print(f"📊 Distribution population filtering: {population} = {len(filtered_data)} tickets")
             
             # Recalculate distribution for the filtered population
             def categorize_resolution_time(minutes):
@@ -1399,7 +1399,7 @@ def register_workflow_resolution_times_callbacks(app):
                     borderpad=3
                 )
             
-            print(f"📊 Distribution pie chart created successfully for {population} population")
+            # print(f"📊 Distribution pie chart created successfully for {population} population")
             return fig
             
         except Exception as e:
@@ -1724,7 +1724,7 @@ def register_workflow_resolution_times_callbacks(app):
         Update resolution times chart based on filter selections, dimension, view type, and population
         """
         try:
-            print(f"🔄 Updating resolution times chart - Dimension: {selected_dimension}, View: {view_state}, Population: {selected_population}, Display: {display_preference}")
+            # print(f"🔄 Updating resolution times chart - Dimension: {selected_dimension}, View: {view_state}, Population: {selected_population}, Display: {display_preference}")
         
             # Default states
             if view_state is None:
@@ -1777,7 +1777,7 @@ def register_workflow_resolution_times_callbacks(app):
                 # UPDATED: Pass show_all parameter
                 fig = create_resolution_times_bar_chart(resolution_data, summary_stats, category_analysis, selected_dimension, show_all)
             
-            print(f"✅ Resolution times chart updated successfully - View: {view_state}, Population: {selected_population}")
+            # print(f"✅ Resolution times chart updated successfully - View: {view_state}, Population: {selected_population}")
             return fig, insights
             
         except Exception as e:
@@ -1847,7 +1847,7 @@ def register_workflow_resolution_times_callbacks(app):
         else:
             return {'display': 'none'}
    
-    print("✅ Workflow resolution times callbacks registered")
+    # print("✅ Workflow resolution times callbacks registered")
 
 # Add this function to the existing workflow_resolution_times.py file
 
@@ -1855,7 +1855,7 @@ def register_workflow_resolution_times_modal_callbacks(app):
     """
     Register callbacks for workflow resolution times chart modal functionality
     """
-    print("Registering Workflow Resolution Times Chart Modal callbacks...")
+    # print("Registering Workflow Resolution Times Chart Modal callbacks...")
     
     @monitor_chart_performance("Enlarged Resolution Times Chart")
     def create_enlarged_resolution_times_chart(original_figure):
@@ -1979,20 +1979,20 @@ def register_workflow_resolution_times_modal_callbacks(app):
         triggered = ctx.triggered
         triggered_id = triggered[0]['prop_id'].split('.')[0] if triggered else None
         
-        print(f"🔄 Resolution Times Modal callback triggered by: {triggered_id}")
+        # print(f"🔄 Resolution Times Modal callback triggered by: {triggered_id}")
         
         # Open modal if chart wrapper clicked and modal is not already open
         if triggered_id == "workflow-resolution-chart-wrapper" and chart_wrapper_clicks and not is_open:
-            print("📊 Resolution times chart wrapper clicked! Opening modal...")
+            # print("📊 Resolution times chart wrapper clicked! Opening modal...")
             
             if not chart_figure or not chart_figure.get('data'):
-                print("⚠️ No resolution times chart figure data available")
+                # print("⚠️ No resolution times chart figure data available")
                 return no_update, no_update
             
-            print("✅ Opening resolution times modal with chart data")
+            # print("✅ Opening resolution times modal with chart data")
             enlarged_chart = create_enlarged_resolution_times_chart(chart_figure)
             return True, enlarged_chart
         
         return no_update, no_update
     
-    print("✅ Workflow Resolution Times Chart Modal callbacks registered successfully")    
+    # print("✅ Workflow Resolution Times Chart Modal callbacks registered successfully")    

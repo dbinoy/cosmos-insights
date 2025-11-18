@@ -70,7 +70,7 @@ def apply_status_distribution_filters(work_items, stored_selections):
     Apply filters to base status distribution data using pandas
     Same pattern as workflow ticket volume
     """
-    print(f"🔍 Applying status distribution filters: {stored_selections}")
+    # print(f"🔍 Applying status distribution filters: {stored_selections}")
     if not stored_selections:
         stored_selections = {}
     
