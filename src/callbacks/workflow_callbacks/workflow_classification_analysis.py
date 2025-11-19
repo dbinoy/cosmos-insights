@@ -9,7 +9,7 @@ import time
 import copy
 from functools import wraps
 from src.utils.performance import monitor_performance, monitor_query_performance, monitor_chart_performance
-from inflection import titleize
+from inflection import titleize, pluralize
 
 def register_workflow_classification_analysis_callbacks(app):
     """
@@ -84,7 +84,7 @@ def register_workflow_classification_analysis_callbacks(app):
         # Convert to DataFrames and create explicit copies
         df_work_items = pd.DataFrame(work_items).copy()
         
-        print(f"📊 Starting classification analysis filtering: {len(df_work_items)} work item records")
+        # print(f"📊 Starting classification analysis filtering: {len(df_work_items)} work item records")
         
         if df_work_items.empty:
             return df_work_items
@@ -118,59 +118,59 @@ def register_workflow_classification_analysis_callbacks(app):
                         (df_work_items['CreatedOn'] >= start_dt) & 
                         (df_work_items['CreatedOn'] <= end_dt)
                     ].copy()
-                    print(f"📅 Date filter applied: {len(df_work_items)} work item records")
+                    # print(f"📅 Date filter applied: {len(df_work_items)} work item records")
                 except Exception as e:
                     print(f"❌ Error applying date filter: {e}")
         
         # Apply other filters
         if selected_aor is not None and len(selected_aor) > 0 and "All" not in selected_aor:
             df_work_items = df_work_items.loc[df_work_items['AorShortName'].isin(selected_aor)].copy()
-            print(f"🎯 AOR filter applied: {len(df_work_items)} records")
+            # print(f"🎯 AOR filter applied: {len(df_work_items)} records")
 
         if selected_case_types is not None and len(selected_case_types) > 0 and "All" not in selected_case_types:
             df_work_items = df_work_items.loc[df_work_items['WorkItemDefinitionShortCode'].isin(selected_case_types)].copy()
-            print(f"📋 Case Type filter applied: {len(df_work_items)} records")
+            # print(f"📋 Case Type filter applied: {len(df_work_items)} records")
 
         if selected_products is not None and len(selected_products) > 0 and "All" not in selected_products:
             df_work_items = df_work_items.loc[df_work_items['Product'].isin(selected_products)].copy()
-            print(f"🛍️ Product filter applied: {len(df_work_items)} records")
+            # print(f"🛍️ Product filter applied: {len(df_work_items)} records")
 
         if selected_modules is not None and len(selected_modules) > 0 and "All" not in selected_modules:
             df_work_items = df_work_items.loc[df_work_items['Module'].isin(selected_modules)].copy()
-            print(f"🧩 Module filter applied: {len(df_work_items)} records")
-            
+            # print(f"🧩 Module filter applied: {len(df_work_items)} records")
+
         if selected_features is not None and len(selected_features) > 0 and "All" not in selected_features:
             df_work_items = df_work_items.loc[df_work_items['Feature'].isin(selected_features)].copy()
             print(f"⭐ Feature filter applied: {len(df_work_items)} records")
 
         if selected_issues is not None and len(selected_issues) > 0 and "All" not in selected_issues:
             df_work_items = df_work_items.loc[df_work_items['Issue'].isin(selected_issues)].copy()
-            print(f"🐛 Issue filter applied: {len(df_work_items)} records")
+            # print(f"🐛 Issue filter applied: {len(df_work_items)} records")
 
         if selected_origins is not None and len(selected_origins) > 0 and "All" not in selected_origins:
             df_work_items = df_work_items.loc[df_work_items['CaseOrigin'].isin(selected_origins)].copy()
-            print(f"📍 Origin filter applied: {len(df_work_items)} records")
+            # print(f"📍 Origin filter applied: {len(df_work_items)} records")
 
         if selected_reasons is not None and len(selected_reasons) > 0 and "All" not in selected_reasons:
             df_work_items = df_work_items.loc[df_work_items['CaseReason'].isin(selected_reasons)].copy()
-            print(f"📝 Reason filter applied: {len(df_work_items)} records")
+            # print(f"📝 Reason filter applied: {len(df_work_items)} records")
 
         if selected_status is not None and len(selected_status) > 0 and "All" not in selected_status:
             df_work_items = df_work_items.loc[df_work_items['WorkItemStatus'].isin(selected_status)].copy()
-            print(f"📊 Status filter applied: {len(df_work_items)} records")
+            # print(f"📊 Status filter applied: {len(df_work_items)} records")
 
         if selected_priority is not None and len(selected_priority) > 0 and "All" not in selected_priority:
             df_work_items = df_work_items.loc[df_work_items['Priority'].isin(selected_priority)].copy()
-            print(f"⚡ Priority filter applied: {len(df_work_items)} records")
-        
+            # print(f"⚡ Priority filter applied: {len(df_work_items)} records")
+
         return df_work_items
 
     @monitor_performance("Classification Analysis Data Preparation")
-    def prepare_classification_analysis_data(filtered_data, case_types_data, view_type="stacked"):
+    def prepare_classification_analysis_data(filtered_data, case_types_data, row_dimension="case_type", column_dimension="case_origin"):
         """
         Prepare classification analysis data for visualization
-        Creates cross-tabulation of case types vs classification dimensions
-        UPDATED: Added simple formatting using titleize for case origins and other dimensions
+        Creates cross-tabulation of any two dimensions
+        UPDATED: Added support for AOR and Case Reason dimensions
         """
         if filtered_data.empty:
             return pd.DataFrame(), {}
@@ -184,17 +184,22 @@ def register_workflow_classification_analysis_callbacks(app):
                 df_case_types = pd.DataFrame(case_types_data).copy()
                 case_type_mapping = dict(zip(df_case_types['CaseTypeCode'], df_case_types['CaseTypeName']))
             
-            # Handle missing values and create proper labels
+            # Handle missing values for ALL dimensions including AOR and Case Reason
             df['WorkItemDefinitionShortCode'] = df['WorkItemDefinitionShortCode'].fillna('Unspecified')
             df['CaseOrigin'] = df['CaseOrigin'].fillna('Unspecified')
+            df['AorShortName'] = df['AorShortName'].fillna('Unspecified')                   # ADDED: AOR handling
+            df['CaseReason'] = df['CaseReason'].fillna('Unspecified')                       # ADDED: Case Reason handling
             df['Priority'] = df['Priority'].fillna('Unspecified')
             df['Product'] = df['Product'].fillna('Unspecified')
+            df['Module'] = df['Module'].fillna('Unspecified')
+            df['Feature'] = df['Feature'].fillna('Unspecified')
+            df['Issue'] = df['Issue'].fillna('Unspecified')
+            df['WorkItemStatus'] = df['WorkItemStatus'].fillna('Unspecified')
             
-            # UPDATED: Simple formatting function using titleize
+            # UPDATED: Simple formatting function using titleize with N/A removal like filter callbacks
             def format_for_display(value):
                 if pd.isna(value) or value == '' or value == 'Unspecified':
                     return 'Unspecified'
-                # Simple formatting: replace underscores, hyphens, handle N/A, then titleize
                 formatted = str(value).replace('_', ' ').replace('-', ' ').replace('N/A', '').strip()
                 return titleize(formatted) if formatted else 'Unspecified'
             
@@ -204,67 +209,77 @@ def register_workflow_classification_analysis_callbacks(app):
                     return 'Unspecified'
                 return case_type_mapping.get(code, format_for_display(code))
             
-            # Apply formatting to create display columns
+            # UPDATED: Create display columns for ALL dimensions including AOR and Case Reason
             df['CaseTypeDisplay'] = df['WorkItemDefinitionShortCode'].apply(get_case_type_display_name)
-            df['CaseOriginDisplay'] = df['CaseOrigin'].apply(format_for_display)  # ADDED: Formatted case origin
-            df['PriorityDisplay'] = df['Priority'].apply(format_for_display)  # ADDED: Formatted priority
-            df['ProductDisplay'] = df['Product'].apply(format_for_display)  # ADDED: Formatted product
+            df['CaseOriginDisplay'] = df['CaseOrigin'].apply(format_for_display)
+            df['AorDisplay'] = df['AorShortName'].apply(format_for_display)                 # ADDED: AOR display formatting
+            df['CaseReasonDisplay'] = df['CaseReason'].apply(format_for_display)            # ADDED: Case Reason display formatting
+            df['PriorityDisplay'] = df['Priority'].apply(format_for_display)
+            df['ProductDisplay'] = df['Product'].apply(format_for_display)
+            df['ModuleDisplay'] = df['Module'].apply(format_for_display)
+            df['FeatureDisplay'] = df['Feature'].apply(format_for_display)
+            df['IssueDisplay'] = df['Issue'].apply(format_for_display)
+            df['StatusDisplay'] = df['WorkItemStatus'].apply(format_for_display)
             
-            # Create cross-tabulation matrices for different classification dimensions
-            analysis_data = {}
-            
-            # UPDATED: Case Type vs Case Origin (using formatted display names)
-            case_origin_crosstab = pd.crosstab(
-                df['CaseTypeDisplay'], 
-                df['CaseOriginDisplay'],  # Use formatted display names
-                margins=True, margins_name="Total"
-            )
-            analysis_data['case_origin'] = case_origin_crosstab
-            
-            # UPDATED: Case Type vs Priority (using formatted display names)
-            priority_crosstab = pd.crosstab(
-                df['CaseTypeDisplay'], 
-                df['PriorityDisplay'],  # Use formatted display names
-                margins=True, margins_name="Total"
-            )
-            analysis_data['priority'] = priority_crosstab
-            
-            # UPDATED: Case Type vs Product (using formatted display names, top 10 products to avoid overcrowding)
-            product_counts = df['ProductDisplay'].value_counts().head(10)  # Use formatted names for counting
-            top_products = product_counts.index.tolist()
-            df_top_products = df[df['ProductDisplay'].isin(top_products)].copy()
-            
-            if not df_top_products.empty:
-                product_crosstab = pd.crosstab(
-                    df_top_products['CaseTypeDisplay'], 
-                    df_top_products['ProductDisplay'],  # Use formatted display names
-                    margins=True, margins_name="Total"
-                )
-                analysis_data['product'] = product_crosstab
-            else:
-                analysis_data['product'] = pd.DataFrame()
-            
-            # UPDATED: Overall summary statistics (using formatted names for top items)
-            summary_stats = {
-                'total_tickets': len(df),
-                'unique_case_types': df['CaseTypeDisplay'].nunique(),
-                'unique_origins': df['CaseOriginDisplay'].nunique(),  # Use formatted names
-                'unique_priorities': df['PriorityDisplay'].nunique(),  # Use formatted names
-                'unique_products': df['ProductDisplay'].nunique(),  # Use formatted names
-                'top_case_type': df['CaseTypeDisplay'].mode().iloc[0] if not df['CaseTypeDisplay'].mode().empty else 'N/A',
-                'top_origin': df['CaseOriginDisplay'].mode().iloc[0] if not df['CaseOriginDisplay'].mode().empty else 'N/A',  # Use formatted names
-                'top_priority': df['PriorityDisplay'].mode().iloc[0] if not df['PriorityDisplay'].mode().empty else 'N/A'  # Use formatted names
+            # UPDATED: Mapping from dimension keys to display column names including new dimensions
+            dimension_column_mapping = {
+                'case_type': 'CaseTypeDisplay',
+                'case_origin': 'CaseOriginDisplay',
+                'aor': 'AorDisplay',                                                        
+                'case_reason': 'CaseReasonDisplay',                                         
+                'priority': 'PriorityDisplay',
+                'product': 'ProductDisplay',
+                'module': 'ModuleDisplay',
+                'feature': 'FeatureDisplay',
+                'issue': 'IssueDisplay',
+                'status': 'StatusDisplay'
             }
             
-            print(f"📊 Prepared classification analysis data with titleized labels: {len(df)} tickets across {summary_stats['unique_case_types']} case types")
-            return analysis_data, summary_stats
+            # Get the actual column names for the selected dimensions
+            row_column = dimension_column_mapping.get(row_dimension, 'CaseTypeDisplay')
+            column_column = dimension_column_mapping.get(column_dimension, 'CaseOriginDisplay')
+            
+            # Prevent same dimension being used for both rows and columns
+            if row_dimension == column_dimension:
+                # print(f"⚠️ Same dimension selected for both axes: {row_dimension}. Using default combination.")
+                row_column = 'CaseTypeDisplay'
+                column_column = 'CaseOriginDisplay'
+            
+            # Create cross-tabulation for selected dimensions
+            crosstab_data = pd.crosstab(
+                df[row_column], 
+                df[column_column],
+                margins=True, 
+                margins_name="Total"
+            )
+            
+            # Handle products and AOR specially (limit to avoid overcrowding)
+            if column_dimension in ['product', 'aor'] and len(crosstab_data.columns) > 11:  # 10 + Total column
+                # Get top 10 by total volume
+                column_totals = crosstab_data.loc['Total'].drop('Total', errors='ignore').sort_values(ascending=False).head(10)
+                top_items = column_totals.index.tolist() + ['Total']
+                crosstab_data = crosstab_data[top_items]
+                
+            # Calculate summary statistics
+            summary_stats = {
+                'total_tickets': len(df),
+                'row_dimension': row_dimension,
+                'column_dimension': column_dimension,
+                'unique_rows': df[row_column].nunique(),
+                'unique_columns': df[column_column].nunique(),
+                'top_row': df[row_column].mode().iloc[0] if not df[row_column].mode().empty else 'N/A',
+                'top_column': df[column_column].mode().iloc[0] if not df[column_column].mode().empty else 'N/A'
+            }
+            
+            # print(f"📊 Prepared classification analysis with AOR & Case Reason: {len(df)} tickets, {row_dimension} vs {column_dimension}")
+            return crosstab_data, summary_stats
             
         except Exception as e:
             print(f"❌ Error preparing classification analysis data: {e}")
             import traceback
             traceback.print_exc()
             return pd.DataFrame(), {}
-        
+      
     @callback(
         Output("workflow-class-display-state", "data"),
         [Input("workflow-class-display-selector", "value")],
@@ -274,13 +289,73 @@ def register_workflow_classification_analysis_callbacks(app):
         """Store the current display preference"""
         return display_value if display_value else "top5"
 
+    @callback(
+        [Output("workflow-class-row-dimension", "value"),
+        Output("workflow-class-column-dimension", "value"),
+        Output("workflow-class-dimension-store", "data")],
+        [Input("workflow-class-row-dimension", "value"),
+        Input("workflow-class-column-dimension", "value")],
+        [State("workflow-class-dimension-store", "data")],
+        prevent_initial_call=False
+    )
+    def prevent_same_dimensions(new_row_dim, new_column_dim, stored_dims):
+        """
+        Prevent selecting the same dimension for both row and column by flipping the values
+        FIXED: Uses stored previous values to enable proper flipping behavior
+        """
+        triggered = ctx.triggered
+        triggered_id = triggered[0]['prop_id'].split('.')[0] if triggered else None
+        
+        # Initialize stored dimensions if None
+        if stored_dims is None:
+            stored_dims = {'row': 'case_type', 'column': 'case_origin'}
+        
+        # Get previous values
+        prev_row = stored_dims.get('row', 'case_type')
+        prev_column = stored_dims.get('column', 'case_origin')
+        
+        # print(f"🔄 Dimension callback - Triggered by: {triggered_id}")
+        # print(f"📊 New values: row={new_row_dim}, column={new_column_dim}")
+        # print(f"📋 Previous values: row={prev_row}, column={prev_column}")
+        
+        # If same dimension selected, flip the values
+        if new_row_dim == new_column_dim:
+            if triggered_id == "workflow-class-row-dimension":
+                # Row dimension was changed to match column dimension
+                # Flip: keep new selection on row, move previous row value to column
+                result_row = new_row_dim
+                result_column = prev_row
+                # print(f"🔄 Row changed to {new_row_dim} (same as column). Flipping: row={result_row}, column={result_column}")
+                
+            elif triggered_id == "workflow-class-column-dimension":
+                # Column dimension was changed to match row dimension  
+                # Flip: move previous column value to row, keep new selection on column
+                result_row = prev_column
+                result_column = new_column_dim
+                # print(f"🔄 Column changed to {new_column_dim} (same as row). Flipping: row={result_row}, column={result_column}")
+
+            else:
+                # Initial load or other trigger - use default values
+                result_row = 'case_type'
+                result_column = 'case_origin'
+                # print("🏁 Initial load - using defaults")
+            
+            # Update stored dimensions
+            new_stored_dims = {'row': result_row, 'column': result_column}
+            return result_row, result_column, new_stored_dims
+        
+        # Different dimensions selected - update store and return new values
+        # print(f"✅ Different dimensions selected - updating store")
+        new_stored_dims = {'row': new_row_dim, 'column': new_column_dim}
+        return new_row_dim, new_column_dim, new_stored_dims
+       
     @monitor_chart_performance("Classification Analysis Stacked Chart")
-    def create_classification_stacked_chart(analysis_data, dimension="case_origin", display_limit="top10"):
+    def create_classification_stacked_chart(analysis_data, row_dimension="case_type", column_dimension="case_origin", display_limit="top5"):
         """
         Create stacked bar chart for classification analysis
-        UPDATED: Moved legend to vertical position on the right side to eliminate all overlap issues
+        UPDATED: Generalized to work with any pair of dimensions
         """
-        if not analysis_data or dimension not in analysis_data or analysis_data[dimension].empty:
+        if analysis_data.empty:
             fig = go.Figure()
             fig.add_annotation(
                 text="No classification data available for selected filters",
@@ -291,7 +366,7 @@ def register_workflow_classification_analysis_callbacks(app):
             )
             fig.update_layout(
                 title={
-                    'text': "Tickets by Classification & Type",
+                    'text': "Tickets Classification Analysis",
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 16, 'color': '#2c3e50'}
@@ -304,52 +379,61 @@ def register_workflow_classification_analysis_callbacks(app):
         
         try:
             # Get the cross-tabulation data (excluding totals)
-            crosstab_data = analysis_data[dimension].copy()
+            crosstab_data = analysis_data.copy()
             if 'Total' in crosstab_data.index:
                 crosstab_data = crosstab_data.drop('Total')
             if 'Total' in crosstab_data.columns:
                 crosstab_data = crosstab_data.drop('Total', axis=1)
             
-            # Sort case types by total tickets (descending)
+            # Sort rows by total tickets (descending)
             row_totals = crosstab_data.sum(axis=1).sort_values(ascending=False)
             crosstab_data = crosstab_data.reindex(row_totals.index)
             
             # Apply display limit based on user selection
-            total_case_types = len(crosstab_data)
+            total_rows = len(crosstab_data)
             if display_limit == "top3":
                 crosstab_data = crosstab_data.head(3)
-                displayed_count = min(3, total_case_types)
+                displayed_count = min(3, total_rows)
             elif display_limit == "top5":
                 crosstab_data = crosstab_data.head(5)
-                displayed_count = min(5, total_case_types)
+                displayed_count = min(5, total_rows)
             elif display_limit == "top10":
                 crosstab_data = crosstab_data.head(10)
-                displayed_count = min(10, total_case_types)
+                displayed_count = min(10, total_rows)
             else:  # all
-                displayed_count = total_case_types
+                displayed_count = total_rows
             
             # Create color palette
             colors = px.colors.qualitative.Set3[:len(crosstab_data.columns)]
             
             fig = go.Figure()
             
-            # Add traces for each classification category
+            # Add traces for each column category
             for i, column in enumerate(crosstab_data.columns):
                 fig.add_trace(go.Bar(
                     name=str(column),
                     x=crosstab_data.index,
                     y=crosstab_data[column],
                     marker_color=colors[i % len(colors)],
-                    hovertemplate=f"<b>{column}</b><br>Case Type: %{{x}}<br>Count: %{{y:,.0f}}<extra></extra>"
+                    hovertemplate=f"<b>{column}</b><br>%{{x}}<br>Count: %{{y:,.0f}}<extra></extra>"
                 ))
             
-            # Update layout
+            # UPDATED: Dynamic labels based on selected dimensions
             dimension_labels = {
+                'case_type': 'Case Type',
                 'case_origin': 'Case Origin',
+                'aor': 'AOR', 
+                'case_reason': 'Case Reason', 
                 'priority': 'Priority',
-                'product': 'Product'
+                'product': 'Product',
+                'module': 'Module',
+                'feature': 'Feature',
+                'issue': 'Issue',
+                'status': 'Status'
             }
-            dimension_label = dimension_labels.get(dimension, dimension.title())
+            
+            row_label = dimension_labels.get(row_dimension, row_dimension.title())
+            column_label = dimension_labels.get(column_dimension, column_dimension.title())
             
             # Create title with display information
             display_labels = {
@@ -358,12 +442,12 @@ def register_workflow_classification_analysis_callbacks(app):
                 'top10': 'Top 10',
                 'all': 'All'
             }
-            display_text = display_labels.get(display_limit, 'Top 10')
+            display_text = display_labels.get(display_limit, 'Top 5')
             
-            if display_limit != "all" and displayed_count < total_case_types:
-                title_text = f"Tickets by Case Type & {dimension_label} ({display_text} of {total_case_types})"
+            if display_limit != "all" and displayed_count < total_rows:
+                title_text = f"{row_label} by {column_label} ({display_text} of {total_rows})"
             else:
-                title_text = f"Tickets by Case Type & {dimension_label} ({display_text} Case Types)"
+                title_text = f"{row_label} by {column_label} ({display_text})"
             
             fig.update_layout(
                 title={
@@ -373,7 +457,7 @@ def register_workflow_classification_analysis_callbacks(app):
                     'font': {'size': 16, 'color': '#2c3e50'}
                 },
                 xaxis={
-                    'title': 'Case Type',
+                    'title': row_label,
                     'tickangle': -45,
                     'tickfont': {'size': 10 if displayed_count > 10 else 11}
                 },
@@ -383,207 +467,162 @@ def register_workflow_classification_analysis_callbacks(app):
                     'gridcolor': '#f0f0f0'
                 },
                 barmode='stack',
-                height=400,
-                # UPDATED: Adjusted margins - increased right margin for vertical legend, restored normal bottom margin
-                margin={'l': 60, 'r': 120, 't': 80, 'b': 120},  # More right space for legend, normal bottom
+                height=450,
+                margin={'l': 60, 'r': 120, 't': 80, 'b': 120},
                 plot_bgcolor='white',
                 paper_bgcolor='white',
                 showlegend=True,
                 legend=dict(
-                    # UPDATED: Vertical legend on the right side - completely avoids all overlap issues
-                    orientation="v",  # Vertical orientation
-                    yanchor="middle",  # Center vertically
-                    y=0.5,  # Middle of chart area
-                    xanchor="left",  # Align to left of legend position
-                    x=1.02,  # Position just outside the chart area on the right
+                    orientation="v",
+                    yanchor="middle",
+                    y=0.5,
+                    xanchor="left",
+                    x=1.02,
                     font=dict(size=10),
-                    bgcolor="rgba(255,255,255,0.8)",  # Semi-transparent background
-                    bordercolor="rgba(0,0,0,0.1)",  # Light border
+                    bgcolor="rgba(255,255,255,0.8)",
+                    bordercolor="rgba(0,0,0,0.1)",
                     borderwidth=1
                 ),
                 hovermode='closest'
             )
             
-            print(f"📊 Created classification stacked chart: {displayed_count} of {total_case_types} case types ({display_limit}) with vertical legend")
+            # print(f"📊 Created generalized stacked chart: {row_dimension} vs {column_dimension} ({displayed_count} of {total_rows})")
             return fig
             
         except Exception as e:
-            print(f"❌ Error creating classification stacked chart: {e}")
-            # Return proper error figure
-            fig = go.Figure()
-            fig.add_annotation(
-                text=f"Error creating chart: {str(e)}",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=14, color="red")
-            )
-            fig.update_layout(
-                title={
-                    'text': "Tickets by Classification & Type - Error",
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'font': {'size': 16, 'color': '#2c3e50'}
-                },
-                height=400,
-                plot_bgcolor='white',
-                paper_bgcolor='white'
-            )
-            return fig
+            print(f"❌ Error creating generalized stacked chart: {e}")
+            return create_error_figure("Error creating classification chart")
 
     @monitor_chart_performance("Classification Analysis Heatmap")
-    def create_classification_heatmap(analysis_data, dimension="case_origin", display_limit="top10"):
+    def create_classification_heatmap(analysis_data, row_dimension="case_type", column_dimension="case_origin", display_limit="top5"):
         """
         Create heatmap for classification analysis
-        UPDATED: Using lighter, more eye-soothing color palettes
+        UPDATED: Generalized to work with any pair of dimensions
         """
-        if not analysis_data or dimension not in analysis_data or analysis_data[dimension].empty:
-            fig = go.Figure()
-            fig.add_annotation(
-                text="No classification data available for selected filters",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=16, color="gray")
-            )
-            fig.update_layout(
-                title={
-                    'text': "Tickets by Classification & Type (Heatmap)",
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'font': {'size': 16, 'color': '#2c3e50'}
-                },
-                height=400,
-                plot_bgcolor='white',
-                paper_bgcolor='white'
-            )
-            return fig
+        if analysis_data.empty:
+            return create_error_figure("No classification data available")
         
         try:
             # Get the cross-tabulation data (excluding totals)
-            crosstab_data = analysis_data[dimension].copy()
+            crosstab_data = analysis_data.copy()
             if 'Total' in crosstab_data.index:
                 crosstab_data = crosstab_data.drop('Total')
             if 'Total' in crosstab_data.columns:
                 crosstab_data = crosstab_data.drop('Total', axis=1)
             
-            # Sort case types by total tickets (descending)
+            # Sort rows by total tickets (descending)
             row_totals = crosstab_data.sum(axis=1).sort_values(ascending=False)
             crosstab_data = crosstab_data.reindex(row_totals.index)
             
-            # Apply display limit based on user selection
-            total_case_types = len(crosstab_data)
+            # Apply display limit
+            total_rows = len(crosstab_data)
             if display_limit == "top3":
                 crosstab_data = crosstab_data.head(3)
-                displayed_count = min(3, total_case_types)
+                displayed_count = min(3, total_rows)
             elif display_limit == "top5":
                 crosstab_data = crosstab_data.head(5)
-                displayed_count = min(5, total_case_types)
+                displayed_count = min(5, total_rows)
             elif display_limit == "top10":
                 crosstab_data = crosstab_data.head(10)
-                displayed_count = min(10, total_case_types)
+                displayed_count = min(10, total_rows)
             else:  # all
-                displayed_count = total_case_types
+                displayed_count = total_rows
             
-            # Improve visibility for heavily skewed data
+            # Prepare heatmap values
             heatmap_values = crosstab_data.values
             
-            # Check if data is heavily skewed (ratio > 10:1)
+            # Smart color scaling for skewed data
             max_value = heatmap_values.max()
             min_value = heatmap_values.min()
             
             if max_value > 0 and min_value >= 0 and (max_value / max(min_value, 1)) > 10:
-                # Apply log transformation to reduce skewness
                 import numpy as np
-                # Add 1 to handle zeros, then apply log
-                log_values = np.log1p(heatmap_values)  # log(1 + x) to handle zeros
+                log_values = np.log1p(heatmap_values)
                 heatmap_display_values = log_values
-                # UPDATED: Lighter, more soothing color palette for log-scaled data
-                color_scale = 'Blues'  # Softer than Plasma, easier on the eyes
+                color_scale = 'Blues'
                 colorbar_title = "Log(Ticket Count + 1)"
                 is_log_scaled = True
-                print(f"📊 Applied log transformation for heavily skewed heatmap data (max: {max_value}, min: {min_value})")
             else:
-                # Use original values with better color scale
                 heatmap_display_values = heatmap_values
-                # UPDATED: Lighter, more soothing color palette for linear data
-                color_scale = 'Greens'  # Softer than Viridis, more natural
+                color_scale = 'Greens'
                 colorbar_title = "Ticket Count"
                 is_log_scaled = False
-                print(f"📊 Using linear scale for heatmap data (max: {max_value}, min: {min_value})")
             
-            # Create custom hover template that ALWAYS shows original values
+            # Create hover text
             hover_text = []
             for i in range(len(crosstab_data.index)):
                 hover_row = []
                 for j in range(len(crosstab_data.columns)):
-                    case_type = crosstab_data.index[i]
-                    classification = crosstab_data.columns[j]
-                    original_value = int(heatmap_values[i, j])  # Always use original values
-                    log_value = heatmap_display_values[i, j] if is_log_scaled else None
+                    row_item = crosstab_data.index[i]
+                    col_item = crosstab_data.columns[j]
+                    original_value = int(heatmap_values[i, j])
                     
-                    # Build hover text showing original values prominently
                     if is_log_scaled:
+                        log_value = heatmap_display_values[i, j]
                         hover_text_cell = (
-                            f"<b>Case Type:</b> {case_type}<br>"
-                            f"<b>Classification:</b> {classification}<br>"
+                            f"<b>{row_item}</b><br>"
+                            f"<b>{col_item}</b><br>"
                             f"<b>Ticket Count:</b> {original_value:,}<br>"
                             f"<i>Log Value:</i> {log_value:.2f}"
                         )
                     else:
                         hover_text_cell = (
-                            f"<b>Case Type:</b> {case_type}<br>"
-                            f"<b>Classification:</b> {classification}<br>"
+                            f"<b>{row_item}</b><br>"
+                            f"<b>{col_item}</b><br>"
                             f"<b>Ticket Count:</b> {original_value:,}"
                         )
-                    
                     hover_row.append(hover_text_cell)
                 hover_text.append(hover_row)
             
-            # Create heatmap with improved visibility and soothing colors
+            # Create heatmap
             fig = go.Figure(data=go.Heatmap(
-                z=heatmap_display_values,  # Use transformed values for coloring
+                z=heatmap_display_values,
                 x=crosstab_data.columns,
                 y=crosstab_data.index,
-                colorscale=color_scale,  # UPDATED: Using lighter, more soothing color palettes
+                colorscale=color_scale,
                 hoverongaps=False,
-                # Use custom hover template that shows original values
                 hovertemplate="%{customdata}<extra></extra>",
-                customdata=hover_text,  # Custom hover text with original values
-                # Colorbar settings
+                customdata=hover_text,
                 colorbar=dict(
                     title=colorbar_title,
                     thickness=15,
                     len=0.8,
                     x=1.02
                 ),
-                # Color scaling options for better contrast
                 zmin=heatmap_display_values.min(),
                 zmax=heatmap_display_values.max(),
                 connectgaps=False
             ))
             
-            # Update layout
+            # UPDATED: Dynamic labels
             dimension_labels = {
-                'case_origin': 'Case Origin',
-                'priority': 'Priority', 
-                'product': 'Product'
+                'case_type': 'Case Type',
+                'case_origin': 'Case Origin', 
+                'aor': 'AOR',
+                'case_reason': 'Case Reason',
+                'priority': 'Priority',
+                'product': 'Product',
+                'module': 'Module',
+                'feature': 'Feature',
+                'issue': 'Issue',
+                'status': 'Status'
             }
-            dimension_label = dimension_labels.get(dimension, dimension.title())
             
-            # Create title with display information
+            row_label = dimension_labels.get(row_dimension, row_dimension.title())
+            column_label = dimension_labels.get(column_dimension, column_dimension.title())
+            
             display_labels = {
                 'top3': 'Top 3',
                 'top5': 'Top 5', 
                 'top10': 'Top 10',
                 'all': 'All'
             }
-            display_text = display_labels.get(display_limit, 'Top 10')
+            display_text = display_labels.get(display_limit, 'Top 5')
             
-            if display_limit != "all" and displayed_count < total_case_types:
-                title_text = f"Tickets by Case Type & {dimension_label} ({display_text} of {total_case_types}) - Heatmap"
+            if display_limit != "all" and displayed_count < total_rows:
+                title_text = f"{row_label} by {column_label} ({display_text} of {total_rows}) - Heatmap"
             else:
-                title_text = f"Tickets by Case Type & {dimension_label} ({display_text}) - Heatmap"
+                title_text = f"{row_label} by {column_label} ({display_text}) - Heatmap"
             
             fig.update_layout(
                 title={
@@ -593,60 +632,60 @@ def register_workflow_classification_analysis_callbacks(app):
                     'font': {'size': 16, 'color': '#2c3e50'}
                 },
                 xaxis={
-                    'title': dimension_label,
+                    'title': column_label,
                     'tickangle': -45,
                     'tickfont': {'size': 10},
                     'side': 'bottom'
                 },
                 yaxis={
-                    'title': 'Case Type',
+                    'title': row_label,
                     'tickfont': {'size': 10 if displayed_count > 10 else 11},
-                    'autorange': 'reversed'  # Reverse y-axis to show highest volume at top
+                    'autorange': 'reversed'
                 },
-                height=450,  # Match stacked chart height
-                # Adjusted margins for better colorbar positioning
-                margin={'l': 120, 'r': 120, 't': 80, 'b': 120},  # More right space for colorbar
+                height=450,
+                margin={'l': 120, 'r': 120, 't': 80, 'b': 120},
                 plot_bgcolor='white',
                 paper_bgcolor='white'
             )
             
-            print(f"📊 Created classification heatmap with soothing colors ({'Blues' if is_log_scaled else 'Greens'}): {displayed_count} of {total_case_types} case types ({display_limit})")
+            # print(f"📊 Created generalized heatmap: {row_dimension} vs {column_dimension} ({'Blues' if is_log_scaled else 'Greens'})")
             return fig
             
         except Exception as e:
-            print(f"❌ Error creating classification heatmap: {e}")
-            import traceback
-            traceback.print_exc()
-            
-            # Return proper error figure
-            fig = go.Figure()
-            fig.add_annotation(
-                text=f"Error creating heatmap: {str(e)}",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=14, color="red")
-            )
-            fig.update_layout(
-                title={
-                    'text': "Tickets by Classification & Type - Error",
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'font': {'size': 16, 'color': '#2c3e50'}
-                },
-                height=450,
-                plot_bgcolor='white',
-                paper_bgcolor='white'
-            )
-            return fig
-                      
+            print(f"❌ Error creating generalized heatmap: {e}")
+            return create_error_figure("Error creating classification heatmap")
+
+    def create_error_figure(error_message):
+        """Helper function to create consistent error figures"""
+        fig = go.Figure()
+        fig.add_annotation(
+            text=error_message,
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, xanchor='center', yanchor='middle',
+            showarrow=False,
+            font=dict(size=14, color="red")
+        )
+        fig.update_layout(
+            title={
+                'text': "Classification Analysis - Error",
+                'x': 0.5,
+                'xanchor': 'center',
+                'font': {'size': 16, 'color': '#2c3e50'}
+            },
+            height=450,
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        return fig
+                     
     @monitor_performance("Classification Analysis Insights Generation")
     def generate_classification_analysis_insights(analysis_data, summary_stats, display_preference="top10"):
         """
         Generate automated insights from classification analysis data
-        UPDATED: Added display_preference parameter to provide context about displayed vs total data
+        FIXED: Proper DataFrame boolean checking to avoid ambiguous truth value error
         """
-        if not analysis_data or not summary_stats:
+        # FIXED: Proper DataFrame checking - use .empty instead of boolean evaluation
+        if analysis_data is None or analysis_data.empty or not summary_stats:
             return html.Div([
                 html.Div([html.Span("📊 No classification data available for current filter selection", style={'fontSize': '13px'})], className="mb-2"),
                 html.Div([html.Span("🔍 Try adjusting your filters to see classification insights", style={'fontSize': '13px'})], className="mb-2"),
@@ -658,8 +697,12 @@ def register_workflow_classification_analysis_callbacks(app):
             
             # Insight 1: Overall distribution summary with display context
             total_tickets = summary_stats.get('total_tickets', 0)
-            unique_case_types = summary_stats.get('unique_case_types', 0)
-            top_case_type = summary_stats.get('top_case_type', 'N/A')
+            unique_rows = summary_stats.get('unique_rows', 0)
+            unique_columns = summary_stats.get('unique_columns', 0)
+            top_row = summary_stats.get('top_row', 'N/A')
+            top_column = summary_stats.get('top_column', 'N/A')
+            row_dimension = summary_stats.get('row_dimension', 'case_type')
+            column_dimension = summary_stats.get('column_dimension', 'case_origin')
             
             # Add display context
             display_labels = {
@@ -670,56 +713,87 @@ def register_workflow_classification_analysis_callbacks(app):
             }
             display_text = display_labels.get(display_preference, 'top 10')
             
+            # UPDATED: Dynamic insight based on selected dimensions
+            dimension_labels = {
+                'case_type': 'case types',
+                'case_origin': 'origins',
+                'aor': 'AORs',
+                'case_reason': 'reasons',
+                'priority': 'priorities',
+                'product': 'products',
+                'module': 'modules',
+                'feature': 'features',
+                'issue': 'issues',
+                'status': 'statuses'
+            }
+            
+            row_label = dimension_labels.get(row_dimension, f'{row_dimension}s')
+            column_label = dimension_labels.get(column_dimension, f'{column_dimension}s')
+            
             if display_preference != "all":
-                insights.append(f"📊 Classification Overview: {total_tickets:,} tickets across {unique_case_types} case types (showing {display_text}), with '{top_case_type}' being most common")
+                insights.append(f"📊 Classification Overview: {total_tickets:,} tickets across {unique_rows} {row_label} and {unique_columns} {column_label} (showing {display_text})")
             else:
-                insights.append(f"📊 Classification Overview: {total_tickets:,} tickets across {unique_case_types} case types, with '{top_case_type}' being most common")
+                insights.append(f"📊 Classification Overview: {total_tickets:,} tickets across {unique_rows} {row_label} and {unique_columns} {column_label}")
             
-            # Insight 2: Case origin analysis (same as before)
-            if 'case_origin' in analysis_data and not analysis_data['case_origin'].empty:
-                origin_data = analysis_data['case_origin']
-                if 'Total' in origin_data.columns:
-                    origin_totals = origin_data['Total'].drop('Total', errors='ignore').sort_values(ascending=False)
-                    if len(origin_totals) > 0:
-                        top_origin_case_type = origin_totals.index[0]
-                        top_origin_count = origin_totals.iloc[0]
-                        
-                        # Find the dominant origin for this case type
-                        case_type_row = origin_data.loc[top_origin_case_type]
-                        case_type_row_clean = case_type_row.drop('Total', errors='ignore')
-                        dominant_origin = case_type_row_clean.idxmax()
-                        
-                        insights.append(f"🎯 Case Origin Pattern: '{top_origin_case_type}' has highest volume ({top_origin_count:,} tickets), primarily from '{dominant_origin}' channel")
+            # Insight 2: Top row dimension analysis
+            if not analysis_data.empty and 'Total' in analysis_data.columns:
+                # Get totals by row (excluding the Total row)
+                row_totals = analysis_data['Total'].drop('Total', errors='ignore').sort_values(ascending=False)
+                if len(row_totals) > 0:
+                    top_row_item = row_totals.index[0]
+                    top_row_count = row_totals.iloc[0]
+                    
+                    # Find the dominant column for this top row
+                    if top_row_item in analysis_data.index:
+                        row_data = analysis_data.loc[top_row_item].drop('Total', errors='ignore')
+                        if len(row_data) > 0:
+                            dominant_column = row_data.idxmax()
+                            dominant_count = row_data.max()
+                            
+                            row_dim_label = dimension_labels.get(row_dimension, row_dimension).rstrip('s')
+                            column_dim_label = dimension_labels.get(column_dimension, column_dimension).rstrip('s')
+                            
+                            insights.append(f"🎯 Top {row_dim_label.title()}: '{top_row_item}' leads with {top_row_count:,} tickets, primarily from '{dominant_column}' {column_dim_label} ({dominant_count:,} tickets)")
+                        else:
+                            insights.append(f"🎯 Volume Distribution: '{top_row_item}' accounts for {top_row_count:,} tickets ({(top_row_count/total_tickets*100):.1f}%)")
                     else:
-                        insights.append(f"📍 Case Origin Analysis: Data distributed across {summary_stats.get('unique_origins', 0)} different origins")
+                        insights.append(f"🎯 Volume Distribution: Data shows varied distribution across {row_label}")
                 else:
-                    insights.append(f"📍 Case Origin Analysis: Data distributed across {summary_stats.get('unique_origins', 0)} different origins")
+                    insights.append(f"🎯 Volume Distribution: Data distributed across {unique_rows} {row_label}")
             else:
-                insights.append(f"📍 Case Origin Analysis: Data distributed across {summary_stats.get('unique_origins', 0)} different origins")
+                insights.append(f"🎯 Volume Distribution: Data distributed across {unique_rows} {row_label}")
             
-            # Insight 3: Priority distribution analysis (same as before)  
-            if 'priority' in analysis_data and not analysis_data['priority'].empty:
-                priority_data = analysis_data['priority']
-                if 'Total' in priority_data.columns:
-                    # Calculate priority distribution
-                    priority_totals = priority_data.loc['Total'].drop('Total', errors='ignore')
-                    if len(priority_totals) > 0:
-                        top_priority = priority_totals.idxmax()
-                        top_priority_count = priority_totals.max()
-                        priority_pct = (top_priority_count / total_tickets * 100) if total_tickets > 0 else 0
+            # Insight 3: Column dimension distribution analysis
+            if not analysis_data.empty and len(analysis_data.columns) > 1:
+                # Calculate column totals (excluding Total column)
+                columns_to_analyze = [col for col in analysis_data.columns if col != 'Total']
+                if len(columns_to_analyze) > 0:
+                    column_totals = {}
+                    for col in columns_to_analyze:
+                        column_totals[col] = analysis_data[col].sum()
+                    
+                    if column_totals:
+                        top_column_item = max(column_totals, key=column_totals.get)
+                        top_column_count = column_totals[top_column_item]
+                        column_pct = (top_column_count / total_tickets * 100) if total_tickets > 0 else 0
                         
-                        # Assess priority distribution
-                        high_priority_terms = ['High', 'Critical', 'Urgent', 'Emergency']
-                        has_high_priority = any(term in str(top_priority) for term in high_priority_terms)
-                        priority_assessment = "requires immediate attention" if has_high_priority else "manageable priority levels"
+                        column_dim_label = dimension_labels.get(column_dimension, column_dimension).rstrip('s')
                         
-                        insights.append(f"⚡ Priority Distribution: '{top_priority}' priority dominates with {top_priority_count:,} tickets ({priority_pct:.1f}%) - {priority_assessment}")
+                        # Assess distribution evenness
+                        if column_pct > 60:
+                            distribution_note = "showing concentrated activity"
+                        elif column_pct > 40:
+                            distribution_note = "showing moderate concentration"
+                        else:
+                            distribution_note = "showing balanced distribution"
+                        
+                        insights.append(f"📈 {column_dim_label.title()} Pattern: '{top_column_item}' dominates with {top_column_count:,} tickets ({column_pct:.1f}%) - {distribution_note}")
                     else:
-                        insights.append(f"⚡ Priority Analysis: Tickets distributed across {summary_stats.get('unique_priorities', 0)} priority levels")
+                        insights.append(f"📈 Distribution: Activity spread across {unique_columns} {column_label}")
                 else:
-                    insights.append(f"⚡ Priority Analysis: Tickets distributed across {summary_stats.get('unique_priorities', 0)} priority levels")
+                    insights.append(f"📈 Distribution: Activity spread across {unique_columns} {column_label}")
             else:
-                insights.append(f"⚡ Priority Analysis: Tickets distributed across {summary_stats.get('unique_priorities', 0)} priority levels")
+                insights.append(f"📈 Distribution: Activity spread across {unique_columns} {column_label}")
             
             # Create exactly 3 styled insight cards
             insight_components = []
@@ -741,8 +815,7 @@ def register_workflow_classification_analysis_callbacks(app):
                 html.Div([html.Span("❌ **Error**: Unable to generate classification insights", style={'fontSize': '13px'})], className="mb-2"),
                 html.Div([html.Span("🔧 **Issue**: Data processing error occurred", style={'fontSize': '13px'})], className="mb-2"),
                 html.Div([html.Span("🔄 **Action**: Try refreshing or adjusting filters", style={'fontSize': '13px'})], className="mb-2")
-            ], className="insights-container")
-           
+            ], className="insights-container")          
 
     @callback(
         Output("workflow-class-view-state", "data"),
@@ -792,24 +865,30 @@ def register_workflow_classification_analysis_callbacks(app):
         [Output("workflow-classification-chart", "figure"),
         Output("workflow-classification-insights", "children")],
         [Input("workflow-filtered-query-store", "data"),
-        Input("workflow-class-view-state", "data"),  # UPDATED: Use stored view state
-        Input("workflow-class-display-state", "data")], 
+        Input("workflow-class-view-state", "data"),
+        Input("workflow-class-display-state", "data"),
+        Input("workflow-class-row-dimension", "value"),      # ADDED: Row dimension input
+        Input("workflow-class-column-dimension", "value")],  # ADDED: Column dimension input
         prevent_initial_call=False
     )
     @monitor_performance("Classification Analysis Chart Update")
-    def update_classification_analysis_chart(stored_selections, view_state, display_preference):
+    def update_classification_analysis_chart(stored_selections, view_state, display_preference, row_dimension, column_dimension):
         """
-        Update classification analysis chart based on filter selections, view type, and display preference
-        UPDATED: Now uses stored view state instead of button clicks
+        Update classification analysis chart based on filter selections, view type, display preference, and selected dimensions
+        UPDATED: Now supports any pair of dimensions
         """
         try:
-            # Default states - same as Resolution Times pattern
+            # Default states
             if view_state is None:
-                view_state = "stacked"  # Default view
+                view_state = "stacked"
             if display_preference is None:
-                display_preference = "top5"  # Default display
+                display_preference = "top5"
+            if row_dimension is None:
+                row_dimension = "case_type"
+            if column_dimension is None:
+                column_dimension = "case_origin"
             
-            print(f"🔄 Updating classification analysis chart: view_type={view_state}, display={display_preference}")
+            # print(f"🔄 Updating classification analysis: {row_dimension} vs {column_dimension}, view={view_state}, display={display_preference}")
             
             # Get base data
             base_data = get_classification_analysis_base_data()
@@ -817,23 +896,24 @@ def register_workflow_classification_analysis_callbacks(app):
             # Apply filters
             filtered_data = apply_classification_analysis_filters(base_data['work_items'], stored_selections)
             
-            # Prepare analysis data
+            # Prepare analysis data with selected dimensions
             analysis_data, summary_stats = prepare_classification_analysis_data(
                 filtered_data, 
                 base_data['case_types'], 
-                view_state
+                row_dimension,
+                column_dimension
             )
             
-            # Create visualization based on stored view state and display preference
+            # Create visualization based on view state and display preference
             if view_state == "heatmap":
-                fig = create_classification_heatmap(analysis_data, "case_origin", display_preference)
+                fig = create_classification_heatmap(analysis_data, row_dimension, column_dimension, display_preference)
             else:  # stacked
-                fig = create_classification_stacked_chart(analysis_data, "case_origin", display_preference)
+                fig = create_classification_stacked_chart(analysis_data, row_dimension, column_dimension, display_preference)
             
             # Generate insights
             insights = generate_classification_analysis_insights(analysis_data, summary_stats, display_preference)
             
-            print(f"✅ Classification analysis chart updated successfully ({view_state}, {display_preference})")
+            # print(f"✅ Classification analysis updated: {row_dimension} vs {column_dimension} ({view_state}, {display_preference})")
             return fig, insights
             
         except Exception as e:
@@ -850,7 +930,7 @@ def register_workflow_classification_analysis_callbacks(app):
             )
             fig.update_layout(
                 title={
-                    'text': "Tickets by Classification & Type - Error",
+                    'text': "Tickets Classification Analysis - Error",
                     'x': 0.5,
                     'xanchor': 'center',
                     'font': {'size': 16, 'color': '#2c3e50'}
@@ -867,14 +947,14 @@ def register_workflow_classification_analysis_callbacks(app):
             ], className="insights-container")
             
             return fig, error_insights
-               
-    print("✅ Workflow classification analysis callbacks registered")
+                      
+    # print("✅ Workflow classification analysis callbacks registered")
 
 def register_workflow_classification_analysis_modal_callbacks(app):
     """
     Register callbacks for workflow classification analysis chart modal functionality
     """
-    print("Registering Workflow Classification Analysis Chart Modal callbacks...")
+    # print("Registering Workflow Classification Analysis Chart Modal callbacks...")
     @monitor_chart_performance("Enlarged Classification Analysis Chart")
     def create_enlarged_classification_analysis_chart(original_figure):
         """
@@ -982,20 +1062,20 @@ def register_workflow_classification_analysis_modal_callbacks(app):
         triggered = ctx.triggered
         triggered_id = triggered[0]['prop_id'].split('.')[0] if triggered else None
         
-        print(f"🔄 Classification Analysis Modal callback triggered by: {triggered_id}")
+        # print(f"🔄 Classification Analysis Modal callback triggered by: {triggered_id}")
         
         # Open modal if chart wrapper clicked and modal is not already open
         if triggered_id == "workflow-classification-chart-wrapper" and chart_wrapper_clicks and not is_open:
-            print("📊 Classification analysis chart wrapper clicked! Opening modal...")
+            # print("📊 Classification analysis chart wrapper clicked! Opening modal...")
             
             if not chart_figure or not chart_figure.get('data'):
-                print("⚠️ No classification analysis chart figure data available")
+                # print("⚠️ No classification analysis chart figure data available")
                 return no_update, no_update
             
-            print("✅ Opening classification analysis modal with chart data")
+            # print("✅ Opening classification analysis modal with chart data")
             enlarged_chart = create_enlarged_classification_analysis_chart(chart_figure)
             return True, enlarged_chart
         
         return no_update, no_update
     
-    print("✅ Workflow Classification Analysis Chart Modal callbacks registered successfully")
+    # print("✅ Workflow Classification Analysis Chart Modal callbacks registered successfully")
