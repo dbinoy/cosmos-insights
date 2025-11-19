@@ -11,13 +11,13 @@ def get_resolution_times_layout():
         dbc.CardHeader([
             dbc.Row([
                 dbc.Col([
-                    html.H5("Resolution Times Analysis", className="mb-0")
+                    html.H5("Resolution Times", className="mb-0")
                 ], width=5),
                 dbc.Col([
                     # View type selector buttons - UPDATED: Make Box Plot active by default
                     dbc.ButtonGroup([
-                        dbc.Button("Bar Chart", id="workflow-resolution-bar-btn", size="sm", outline=True, active=False),  # CHANGED: active=False
-                        dbc.Button("Box Plot", id="workflow-resolution-box-btn", size="sm", outline=True, active=True),   # CHANGED: active=True
+                        dbc.Button("Bar", id="workflow-resolution-bar-btn", size="sm", outline=True, active=False),  # CHANGED: active=False
+                        dbc.Button("Box", id="workflow-resolution-box-btn", size="sm", outline=True, active=True),   # CHANGED: active=True
                         dbc.Button("Statistics", id="workflow-resolution-stats-btn", size="sm", outline=True),
                         dbc.Button("Distribution", id="workflow-resolution-dist-btn", size="sm", outline=True)
                     ], size="sm")
@@ -98,7 +98,7 @@ def get_resolution_times_layout():
                         ], width=8)
                     ])
                 ],
-                style={'display': 'none', 'marginBottom': '15px'}  # Hidden by default, shown only for Statistics and Distribution views
+                style={'display': 'none'}  # Hidden by default, shown only for Statistics and Distribution views
             ),
             
             # Chart container - UPDATED: Add wrapper for modal functionality

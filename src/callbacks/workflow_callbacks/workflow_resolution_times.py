@@ -1794,7 +1794,7 @@ def register_workflow_resolution_times_callbacks(app):
                 showarrow=False,
                 font=dict(size=14, color="red")
             )
-            fig.update_layout(title="Resolution Times Analysis - Error", height=450)
+            fig.update_layout(title="Resolution Times - Error", height=450)
             
             error_insights = html.Div([
                 html.Div([html.Span("❌ **Error**: Unable to generate resolution insights", style={'fontSize': '13px'})], className="mb-2"),
