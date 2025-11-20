@@ -320,11 +320,14 @@ def register_workflow_assignee_workload_callbacks(app):
             return pd.DataFrame(), {}
 
     @monitor_chart_performance("Assignee Workload Chart")
-    def create_assignee_workload_chart(workload_data, summary_stats, top_count=10):
+    def create_assignee_workload_chart(workload_data, summary_stats, top_count=10, selected_categories=None):
         """
         Create comprehensive assignee workload visualization
-        UPDATED: Enhanced to handle 'all' option with dynamic height adjustment
+        ENHANCED: Support selective category display for better visibility
         """
+        if selected_categories is None:
+            selected_categories = ['Closed', 'Active', 'Non-Actionable', 'Total']
+        
         if workload_data.empty:
             fig = go.Figure()
             fig.add_annotation(
@@ -351,134 +354,151 @@ def register_workflow_assignee_workload_callbacks(app):
             # Sort data by total tickets (descending for better readability)
             workload_data = workload_data.sort_values('total_tickets', ascending=False)
             
-            # UPDATED: Smart name truncation based on number of assignees
+            # Smart name truncation based on number of assignees
             num_assignees = len(workload_data)
             if num_assignees > 25:
-                # For many assignees, use shorter names
                 assignee_names = [name[:10] + '...' if len(name) > 10 else name for name in workload_data.index]
             elif num_assignees > 15:
-                # For moderate number, medium names
                 assignee_names = [name[:12] + '...' if len(name) > 12 else name for name in workload_data.index]
             else:
-                # For few assignees, longer names are fine
                 assignee_names = [name[:15] + '...' if len(name) > 15 else name for name in workload_data.index]
 
-            
-            # REDESIGNED: Create stacked bar chart with total line overlay
+            # Create figure
             fig = go.Figure()
             
-            # STACKED BARS: Bottom to top - Closed, Active, Non-Actionable
+            # ENHANCED: Add traces based on selected categories
+            traces_added = []
             
             # 1. Closed tickets (Green - bottom layer)
-            fig.add_trace(go.Bar(
-                name='Closed',
-                x=assignee_names,
-                y=workload_data['Closed'],
-                marker=dict(color='#27ae60'),
-                hoverinfo='skip'  # Will use unified hover
-            ))
+            if 'Closed' in selected_categories:
+                fig.add_trace(go.Bar(
+                    name='Closed',
+                    x=assignee_names,
+                    y=workload_data['Closed'],
+                    marker=dict(color='#27ae60'),
+                    hoverinfo='skip'
+                ))
+                traces_added.append('Closed')
             
-            # 2. Active tickets (Blue - middle layer) 
-            fig.add_trace(go.Bar(
-                name='Active',
-                x=assignee_names,
-                y=workload_data['Active'],
-                marker=dict(color='#3498db'),
-                hoverinfo='skip'  # Will use unified hover
-            ))
+            # 2. Active tickets (Blue - middle/bottom layer depending on what's shown)
+            if 'Active' in selected_categories:
+                fig.add_trace(go.Bar(
+                    name='Active',
+                    x=assignee_names,
+                    y=workload_data['Active'],
+                    marker=dict(color='#3498db'),
+                    hoverinfo='skip'
+                ))
+                traces_added.append('Active')
             
             # 3. Non-Actionable tickets (Orange - top layer)
-            fig.add_trace(go.Bar(
-                name='Non-Actionable',
-                x=assignee_names,
-                y=workload_data['Non-Actionable'],
-                marker=dict(color='#f39c12'),
-                hoverinfo='skip'  # Will use unified hover
-            ))
+            if 'Non-Actionable' in selected_categories:
+                fig.add_trace(go.Bar(
+                    name='Non-Actionable',
+                    x=assignee_names,
+                    y=workload_data['Non-Actionable'],
+                    marker=dict(color='#f39c12'),
+                    hoverinfo='skip'
+                ))
+                traces_added.append('Non-Actionable')
             
-            # TOTAL LINE: Red line showing total tickets (same scale as bars)
-            fig.add_trace(go.Scatter(
-                name='Total',
-                x=assignee_names,
-                y=workload_data['total_tickets'],
-                mode='markers+lines',
-                marker=dict(
-                    color='#e74c3c',
-                    size=8,
-                    symbol='circle',
-                    line=dict(width=2, color='white')  # White border for visibility
-                ),
-                line=dict(
-                    color='#e74c3c',
-                    width=3
-                ),
-                hoverinfo='skip'  # Will use unified hover
-            ))
+            # 4. Total Line (Red line - only if selected)
+            if 'Total' in selected_categories:
+                fig.add_trace(go.Scatter(
+                    name='Total',
+                    x=assignee_names,
+                    y=workload_data['total_tickets'],
+                    mode='markers+lines',
+                    marker=dict(
+                        color='#e74c3c',
+                        size=8,
+                        symbol='circle',
+                        line=dict(width=2, color='white')
+                    ),
+                    line=dict(
+                        color='#e74c3c',
+                        width=3
+                    ),
+                    hoverinfo='skip'
+                ))
+                traces_added.append('Total')
             
-            # UNIFIED HOVER: Single hover box with all information
+            # ENHANCED: Calculate appropriate Y-axis range based on selected categories
+            if traces_added:
+                if 'Total' in selected_categories:
+                    # If Total line is shown, use total tickets for range
+                    max_value = workload_data['total_tickets'].max()
+                else:
+                    # Otherwise, use the sum of selected categories
+                    selected_cols = [col for col in ['Closed', 'Active', 'Non-Actionable'] if col in selected_categories]
+                    if selected_cols:
+                        max_value = workload_data[selected_cols].sum(axis=1).max()
+                    else:
+                        max_value = 10  # Fallback
+            else:
+                max_value = 10  # Fallback
+            
+            # ENHANCED: Unified hover with dynamic content based on selected categories
+            hover_lines = ["<b>%{x}</b><br>", "─────────────────<br>"]
+            
+            # Build custom data array for hover
+            customdata_arrays = []
+            hover_index = 2  # Start after name and separator
+            
+            if 'Total' in selected_categories or len([col for col in ['Closed', 'Active', 'Non-Actionable'] if col in selected_categories]) > 1:
+                hover_lines.append("📊 <b>Total Tickets:</b> %{customdata[0]}<br>")
+                customdata_arrays.append(workload_data['total_tickets'])
+                hover_index += 1
+            
+            if 'Closed' in selected_categories:
+                hover_lines.append("✅ <b>Closed:</b> %{customdata[" + str(len(customdata_arrays)) + "]} (%{customdata[" + str(len(customdata_arrays)+1) + "]:.1f}%)<br>")
+                customdata_arrays.extend([workload_data['Closed'], workload_data['closure_rate']])
+            
+            if 'Active' in selected_categories:
+                hover_lines.append("🔄 <b>Active:</b> %{customdata[" + str(len(customdata_arrays)) + "]} (%{customdata[" + str(len(customdata_arrays)+1) + "]:.1f}%)<br>")
+                customdata_arrays.extend([workload_data['Active'], workload_data['active_rate']])
+            
+            if 'Non-Actionable' in selected_categories:
+                hover_lines.append("⏸️ <b>Non-Actionable:</b> %{customdata[" + str(len(customdata_arrays)) + "]}<br>")
+                customdata_arrays.append(workload_data['Non-Actionable'])
+            
+            hover_lines.extend([
+                "─────────────────<br>",
+                "⚡ <b>Escalated:</b> %{customdata[" + str(len(customdata_arrays)) + "]} (%{customdata[" + str(len(customdata_arrays)+1) + "]:.1f}%)<br>",
+                "🎯 <b>Common Priority:</b> %{customdata[" + str(len(customdata_arrays)+2) + "]}<br>",
+                "<extra></extra>"
+            ])
+            
+            customdata_arrays.extend([
+                workload_data['escalated_tickets'],
+                workload_data['escalation_rate'],
+                workload_data['common_priority']
+            ])
+            
             # Add invisible scatter plot for unified hover
             fig.add_trace(go.Scatter(
                 x=assignee_names,
-                y=workload_data['total_tickets'],
+                y=workload_data['total_tickets'] if 'Total' in selected_categories else workload_data[['Closed', 'Active', 'Non-Actionable']].sum(axis=1),
                 mode='markers',
-                marker=dict(
-                    color='rgba(0,0,0,0)',  # Transparent
-                    size=20  # Large hover area
-                ),
+                marker=dict(color='rgba(0,0,0,0)', size=20),
                 showlegend=False,
-                hovertemplate=(
-                    "<b>%{x}</b><br>" +
-                    "─────────────────<br>" +
-                    "📊 <b>Total Tickets:</b> %{customdata[0]}<br>" +
-                    "✅ <b>Closed:</b> %{customdata[1]} (%{customdata[2]:.1f}%)<br>" +
-                    "🔄 <b>Active:</b> %{customdata[3]} (%{customdata[4]:.1f}%)<br>" +
-                    "⏸️ <b>Non-Actionable:</b> %{customdata[5]}<br>" +
-                    "─────────────────<br>" +
-                    "⚡ <b>Escalated:</b> %{customdata[6]} (%{customdata[7]:.1f}%)<br>" +
-                    "🎯 <b>Common Priority:</b> %{customdata[8]}<br>" +
-                    "<extra></extra>"
-                ),
-                customdata=list(zip(
-                    workload_data['total_tickets'],        # 0
-                    workload_data['Closed'],               # 1
-                    workload_data['closure_rate'],         # 2
-                    workload_data['Active'],               # 3
-                    workload_data['active_rate'],          # 4
-                    workload_data['Non-Actionable'],       # 5
-                    workload_data['escalated_tickets'],    # 6
-                    workload_data['escalation_rate'],      # 7
-                    workload_data['common_priority']       # 8
-                ))
+                hovertemplate=''.join(hover_lines),
+                customdata=list(zip(*customdata_arrays))
             ))
             
-            # Calculate summary stats for title
+            # Enhanced title with category information
             total_assignees = summary_stats.get('total_assignees', 0)
             displayed_assignees = summary_stats.get('displayed_assignees', 0)
             
-            # UPDATED: Enhanced title to show display mode (Top N vs All)
             if top_count == 'all':
-                title_text = f"Assignee Workload Analysis (All {displayed_assignees} Assignees)"
+                title_base = f"Assignee Workload Analysis (All {displayed_assignees} Assignees)"
             else:
-                title_text = f"Assignee Workload Analysis (Top {top_count} of {total_assignees})"
+                title_base = f"Assignee Workload Analysis (Top {top_count} of {total_assignees})"
             
-            # Calculate dynamic parameters
-            num_assignees = len(workload_data)
-            max_total = workload_data['total_tickets'].max()
-            
-            # UPDATED: Dynamic height calculation for 'all' option
-            # if top_count == 'all':
-            #     # For 'all' mode, adjust height based on number of assignees
-            #     base_height = 450
-            #     extra_height_per_assignee = 15  # Additional pixels per assignee beyond 10
-            #     if num_assignees > 10:
-            #         dynamic_height = base_height + ((num_assignees - 10) * extra_height_per_assignee)
-            #         # Cap maximum height to prevent excessive scrolling
-            #         chart_height = min(dynamic_height, 800)
-            #     else:
-            #         chart_height = base_height
-            # else:
-            #     # For top N mode, use standard height
-            #     chart_height = 450
+            # Add category info to title
+            category_labels = {'Closed': '✅', 'Active': '🔄', 'Non-Actionable': '⏸️', 'Total': '📊'}
+            shown_categories = [f"{category_labels.get(cat, '')} {cat}" for cat in selected_categories]
+            title_text = f"{title_base} | Showing: {', '.join(shown_categories)}"
             
             # Update layout
             fig.update_layout(
@@ -486,7 +506,7 @@ def register_workflow_assignee_workload_callbacks(app):
                     'text': title_text,
                     'x': 0.5,
                     'xanchor': 'center',
-                    'font': {'size': 13, 'color': '#2c3e50'}
+                    'font': {'size': 12, 'color': '#2c3e50'}
                 },
                 xaxis={
                     'title': 'Assignee',
@@ -497,10 +517,10 @@ def register_workflow_assignee_workload_callbacks(app):
                     'title': 'Number of Tickets',
                     'showgrid': True,
                     'gridcolor': '#f0f0f0',
-                    'range': [0, max_total * 1.1]  # Add 10% padding at top
+                    'range': [0, max_value * 1.1]
                 },
-                height=450,  
-                margin={'l': 60, 'r': 50, 't': 100, 'b': 100},
+                height=450,
+                margin={'l': 60, 'r': 50, 't': 120, 'b': 100},  # Extra top margin for longer title
                 plot_bgcolor='white',
                 paper_bgcolor='white',
                 showlegend=True,
@@ -512,20 +532,30 @@ def register_workflow_assignee_workload_callbacks(app):
                     x=0.5,
                     font=dict(size=10)
                 ),
-                barmode='stack',  # STACKED: Shows composition clearly
-                hovermode='x unified'  # Unified hover for cleaner experience
+                barmode='stack',
+                hovermode='x unified'
             )
             
-            # Add key insights as annotations (only for reasonable number of assignees)
-            if len(workload_data) > 0 and num_assignees <= 25:  # Don't clutter with too many assignees
-                # Highlight assignee with most total tickets
-                top_total_count = workload_data['total_tickets'].iloc[0]
+            # Add annotations only for reasonable number of assignees
+            if len(workload_data) > 0 and num_assignees <= 25:
+                if 'Total' in selected_categories:
+                    annotation_y = workload_data['total_tickets'].iloc[0] + (max_value * 0.05)
+                    annotation_text = f"Most Total<br>{workload_data['total_tickets'].iloc[0]}"
+                else:
+                    # Use the highest visible category stack
+                    visible_cols = [col for col in ['Closed', 'Active', 'Non-Actionable'] if col in selected_categories]
+                    if visible_cols:
+                        stack_height = workload_data[visible_cols].sum(axis=1).iloc[0]
+                        annotation_y = stack_height + (max_value * 0.05)
+                        annotation_text = f"Most Tickets<br>{int(stack_height)}"
+                    else:
+                        annotation_y = max_value * 0.1
+                        annotation_text = "Top Assignee"
                 
-                # Annotation for most total tickets
                 fig.add_annotation(
                     x=assignee_names[0],
-                    y=top_total_count + (max_total * 0.05),
-                    text=f"Most Total<br>{top_total_count}",
+                    y=annotation_y,
+                    text=annotation_text,
                     showarrow=True,
                     arrowhead=2,
                     arrowcolor="#e74c3c",
@@ -537,7 +567,7 @@ def register_workflow_assignee_workload_callbacks(app):
                     ay=-40
                 )
             
-            # print(f"📊 Created assignee workload chart: {len(workload_data)} assignees displayed")
+            print(f"📊 Created assignee workload chart: {len(workload_data)} assignees, showing categories: {selected_categories}")
             return fig
             
         except Exception as e:
@@ -545,11 +575,12 @@ def register_workflow_assignee_workload_callbacks(app):
             import traceback
             traceback.print_exc()
             return create_error_figure("Error creating assignee workload chart")
-                     
+
     @monitor_performance("Assignee Workload Insights Generation")
-    def generate_assignee_workload_insights(workload_data, summary_stats, top_count=10):
+    def generate_assignee_workload_insights(workload_data, summary_stats, top_count=10, selected_categories=None):
         """
         Generate automated insights from assignee workload analysis
+        ENHANCED: Adapt insights based on selected categories
         """
         if workload_data.empty or not summary_stats:
             return html.Div([
@@ -558,55 +589,89 @@ def register_workflow_assignee_workload_callbacks(app):
                 html.Div([html.Span("👥 Data will appear when tickets have assignee information", style={'fontSize': '13px'})], className="mb-2")
             ], className="insights-container")
         
+        if selected_categories is None:
+            selected_categories = ['Closed', 'Active', 'Non-Actionable', 'Total']
+        
         try:
             insights = []
             
-            # Insight 1: Overall workload distribution
+            # Insight 1: Overall workload distribution (adapt based on selected categories)
             total_assignees = summary_stats.get('total_assignees', 0)
             total_tickets = summary_stats.get('total_tickets', 0)
             avg_tickets = summary_stats.get('avg_tickets_per_assignee', 0)
             top_assignee = summary_stats.get('top_assignee', 'N/A')
             top_count_tickets = summary_stats.get('top_assignee_count', 0)
             
-            insights.append(f"📊 Workload Overview: {total_tickets:,} tickets distributed across {total_assignees} assignees (avg: {avg_tickets:.1f} tickets/assignee)")
+            category_focus = ""
+            if len(selected_categories) < 4:
+                category_labels = {'Closed': 'closed', 'Active': 'active', 'Non-Actionable': 'non-actionable', 'Total': 'total'}
+                shown_cats = [category_labels.get(cat, cat.lower()) for cat in selected_categories if cat != 'Total']
+                if shown_cats:
+                    category_focus = f" (focusing on {' + '.join(shown_cats)} tickets)"
             
-            # Insight 2: Top performer analysis
-            if len(workload_data) > 0:
-                # Calculate workload imbalance
-                min_tickets = workload_data['total_tickets'].min()
-                max_tickets = workload_data['total_tickets'].max()
-                workload_ratio = max_tickets / max(min_tickets, 1)
+            insights.append(f"📊 Workload Overview{category_focus}: {total_tickets:,} tickets distributed across {total_assignees} assignees (avg: {avg_tickets:.1f} tickets/assignee)")
+            
+            # Insight 2: Category-specific analysis
+            if 'Active' in selected_categories and 'Non-Actionable' in selected_categories and 'Closed' not in selected_categories:
+                # Focus on open items
+                total_active = summary_stats.get('total_active_tickets', 0)
+                total_non_actionable = summary_stats.get('total_non_actionable_tickets', 0)
+                open_items = total_active + total_non_actionable
+                insights.append(f"🔄 Open Items Analysis: {open_items:,} open tickets ({total_active:,} active + {total_non_actionable:,} non-actionable) require attention")
                 
-                if workload_ratio > 5:
-                    balance_status = "significant imbalance detected"
-                elif workload_ratio > 3:
-                    balance_status = "moderate imbalance detected"
-                else:
-                    balance_status = "relatively balanced distribution"
+            elif 'Active' in selected_categories and len(selected_categories) == 2 and 'Total' in selected_categories:
+                # Active-only focus
+                total_active = summary_stats.get('total_active_tickets', 0)
+                active_pct = (total_active / total_tickets * 100) if total_tickets > 0 else 0
+                insights.append(f"🔄 Active Tickets Focus: {total_active:,} active tickets ({active_pct:.1f}% of total workload) currently in progress")
+                
+            else:
+                # Standard top performer analysis
+                if len(workload_data) > 0:
+                    min_tickets = workload_data['total_tickets'].min()
+                    max_tickets = workload_data['total_tickets'].max()
+                    workload_ratio = max_tickets / max(min_tickets, 1)
                     
-                insights.append(f"🎯 Top Performer: '{top_assignee}' handles {top_count_tickets:,} tickets ({(top_count_tickets/total_tickets*100):.1f}% of total) - {balance_status}")
-            else:
-                insights.append(f"🎯 Top Performer: '{top_assignee}' handles {top_count_tickets:,} tickets")
+                    if workload_ratio > 5:
+                        balance_status = "significant imbalance detected"
+                    elif workload_ratio > 3:
+                        balance_status = "moderate imbalance detected"
+                    else:
+                        balance_status = "relatively balanced distribution"
+                        
+                    insights.append(f"🎯 Top Performer: '{top_assignee}' handles {top_count_tickets:,} tickets ({(top_count_tickets/total_tickets*100):.1f}% of total) - {balance_status}")
             
-            # Insight 3: Performance metrics analysis
+            # Insight 3: Performance metrics (adapt based on visible categories)
             avg_escalation_rate = summary_stats.get('escalation_rate_avg', 0)
-            avg_closure_rate = summary_stats.get('closure_rate_avg', 0)
-            unassigned_tickets = summary_stats.get('unassigned_tickets', 0)
             
-            if unassigned_tickets > 0:
-                unassigned_note = f", {unassigned_tickets:,} tickets unassigned"
+            if 'Closed' in selected_categories:
+                avg_closure_rate = summary_stats.get('closure_rate_avg', 0)
+                closure_insight = f"{avg_closure_rate:.1f}% avg closure rate, "
             else:
-                unassigned_note = ""
+                closure_insight = ""
+            
+            if 'Active' in selected_categories or 'Non-Actionable' in selected_categories:
+                escalation_insight = f"{avg_escalation_rate:.1f}% avg escalation rate"
                 
-            # Assess performance indicators
-            if avg_escalation_rate > 15:
-                escalation_status = "high escalation rates indicate potential capacity issues"
-            elif avg_escalation_rate > 8:
-                escalation_status = "moderate escalation rates suggest balanced workload"
+                if avg_escalation_rate > 15:
+                    escalation_status = "high escalation rates indicate potential capacity issues"
+                elif avg_escalation_rate > 8:
+                    escalation_status = "moderate escalation rates suggest balanced workload"
+                else:
+                    escalation_status = "low escalation rates indicate effective ticket handling"
             else:
-                escalation_status = "low escalation rates indicate effective ticket handling"
+                escalation_insight = ""
+                escalation_status = ""
             
-            insights.append(f"📈 Performance Metrics: {avg_closure_rate:.1f}% avg closure rate, {avg_escalation_rate:.1f}% avg escalation rate - {escalation_status}{unassigned_note}")
+            unassigned_tickets = summary_stats.get('unassigned_tickets', 0)
+            unassigned_note = f", {unassigned_tickets:,} tickets unassigned" if unassigned_tickets > 0 else ""
+            
+            performance_text = f"📈 Performance Metrics: {closure_insight}{escalation_insight}"
+            if escalation_status:
+                performance_text += f" - {escalation_status}"
+            performance_text += unassigned_note
+            
+            insights.append(performance_text)
             
             # Create styled insight cards
             insight_components = []
@@ -626,7 +691,7 @@ def register_workflow_assignee_workload_callbacks(app):
                 html.Div([html.Span("🔧 **Issue**: Data processing error occurred", style={'fontSize': '13px'})], className="mb-2"),
                 html.Div([html.Span("🔄 **Action**: Try refreshing or adjusting filters", style={'fontSize': '13px'})], className="mb-2")
             ], className="insights-container")
-
+                                    
     def create_error_figure(error_message):
         """Helper function to create consistent error figures"""
         fig = go.Figure()
@@ -651,24 +716,50 @@ def register_workflow_assignee_workload_callbacks(app):
         return fig
 
     @callback(
+        Output("workflow-assignee-categories-dropdown", "value"),
+        [Input("btn-cat-all", "n_clicks"),
+        Input("btn-cat-closed", "n_clicks"), 
+        Input("btn-cat-open", "n_clicks")],
+        prevent_initial_call=True
+    )
+    def handle_category_quick_select(btn_all, btn_closed, btn_open):
+        """Handle quick select buttons for category combinations"""
+        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        
+        if triggered_id == "btn-cat-all":
+            # Show all categories
+            return ['Closed', 'Active', 'Non-Actionable', 'Total']
+        elif triggered_id == "btn-cat-closed":
+            # Show only Closed tickets
+            return ['Closed']
+        elif triggered_id == "btn-cat-open":
+            # Show Active + Non-Actionable (open items)
+            return ['Active', 'Non-Actionable']
+        
+        return ['Closed', 'Active', 'Non-Actionable', 'Total']
+
+    @callback(
         [Output("workflow-assignee-workload-chart", "figure"),
         Output("workflow-assignee-insights", "children")],
         [Input("workflow-filtered-query-store", "data"),
-        Input("workflow-assignee-count-dropdown", "value")],
+        Input("workflow-assignee-count-dropdown", "value"),
+        Input("workflow-assignee-categories-dropdown", "value")],  # ADDED: Categories input
         prevent_initial_call=False
     )
     @monitor_performance("Assignee Workload Chart Update")
-    def update_assignee_workload_chart(stored_selections, top_count):
+    def update_assignee_workload_chart(stored_selections, top_count, selected_categories):
         """
-        Update assignee workload chart based on filter selections and top count
-        UPDATED: Handle 'all' option for displaying all assignees
+        Update assignee workload chart based on filter selections, top count, and selected categories
+        ENHANCED: Support selective category display
         """
         try:
             # Handle None or invalid values
             if top_count is None:
                 top_count = 10
+            if selected_categories is None or len(selected_categories) == 0:
+                selected_categories = ['Closed', 'Active', 'Non-Actionable', 'Total']
             
-            print(f"🔄 Updating assignee workload analysis: display = {top_count}")
+            print(f"🔄 Updating assignee workload analysis: display = {top_count}, categories = {selected_categories}")
             
             # Get base data
             base_data = get_assignee_workload_base_data()
@@ -676,14 +767,14 @@ def register_workflow_assignee_workload_callbacks(app):
             # Apply filters
             filtered_data = apply_assignee_workload_filters(base_data['work_items'], stored_selections)
             
-            # Prepare analysis data (handles 'all' internally)
+            # Prepare analysis data
             workload_data, summary_stats = prepare_assignee_workload_data(filtered_data, top_count)
             
-            # Create visualization (handles 'all' with dynamic height)
-            fig = create_assignee_workload_chart(workload_data, summary_stats, top_count)
+            # Create visualization with selected categories
+            fig = create_assignee_workload_chart(workload_data, summary_stats, top_count, selected_categories)
             
-            # Generate insights
-            insights = generate_assignee_workload_insights(workload_data, summary_stats, top_count)
+            # Generate insights (enhanced to reflect category selection)
+            insights = generate_assignee_workload_insights(workload_data, summary_stats, top_count, selected_categories)
 
             print(f"✅ Assignee workload analysis updated: {len(workload_data)} assignees displayed")
             return fig, insights
@@ -701,8 +792,7 @@ def register_workflow_assignee_workload_callbacks(app):
             ], className="insights-container")
             
             return fig, error_insights
-
-    # UPDATED: Modal callback to handle 'all' option
+            
     @callback(
         [Output("workflow-assignee-workload-modal", "is_open"),
         Output("workflow-assignee-workload-modal-chart", "figure")],
@@ -710,34 +800,33 @@ def register_workflow_assignee_workload_callbacks(app):
         Input("workflow-assignee-workload-modal-close", "n_clicks")],
         [State("workflow-assignee-workload-modal", "is_open"),
         State("workflow-filtered-query-store", "data"),
-        State("workflow-assignee-count-dropdown", "value")],
+        State("workflow-assignee-count-dropdown", "value"),
+        State("workflow-assignee-categories-dropdown", "value")],  # ADDED: Categories state
         prevent_initial_call=True
     )
-    def toggle_assignee_workload_modal(click_data, close_clicks, is_open, stored_selections, top_count):
+    def toggle_assignee_workload_modal(click_data, close_clicks, is_open, stored_selections, top_count, selected_categories):
         """
         Toggle modal window for enlarged assignee workload view
-        UPDATED: Handle 'all' option with appropriate modal sizing
+        ENHANCED: Support category selection in modal
         """
         triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
         
         if triggered_id == "workflow-assignee-workload-chart" and click_data:
             # Open modal with enlarged chart
             try:
+                if selected_categories is None or len(selected_categories) == 0:
+                    selected_categories = ['Closed', 'Active', 'Non-Actionable', 'Total']
+                
                 # Get base data and prepare enlarged chart
                 base_data = get_assignee_workload_base_data()
                 filtered_data = apply_assignee_workload_filters(base_data['work_items'], stored_selections)
                 workload_data, summary_stats = prepare_assignee_workload_data(filtered_data, top_count or 10)
                 
-                # Create enlarged chart
-                fig = create_assignee_workload_chart(workload_data, summary_stats, top_count or 10)
+                # Create enlarged chart with selected categories
+                fig = create_assignee_workload_chart(workload_data, summary_stats, top_count or 10, selected_categories)
                 
-                # UPDATED: Dynamic modal height based on display mode
-                if top_count == 'all':
-                    modal_height = min(800, 600 + (len(workload_data) * 10))  # Cap at 800px
-                else:
-                    modal_height = 600
-                    
-                fig.update_layout(height=modal_height)
+                # Enhanced modal height
+                fig.update_layout(height=600)
                 
                 return True, fig
                 
@@ -750,3 +839,4 @@ def register_workflow_assignee_workload_callbacks(app):
             return False, go.Figure()
         
         return is_open, go.Figure()
+    

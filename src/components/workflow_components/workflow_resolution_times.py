@@ -45,6 +45,7 @@ def get_resolution_times_layout():
                                     {'label': 'AOR', 'value': 'AorShortName'}
                                 ],
                                 value='WorkItemDefinitionShortCode',  # Case Type already selected by default
+                                clearable=False,
                                 placeholder="Select dimension...",
                                 style={'fontSize': '12px'},
                                 className="mb-3"
