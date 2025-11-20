@@ -23,6 +23,7 @@ from src.callbacks.workflow_callbacks.workflow_resolution_times import register_
 from src.callbacks.workflow_callbacks.workflow_classification_analysis import register_workflow_classification_analysis_callbacks
 from src.callbacks.workflow_callbacks.workflow_classification_analysis import register_workflow_classification_analysis_modal_callbacks
 from src.callbacks.workflow_callbacks.workflow_assignee_workload import register_workflow_assignee_workload_callbacks
+from src.callbacks.workflow_callbacks.workflow_escalated_tickets import register_workflow_escalated_tickets_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
@@ -50,3 +51,4 @@ def register_all_callbacks(app):
     register_workflow_classification_analysis_callbacks(app)
     register_workflow_classification_analysis_modal_callbacks(app)
     register_workflow_assignee_workload_callbacks(app)
+    register_workflow_escalated_tickets_callbacks(app)

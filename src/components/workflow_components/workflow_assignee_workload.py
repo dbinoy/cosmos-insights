@@ -39,7 +39,7 @@ def get_assignee_workload_layout():
                                 {'label': '⏸️ Non-Actionable', 'value': 'Non-Actionable'},
                                 {'label': '📊 Total Line', 'value': 'Total'}
                             ],
-                            value=['Closed', 'Active', 'Non-Actionable', 'Total'],  # All selected by default
+                            value=[],  
                             multi=True,
                             clearable=False,
                             placeholder="Select categories to display",
@@ -49,12 +49,18 @@ def get_assignee_workload_layout():
                     ], width=4),
                     dbc.Col([
                         # Quick select buttons for common combinations
-                        html.Label("Quick Select:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
-                        dbc.ButtonGroup([
-                            dbc.Button("All", id="btn-cat-all", size="sm", outline=True, color="primary", style={'fontSize': '11px'}),
-                            dbc.Button("Closed", id="btn-cat-closed", size="sm", outline=True, color="warning", style={'fontSize': '11px'}),
-                            dbc.Button("Open", id="btn-cat-open", size="sm", outline=True, color="info", style={'fontSize': '11px'})
-                        ], size="sm", className="mb-3")
+                        dbc.Col([
+                            dbc.Row([
+                                html.Label("Quick Select:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'})
+                            ]),
+                            dbc.Row([
+                                dbc.ButtonGroup([
+                                    dbc.Button("All", id="btn-cat-all", size="sm", outline=True, color="primary", style={'fontSize': '11px'}),
+                                    dbc.Button("Closed", id="btn-cat-closed", size="sm", outline=True, color="warning", style={'fontSize': '11px'}),
+                                    dbc.Button("Open", id="btn-cat-open", size="sm", outline=True, color="info", style={'fontSize': '11px'})
+                                ], size="lg", className="mb-3")
+                            ])
+                        ])
                     ], width=5)
                 ])
             ], style={'display': 'block', 'marginBottom': '15px'}),
