@@ -169,7 +169,7 @@ def register_workflow_assignee_workload_callbacks(app):
         """
         Prepare assignee workload analysis data
         Creates workload distribution with 3 status buckets: Closed, Active, Non-Actionable
-        UPDATED: Enhanced status classification for better workload insights
+        UPDATED: Enhanced to handle 'all' option for displaying all assignees
         """
         if filtered_data.empty:
             return pd.DataFrame(), {}
@@ -219,7 +219,6 @@ def register_workflow_assignee_workload_callbacks(app):
                     return 'Non-Actionable'
                 else:
                     # Unknown status - default to Active for safety
-                    # print(f"⚠️ Unknown status encountered: '{status}' - defaulting to Active")
                     return 'Active'
             
             # Apply status categorization
@@ -282,8 +281,13 @@ def register_workflow_assignee_workload_callbacks(app):
                 assignee_metrics['Active'] / assignee_metrics['total_tickets'] * 100
             ).round(1)
             
-            # Sort by total tickets and get top N
-            assignee_metrics = assignee_metrics.sort_values('total_tickets', ascending=False).head(top_count)
+            # UPDATED: Sort by total tickets and handle 'all' vs top N
+            assignee_metrics = assignee_metrics.sort_values('total_tickets', ascending=False)
+            
+            # Apply top count filter (if not 'all')
+            if top_count != 'all' and isinstance(top_count, int):
+                assignee_metrics = assignee_metrics.head(top_count)
+            # If top_count is 'all', we keep all assignees (no filtering)
             
             # UPDATED: Enhanced summary statistics
             total_closed = df[df['StatusCategory'] == 'Closed'].shape[0]
@@ -292,6 +296,7 @@ def register_workflow_assignee_workload_callbacks(app):
             
             summary_stats = {
                 'total_assignees': len(df['AssigneeDisplay'].unique()),
+                'displayed_assignees': len(assignee_metrics),  # ADDED: How many are actually displayed
                 'total_tickets': len(df),
                 'total_closed_tickets': int(total_closed),
                 'total_active_tickets': int(total_active),
@@ -305,8 +310,7 @@ def register_workflow_assignee_workload_callbacks(app):
                 'active_rate_avg': assignee_metrics['active_rate'].mean()
             }
             
-            # print(f"📊 Prepared assignee workload data: {len(assignee_metrics)} assignees, {len(df)} total tickets")
-            # print(f"📊 Status distribution: {total_closed} Closed, {total_active} Active, {total_non_actionable} Non-Actionable")
+            print(f"📊 Prepared assignee workload data: {len(assignee_metrics)} assignees displayed (of {len(df['AssigneeDisplay'].unique())} total), {len(df)} total tickets")
             return assignee_metrics, summary_stats
             
         except Exception as e:
@@ -319,8 +323,7 @@ def register_workflow_assignee_workload_callbacks(app):
     def create_assignee_workload_chart(workload_data, summary_stats, top_count=10):
         """
         Create comprehensive assignee workload visualization
-        REDESIGNED: Stacked bars + total line on same scale for clear comparison
-        Answers: "Who has most total tickets?" and "Who has most active work?"
+        UPDATED: Enhanced to handle 'all' option with dynamic height adjustment
         """
         if workload_data.empty:
             fig = go.Figure()
@@ -348,8 +351,18 @@ def register_workflow_assignee_workload_callbacks(app):
             # Sort data by total tickets (descending for better readability)
             workload_data = workload_data.sort_values('total_tickets', ascending=False)
             
-            # Prepare assignee names (truncate if too long for better display)
-            assignee_names = [name[:15] + '...' if len(name) > 15 else name for name in workload_data.index]
+            # UPDATED: Smart name truncation based on number of assignees
+            num_assignees = len(workload_data)
+            if num_assignees > 25:
+                # For many assignees, use shorter names
+                assignee_names = [name[:10] + '...' if len(name) > 10 else name for name in workload_data.index]
+            elif num_assignees > 15:
+                # For moderate number, medium names
+                assignee_names = [name[:12] + '...' if len(name) > 12 else name for name in workload_data.index]
+            else:
+                # For few assignees, longer names are fine
+                assignee_names = [name[:15] + '...' if len(name) > 15 else name for name in workload_data.index]
+
             
             # REDESIGNED: Create stacked bar chart with total line overlay
             fig = go.Figure()
@@ -440,19 +453,32 @@ def register_workflow_assignee_workload_callbacks(app):
             
             # Calculate summary stats for title
             total_assignees = summary_stats.get('total_assignees', 0)
-            total_closed = summary_stats.get('total_closed_tickets', 0)
-            total_active = summary_stats.get('total_active_tickets', 0)
-            total_non_actionable = summary_stats.get('total_non_actionable_tickets', 0)
-            avg_closure_rate = summary_stats.get('closure_rate_avg', 0)
+            displayed_assignees = summary_stats.get('displayed_assignees', 0)
             
-            # Enhanced title with key metrics
-            title_text = (
-                f"Assignee Workload Analysis (Top {top_count} of {total_assignees})"
-            )
+            # UPDATED: Enhanced title to show display mode (Top N vs All)
+            if top_count == 'all':
+                title_text = f"Assignee Workload Analysis (All {displayed_assignees} Assignees)"
+            else:
+                title_text = f"Assignee Workload Analysis (Top {top_count} of {total_assignees})"
             
             # Calculate dynamic parameters
             num_assignees = len(workload_data)
             max_total = workload_data['total_tickets'].max()
+            
+            # UPDATED: Dynamic height calculation for 'all' option
+            # if top_count == 'all':
+            #     # For 'all' mode, adjust height based on number of assignees
+            #     base_height = 450
+            #     extra_height_per_assignee = 15  # Additional pixels per assignee beyond 10
+            #     if num_assignees > 10:
+            #         dynamic_height = base_height + ((num_assignees - 10) * extra_height_per_assignee)
+            #         # Cap maximum height to prevent excessive scrolling
+            #         chart_height = min(dynamic_height, 800)
+            #     else:
+            #         chart_height = base_height
+            # else:
+            #     # For top N mode, use standard height
+            #     chart_height = 450
             
             # Update layout
             fig.update_layout(
@@ -473,7 +499,7 @@ def register_workflow_assignee_workload_callbacks(app):
                     'gridcolor': '#f0f0f0',
                     'range': [0, max_total * 1.1]  # Add 10% padding at top
                 },
-                height=450,
+                height=450,  
                 margin={'l': 60, 'r': 50, 't': 100, 'b': 100},
                 plot_bgcolor='white',
                 paper_bgcolor='white',
@@ -490,16 +516,10 @@ def register_workflow_assignee_workload_callbacks(app):
                 hovermode='x unified'  # Unified hover for cleaner experience
             )
             
-            # Add key insights as annotations
-            if len(workload_data) > 0:
+            # Add key insights as annotations (only for reasonable number of assignees)
+            if len(workload_data) > 0 and num_assignees <= 25:  # Don't clutter with too many assignees
                 # Highlight assignee with most total tickets
-                top_total_assignee = workload_data.index[0]
                 top_total_count = workload_data['total_tickets'].iloc[0]
-                
-                # Highlight assignee with most active tickets
-                top_active_idx = workload_data['Active'].idxmax()
-                top_active_count = workload_data.loc[top_active_idx, 'Active']
-                top_active_pos = list(workload_data.index).index(top_active_idx)
                 
                 # Annotation for most total tickets
                 fig.add_annotation(
@@ -515,9 +535,9 @@ def register_workflow_assignee_workload_callbacks(app):
                     font=dict(size=9),
                     ax=0,
                     ay=-40
-                )                
+                )
             
-            # print(f"📊 Created stacked bar + total line chart: {len(workload_data)} assignees displayed")
+            # print(f"📊 Created assignee workload chart: {len(workload_data)} assignees displayed")
             return fig
             
         except Exception as e:
@@ -525,7 +545,7 @@ def register_workflow_assignee_workload_callbacks(app):
             import traceback
             traceback.print_exc()
             return create_error_figure("Error creating assignee workload chart")
-                      
+                     
     @monitor_performance("Assignee Workload Insights Generation")
     def generate_assignee_workload_insights(workload_data, summary_stats, top_count=10):
         """
@@ -630,25 +650,25 @@ def register_workflow_assignee_workload_callbacks(app):
         )
         return fig
 
-    # Main callback for assignee workload chart
     @callback(
         [Output("workflow-assignee-workload-chart", "figure"),
-         Output("workflow-assignee-insights", "children")],
+        Output("workflow-assignee-insights", "children")],
         [Input("workflow-filtered-query-store", "data"),
-         Input("workflow-assignee-count-dropdown", "value")],
+        Input("workflow-assignee-count-dropdown", "value")],
         prevent_initial_call=False
     )
     @monitor_performance("Assignee Workload Chart Update")
     def update_assignee_workload_chart(stored_selections, top_count):
         """
         Update assignee workload chart based on filter selections and top count
+        UPDATED: Handle 'all' option for displaying all assignees
         """
-        # print(f"Stored selections for assignee workload update: {stored_selections}")
         try:
+            # Handle None or invalid values
             if top_count is None:
                 top_count = 10
-
-            # print(f"🔄 Updating assignee workload analysis: top {top_count}")
+            
+            print(f"🔄 Updating assignee workload analysis: display = {top_count}")
             
             # Get base data
             base_data = get_assignee_workload_base_data()
@@ -656,16 +676,16 @@ def register_workflow_assignee_workload_callbacks(app):
             # Apply filters
             filtered_data = apply_assignee_workload_filters(base_data['work_items'], stored_selections)
             
-            # Prepare analysis data
+            # Prepare analysis data (handles 'all' internally)
             workload_data, summary_stats = prepare_assignee_workload_data(filtered_data, top_count)
             
-            # Create visualization
+            # Create visualization (handles 'all' with dynamic height)
             fig = create_assignee_workload_chart(workload_data, summary_stats, top_count)
             
             # Generate insights
             insights = generate_assignee_workload_insights(workload_data, summary_stats, top_count)
 
-            # print(f"✅ Assignee workload analysis updated: {len(workload_data)} assignees displayed")
+            print(f"✅ Assignee workload analysis updated: {len(workload_data)} assignees displayed")
             return fig, insights
             
         except Exception as e:
@@ -682,20 +702,21 @@ def register_workflow_assignee_workload_callbacks(app):
             
             return fig, error_insights
 
-    # Modal callback for enlarged view
+    # UPDATED: Modal callback to handle 'all' option
     @callback(
         [Output("workflow-assignee-workload-modal", "is_open"),
-         Output("workflow-assignee-workload-modal-chart", "figure")],
+        Output("workflow-assignee-workload-modal-chart", "figure")],
         [Input("workflow-assignee-workload-chart", "clickData"),
-         Input("workflow-assignee-workload-modal-close", "n_clicks")],
+        Input("workflow-assignee-workload-modal-close", "n_clicks")],
         [State("workflow-assignee-workload-modal", "is_open"),
-         State("workflow-filtered-query-store", "data"),
-         State("workflow-assignee-count-dropdown", "value")],
+        State("workflow-filtered-query-store", "data"),
+        State("workflow-assignee-count-dropdown", "value")],
         prevent_initial_call=True
     )
     def toggle_assignee_workload_modal(click_data, close_clicks, is_open, stored_selections, top_count):
         """
         Toggle modal window for enlarged assignee workload view
+        UPDATED: Handle 'all' option with appropriate modal sizing
         """
         triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
         
@@ -709,7 +730,14 @@ def register_workflow_assignee_workload_callbacks(app):
                 
                 # Create enlarged chart
                 fig = create_assignee_workload_chart(workload_data, summary_stats, top_count or 10)
-                fig.update_layout(height=600)  # Larger height for modal
+                
+                # UPDATED: Dynamic modal height based on display mode
+                if top_count == 'all':
+                    modal_height = min(800, 600 + (len(workload_data) * 10))  # Cap at 800px
+                else:
+                    modal_height = 600
+                    
+                fig.update_layout(height=modal_height)
                 
                 return True, fig
                 

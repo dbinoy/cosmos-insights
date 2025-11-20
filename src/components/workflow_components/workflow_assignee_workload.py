@@ -3,37 +3,51 @@ import dash_bootstrap_components as dbc
 
 def get_assignee_workload_layout():
     return dbc.Card([
+        # Clean card header with only the analysis name
         dbc.CardHeader([
-            dbc.Row([
-                dbc.Col([
-                    html.H5("Workload by Assignee", className="mb-0")
-                ], width=6),
-                dbc.Col([
-                    html.Label("Top Count:", className="form-label me-2", style={'margin-bottom': '0'}),
-                    dcc.Dropdown(
-                        id="workflow-assignee-count-dropdown",
-                        options=[
-                            {'label': '10', 'value': 10},
-                            {'label': '15', 'value': 15},
-                            {'label': '20', 'value': 20},
-                            {'label': '25', 'value': 25}
-                        ],
-                        value=10,
-                        clearable=False,
-                        style={'width': '80px', 'display': 'inline-block'}
-                    )
-                ], width=6, className="text-end")
-            ])
+            html.H5("Workload by Assignee", className="mb-0")
         ]),
+        
         dbc.CardBody([
-            dcc.Loading(
-                dcc.Graph(
-                    id="workflow-assignee-workload-chart", 
-                    style={'height': '400px', 'cursor': 'pointer'},
-                    config={'displayModeBar': True}
-                ),
-                type="dot"
-            ),
+            # Controls section above the chart (consistent with Classification layout)
+            html.Div([
+                dbc.Row([
+                    dbc.Col([
+                        html.Label("Display:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
+                        dcc.Dropdown(
+                            id="workflow-assignee-count-dropdown",
+                            options=[
+                                {'label': 'Top 10', 'value': 10},
+                                {'label': 'Top 15', 'value': 15},
+                                {'label': 'Top 20', 'value': 20},
+                                {'label': 'Top 25', 'value': 25},
+                                {'label': 'All', 'value': 'all'}  # ADDED: All option
+                            ],
+                            value=10,
+                            clearable=False,
+                            style={'fontSize': '12px'},
+                            className="mb-3"
+                        )
+                    ], width=3),
+                    dbc.Col([
+                        # Space for future controls (consistent with Classification layout)
+                    ], width=9)
+                ])
+            ], style={'display': 'block', 'marginBottom': '15px'}),
+
+            # Chart container
+            html.Div([
+                dcc.Loading(
+                    dcc.Graph(
+                        id="workflow-assignee-workload-chart", 
+                        style={'height': '450px', 'cursor': 'pointer'},  # Consistent height with Classification
+                        config={'displayModeBar': True}
+                    ),
+                    type="dot"
+                )
+            ], id="workflow-assignee-workload-chart-wrapper", style={'cursor': 'pointer'}),
+            
+            # Insights container
             html.Div(id="workflow-assignee-insights", className="mt-3")
         ]),
         
