@@ -646,9 +646,30 @@ def register_workflow_escalated_tickets_callbacks(app):
             # Status color
             status_color = '#e74c3c' if 'escalated' in str(row['WorkItemStatus']).lower() else '#3498db'
             
+            # Prepare title for hover - truncate if too long and clean it
+            title_text = str(row['Title']) if pd.notna(row['Title']) else 'No title available'
+            # Clean title text for display
+            title_text = title_text.replace('\n', ' ').replace('\r', ' ').strip()
+            # Truncate very long titles for better hover display
+            if len(title_text) > 200:
+                title_text = title_text[:197] + "..."
+            
             table_rows.append(
                 html.Tr([
-                    html.Td(f"#{row['WorkItemId']}", style={'fontWeight': 'bold', 'fontSize': '12px'}),
+                    # Ticket ID with Title hover tooltip
+                    html.Td([
+                        html.Span(
+                            f"#{row['WorkItemId']}", 
+                            title=title_text,  # This creates the hover tooltip
+                            style={
+                                'fontWeight': 'bold', 
+                                'fontSize': '12px',
+                                'cursor': 'help',  # Changes cursor to indicate hoverable content
+                                'textDecoration': 'underline',  # Subtle visual cue
+                                'textDecorationStyle': 'dotted'  # Makes it clear it's hoverable
+                            }
+                        )
+                    ]),
                     html.Td([
                         html.Span(str(row['Priority']), className="badge rounded-pill", style={
                             'backgroundColor': priority_color, 'color': 'white', 'fontSize': '10px'
@@ -676,7 +697,10 @@ def register_workflow_escalated_tickets_callbacks(app):
         table_component = html.Table([
             html.Thead([
                 html.Tr([
-                    html.Th("Ticket ID", style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                    html.Th([
+                        html.Span("Ticket ID", style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                        html.Small(" (hover for title)", style={'fontSize': '10px', 'color': '#6c757d', 'fontStyle': 'italic'})
+                    ]),
                     html.Th("Priority", className="text-center", style={'fontSize': '12px', 'fontWeight': 'bold'}),
                     html.Th("Duration", className="text-center", style={'fontSize': '12px', 'fontWeight': 'bold'}),
                     html.Th("Case Type", style={'fontSize': '12px', 'fontWeight': 'bold'}),
@@ -701,7 +725,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             )
         
         return html.Div(components, style={'maxHeight': '500px', 'overflowY': 'auto', 'border': '1px solid #dee2e6', 'borderRadius': '8px'})
-
+    
     @monitor_performance("Escalated Tickets Insights Generation")
     def generate_escalated_tickets_insights(escalation_data, summary_stats, view_type='current', selected_categories=None):
         """
