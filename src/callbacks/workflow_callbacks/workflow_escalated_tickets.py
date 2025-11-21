@@ -517,7 +517,7 @@ def register_workflow_escalated_tickets_callbacks(app):
 
     def create_escalated_tickets_table(detailed_data):
         """
-        Create a detailed table for the modal showing all escalated tickets with filtering
+        Create a detailed table for the modal showing all escalated tickets with filtering and pagination
         """
         if detailed_data.empty:
             return html.Div("No escalated tickets data available", className="text-center text-muted p-4")
@@ -538,7 +538,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             unique_case_types = sorted([c for c in df_sorted['CaseTypeName'].dropna().unique() if c])
             unique_statuses = sorted([s for s in df_sorted['WorkItemStatus'].dropna().unique() if s])
             
-            # Create filter controls - Updated layout to accommodate Status filter
+            # Create filter controls row
             filter_controls = dbc.Row([
                 dbc.Col([
                     html.Label("Priority:", className="form-label mb-1", style={'fontSize': '12px', 'fontWeight': '500'}),
@@ -561,7 +561,7 @@ def register_workflow_escalated_tickets_callbacks(app):
                         clearable=False,
                         style={'fontSize': '11px'}
                     )
-                ], width=3),
+                ], width=2),
                 dbc.Col([
                     html.Label("Case Type:", className="form-label mb-1", style={'fontSize': '12px', 'fontWeight': '500'}),
                     dcc.Dropdown(
@@ -572,7 +572,7 @@ def register_workflow_escalated_tickets_callbacks(app):
                         clearable=False,
                         style={'fontSize': '11px'}
                     )
-                ], width=3),
+                ], width=2),
                 dbc.Col([
                     html.Label("Status:", className="form-label mb-1", style={'fontSize': '12px', 'fontWeight': '500'}),
                     dcc.Dropdown(
@@ -580,6 +580,21 @@ def register_workflow_escalated_tickets_callbacks(app):
                         options=[{'label': 'All Statuses', 'value': 'all'}] + 
                                [{'label': s, 'value': s} for s in unique_statuses],
                         value='all',
+                        clearable=False,
+                        style={'fontSize': '11px'}
+                    )
+                ], width=2),
+                dbc.Col([
+                    html.Label("Page Size:", className="form-label mb-1", style={'fontSize': '12px', 'fontWeight': '500'}),
+                    dcc.Dropdown(
+                        id="escalated-modal-pagesize-filter",
+                        options=[
+                            {'label': '25 per page', 'value': 25},
+                            {'label': '50 per page', 'value': 50},
+                            {'label': '100 per page', 'value': 100},
+                            {'label': '200 per page', 'value': 200}
+                        ],
+                        value=50,
                         clearable=False,
                         style={'fontSize': '11px'}
                     )
@@ -594,48 +609,72 @@ def register_workflow_escalated_tickets_callbacks(app):
                 ], width=2)
             ], className="mb-3")
             
-            # Create the initial table with all data (will be updated by callback when filters change)
-            initial_table = create_filtered_escalated_table(df_sorted)
+            # Pagination controls row
+            pagination_controls = dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        dbc.ButtonGroup([
+                            dbc.Button("First", id="escalated-modal-first-btn", size="sm", outline=True, color="primary", disabled=True),
+                            dbc.Button("Previous", id="escalated-modal-prev-btn", size="sm", outline=True, color="primary", disabled=True),
+                        ]),
+                        html.Span(id="escalated-modal-page-info", className="mx-3", style={'fontSize': '12px', 'fontWeight': '500'}),
+                        dbc.ButtonGroup([
+                            dbc.Button("Next", id="escalated-modal-next-btn", size="sm", outline=True, color="primary"),
+                            dbc.Button("Last", id="escalated-modal-last-btn", size="sm", outline=True, color="primary"),
+                        ])
+                    ], className="d-flex align-items-center justify-content-center")
+                ], width=12)
+            ], className="mb-2")
+            
+            # Create the initial table with first page
+            initial_table = create_paginated_escalated_table(df_sorted, page=1, page_size=50)
             
             return html.Div([
                 # Header with summary
-                # html.H4("Escalated Tickets Details", className="mb-3 text-primary"),
                 html.P([
-                    html.I(className="fas fa-exclamation-triangle me-2"),
+                    # html.I(className="fas fa-exclamation-triangle me-2"),
                     f"Total: {len(df_sorted):,} escalated tickets"
                 ], className="text-muted mb-3"),
                 
                 # Filter controls
                 filter_controls,
                 
+                # Pagination controls
+                pagination_controls,
+                
                 # Table container with initial data
                 html.Div(id="escalated-modal-table-container", children=initial_table),
                 
-                # Store the data for the callback
-                dcc.Store(id="escalated-modal-data-store", data=df_sorted.to_dict('records'))
+                # Store the data and pagination state
+                dcc.Store(id="escalated-modal-data-store", data=df_sorted.to_dict('records')),
+                dcc.Store(id="escalated-modal-pagination-store", data={'current_page': 1, 'page_size': 50, 'total_pages': 1})
             ], className="p-3")
             
         except Exception as e:
             print(f"❌ Error creating escalated tickets table: {e}")
             return html.Div([
-                # html.H4("Error Creating Escalated Tickets Details", className="text-danger mb-3"),
                 html.P(f"Unable to generate detailed breakdown: {str(e)}", className="text-muted")
             ], className="text-center p-4")
 
-    def create_filtered_escalated_table(filtered_df):
+    def create_paginated_escalated_table(filtered_df, page=1, page_size=50):
         """
-        Create the actual table from filtered data
+        Create paginated table from filtered data
         """
         if filtered_df.empty:
             return html.Div("No tickets match the current filter selection.", className="text-center text-muted p-4")
         
-        # Limit to first 100 rows for performance
-        display_df = filtered_df.head(100)
-        show_more_message = len(filtered_df) > 100
+        # Calculate pagination
+        total_records = len(filtered_df)
+        total_pages = max(1, (total_records + page_size - 1) // page_size)  # Ceiling division
+        start_idx = (page - 1) * page_size
+        end_idx = min(start_idx + page_size, total_records)
+        
+        # Get current page data
+        page_df = filtered_df.iloc[start_idx:end_idx]
         
         # Create table rows
         table_rows = []
-        for i, row in display_df.iterrows():
+        for i, row in page_df.iterrows():
             # Priority color
             priority_colors = {
                 'critical': '#e74c3c', 'high': '#f39c12', 'medium': '#3498db',
@@ -648,9 +687,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             
             # Prepare title for hover - truncate if too long and clean it
             title_text = str(row['Title']) if pd.notna(row['Title']) else 'No title available'
-            # Clean title text for display
             title_text = title_text.replace('\n', ' ').replace('\r', ' ').strip()
-            # Truncate very long titles for better hover display
             if len(title_text) > 200:
                 title_text = title_text[:197] + "..."
             
@@ -660,13 +697,13 @@ def register_workflow_escalated_tickets_callbacks(app):
                     html.Td([
                         html.Span(
                             f"#{row['WorkItemId']}", 
-                            title=title_text,  # This creates the hover tooltip
+                            title=title_text,
                             style={
                                 'fontWeight': 'bold', 
                                 'fontSize': '12px',
-                                'cursor': 'help',  # Changes cursor to indicate hoverable content
-                                'textDecoration': 'underline',  # Subtle visual cue
-                                'textDecorationStyle': 'dotted'  # Makes it clear it's hoverable
+                                'cursor': 'help',
+                                'textDecoration': 'underline',
+                                'textDecorationStyle': 'dotted'
                             }
                         )
                     ]),
@@ -713,19 +750,19 @@ def register_workflow_escalated_tickets_callbacks(app):
             html.Tbody(table_rows)
         ], className="table table-hover table-sm")
         
-        # Create container with table and optional "showing limited results" message
-        components = [table_component]
+        # Pagination info
+        pagination_info = html.Div([
+            html.Small([
+                f"Showing {start_idx + 1:,}-{end_idx:,} of {total_records:,} tickets ",
+                f"(Page {page:,} of {total_pages:,})"
+            ], className="text-muted", style={'fontSize': '11px'})
+        ], className="mt-2 text-center")
         
-        if show_more_message:
-            components.append(
-                html.Div([
-                    html.I(className="fas fa-info-circle me-2"),
-                    f"Showing first 100 of {len(filtered_df):,} tickets. Use filters above to refine results."
-                ], className="alert alert-info mt-2", style={'fontSize': '12px'})
-            )
-        
-        return html.Div(components, style={'maxHeight': '500px', 'overflowY': 'auto', 'border': '1px solid #dee2e6', 'borderRadius': '8px'})
-    
+        return html.Div([
+            html.Div(table_component, style={'maxHeight': '450px', 'overflowY': 'auto', 'border': '1px solid #dee2e6', 'borderRadius': '8px'}),
+            pagination_info
+        ])
+
     @monitor_performance("Escalated Tickets Insights Generation")
     def generate_escalated_tickets_insights(escalation_data, summary_stats, view_type='current', selected_categories=None):
         """
@@ -916,41 +953,54 @@ def register_workflow_escalated_tickets_callbacks(app):
             
             return fig, error_insights
 
-    # Update the modal callback to handle the missing import and ensure proper fallback
+    # Enhanced modal callback to handle pagination
     @callback(
         [Output("escalated-modal-table-container", "children"),
-         Output("escalated-modal-results-count", "children")],
+         Output("escalated-modal-results-count", "children"),
+         Output("escalated-modal-pagination-store", "data"),
+         Output("escalated-modal-page-info", "children"),
+         Output("escalated-modal-first-btn", "disabled"),
+         Output("escalated-modal-prev-btn", "disabled"),
+         Output("escalated-modal-next-btn", "disabled"),
+         Output("escalated-modal-last-btn", "disabled")],
         [Input("escalated-modal-priority-filter", "value"),
          Input("escalated-modal-duration-filter", "value"),
          Input("escalated-modal-casetype-filter", "value"),
-         Input("escalated-modal-status-filter", "value")],  # Added Status filter input
-        [State("escalated-modal-data-store", "data")],
+         Input("escalated-modal-status-filter", "value"),
+         Input("escalated-modal-pagesize-filter", "value"),
+         Input("escalated-modal-first-btn", "n_clicks"),
+         Input("escalated-modal-prev-btn", "n_clicks"),
+         Input("escalated-modal-next-btn", "n_clicks"),
+         Input("escalated-modal-last-btn", "n_clicks")],
+        [State("escalated-modal-data-store", "data"),
+         State("escalated-modal-pagination-store", "data")],
         prevent_initial_call=True
     )
-    def update_escalated_modal_table(priority_filter, duration_filter, casetype_filter, status_filter, stored_data):
+    def update_escalated_modal_table_with_pagination(priority_filter, duration_filter, casetype_filter, status_filter, page_size,
+                                                   first_clicks, prev_clicks, next_clicks, last_clicks,
+                                                   stored_data, pagination_state):
         """
-        Update the modal table based on filter selections including Status filter
+        Update the modal table with filtering and pagination
         """
         if not stored_data:
-            return html.Div("No data available"), "0 tickets"
+            return (html.Div("No data available"), "0 tickets", 
+                   {'current_page': 1, 'page_size': 50, 'total_pages': 1}, 
+                   "Page 1 of 1", True, True, True, True)
         
         try:
             # Convert back to DataFrame
             df = pd.DataFrame(stored_data)
             
-            # Apply Priority filter
+            # Apply filters
             if priority_filter and priority_filter != 'all':
                 df = df[df['Priority'] == priority_filter]
                 
-            # Apply Duration filter
             if duration_filter and duration_filter != 'all':
                 df = df[df['EscalationDurationBucket'] == duration_filter]
                 
-            # Apply Case Type filter
             if casetype_filter and casetype_filter != 'all':
                 df = df[df['CaseTypeName'] == casetype_filter]
             
-            # Apply Status filter
             if status_filter and status_filter != 'all':
                 df = df[df['WorkItemStatus'] == status_filter]
             
@@ -958,16 +1008,67 @@ def register_workflow_escalated_tickets_callbacks(app):
             if 'EscalatedOn' in df.columns:
                 df['EscalatedOn'] = pd.to_datetime(df['EscalatedOn'])
             
-            # Create filtered table
-            table = create_filtered_escalated_table(df)
+            # Handle pagination
+            triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+            current_page = pagination_state.get('current_page', 1) if pagination_state else 1
+            current_page_size = page_size or 50
+            
+            # Calculate total pages
+            total_records = len(df)
+            total_pages = max(1, (total_records + current_page_size - 1) // current_page_size)
+            
+            # Handle pagination button clicks
+            if triggered_id == "escalated-modal-first-btn":
+                current_page = 1
+            elif triggered_id == "escalated-modal-prev-btn":
+                current_page = max(1, current_page - 1)
+            elif triggered_id == "escalated-modal-next-btn":
+                current_page = min(total_pages, current_page + 1)
+            elif triggered_id == "escalated-modal-last-btn":
+                current_page = total_pages
+            elif triggered_id in ["escalated-modal-priority-filter", "escalated-modal-duration-filter", 
+                                "escalated-modal-casetype-filter", "escalated-modal-status-filter"]:
+                # Reset to first page when filters change
+                current_page = 1
+            elif triggered_id == "escalated-modal-pagesize-filter":
+                # Adjust current page when page size changes to maintain roughly same position
+                if pagination_state:
+                    old_page_size = pagination_state.get('page_size', 50)
+                    old_start_record = (current_page - 1) * old_page_size + 1
+                    current_page = max(1, (old_start_record + current_page_size - 1) // current_page_size)
+            
+            # Ensure current page is within bounds
+            current_page = max(1, min(current_page, total_pages))
+            
+            # Create paginated table
+            table = create_paginated_escalated_table(df, current_page, current_page_size)
             results_text = f"{len(df):,} tickets"
             
-            return table, results_text
+            # Update pagination state
+            new_pagination_state = {
+                'current_page': current_page,
+                'page_size': current_page_size,
+                'total_pages': total_pages
+            }
+            
+            # Page info
+            page_info = f"Page {current_page:,} of {total_pages:,}"
+            
+            # Button states
+            first_disabled = current_page <= 1
+            prev_disabled = current_page <= 1
+            next_disabled = current_page >= total_pages
+            last_disabled = current_page >= total_pages
+            
+            return (table, results_text, new_pagination_state, page_info, 
+                   first_disabled, prev_disabled, next_disabled, last_disabled)
             
         except Exception as e:
-            print(f"❌ Error updating escalated modal table: {e}")
-            return html.Div(f"Error filtering data: {str(e)}"), "Error"
-        
+            print(f"❌ Error updating escalated modal table with pagination: {e}")
+            return (html.Div(f"Error filtering data: {str(e)}"), "Error", 
+                   {'current_page': 1, 'page_size': 50, 'total_pages': 1}, 
+                   "Error", True, True, True, True)
+       
     # Modal toggle callback
     @callback(
         [Output("workflow-escalated-tickets-modal", "is_open"),
