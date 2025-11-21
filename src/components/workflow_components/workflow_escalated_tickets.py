@@ -13,7 +13,7 @@ def get_escalated_tickets_layout():
             html.Div([
                 dbc.Row([
                     dbc.Col([
-                        html.Label("View Type:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
+                        html.Label("View:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
                         dcc.Dropdown(
                             id="workflow-escalated-view-dropdown",
                             options=[
@@ -54,7 +54,7 @@ def get_escalated_tickets_layout():
                                 {'label': '⏰ Long Duration', 'value': 'long_duration'},
                                 {'label': '📊 All Categories', 'value': 'all'}
                             ],
-                            value=[],
+                            value=['current_escalated'],
                             multi=True,
                             clearable=False,
                             placeholder="Select categories to display",
@@ -73,12 +73,28 @@ def get_escalated_tickets_layout():
                                     dbc.Button("Active", id="btn-escalated-active", size="sm", outline=True, color="danger", style={'fontSize': '11px'}),
                                     dbc.Button("Critical", id="btn-escalated-critical", size="sm", outline=True, color="warning", style={'fontSize': '11px'}),
                                     dbc.Button("All", id="btn-escalated-all", size="sm", outline=True, color="primary", style={'fontSize': '11px'})
-                                ], size="sm", className="mb-3")
+                                ], size="lg", className="mb-3")
                             ])
                         ])
                     ], width=4)
                 ])
             ], style={'display': 'block', 'marginBottom': '15px'}),
+
+            # Button row above chart - right aligned
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        dbc.Button([
+                            html.I(className="fas fa-table me-2"),
+                            "View Details"
+                        ], 
+                        id="workflow-escalated-details-btn",
+                        color="outline-primary", 
+                        size="sm",
+                        style={'whiteSpace': 'nowrap'})
+                    ], className="d-flex justify-content-end mb-2")
+                ], width=12)
+            ]),
 
             # Chart container
             html.Div([
@@ -96,24 +112,30 @@ def get_escalated_tickets_layout():
             html.Div(id="workflow-escalated-insights", className="mt-3")
         ]),
         
-        # Modal for enlarged view
+        # Modal for details table
         dbc.Modal([
             dbc.ModalHeader([
-                dbc.ModalTitle("Escalated Tickets Overview - Detailed View"),
-                dbc.Button("×", id="workflow-escalated-tickets-modal-close", className="btn-close", n_clicks=0, style={'border': 'none', 'background': 'none'})
+                dbc.ModalTitle([
+                    html.I(className="fas fa-table me-2"),
+                    "Escalated Tickets Details"
+                ], id="workflow-escalated-details-modal-title")
             ]),
             dbc.ModalBody([
-                dcc.Loading(
-                    dcc.Graph(
-                        id="workflow-escalated-tickets-modal-chart",
-                        style={'height': '600px'},
-                        config={'displayModeBar': True}
-                    ),
-                    type="default"
+                html.Div(id="workflow-escalated-details-content")
+            ]),
+            dbc.ModalFooter([
+                dbc.Button(
+                    "Close", 
+                    id="workflow-escalated-details-close-btn", 
+                    className="ms-auto",
+                    n_clicks=0
                 )
             ])
         ],
-        id="workflow-escalated-tickets-modal",
+        id="workflow-escalated-details-modal",
+        is_open=False,
         size="xl",
-        is_open=False)
+        backdrop=True,
+        scrollable=True,
+        centered=True)
     ], className="mb-4")

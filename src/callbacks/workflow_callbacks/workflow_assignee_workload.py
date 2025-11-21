@@ -310,7 +310,7 @@ def register_workflow_assignee_workload_callbacks(app):
                 'active_rate_avg': assignee_metrics['active_rate'].mean()
             }
             
-            print(f"📊 Prepared assignee workload data: {len(assignee_metrics)} assignees displayed (of {len(df['AssigneeDisplay'].unique())} total), {len(df)} total tickets")
+            # print(f"📊 Prepared assignee workload data: {len(assignee_metrics)} assignees displayed (of {len(df['AssigneeDisplay'].unique())} total), {len(df)} total tickets")
             return assignee_metrics, summary_stats
             
         except Exception as e:
@@ -567,7 +567,7 @@ def register_workflow_assignee_workload_callbacks(app):
                     ay=-40
                 )
             
-            print(f"📊 Created assignee workload chart: {len(workload_data)} assignees, showing categories: {selected_categories}")
+            # print(f"📊 Created assignee workload chart: {len(workload_data)} assignees, showing categories: {selected_categories}")
             return fig
             
         except Exception as e:
@@ -759,7 +759,7 @@ def register_workflow_assignee_workload_callbacks(app):
             if selected_categories is None or len(selected_categories) == 0:
                 selected_categories = ['Closed', 'Active', 'Non-Actionable', 'Total']
             
-            print(f"🔄 Updating assignee workload analysis: display = {top_count}, categories = {selected_categories}")
+            # print(f"🔄 Updating assignee workload analysis: display = {top_count}, categories = {selected_categories}")
             
             # Get base data
             base_data = get_assignee_workload_base_data()
@@ -776,7 +776,7 @@ def register_workflow_assignee_workload_callbacks(app):
             # Generate insights (enhanced to reflect category selection)
             insights = generate_assignee_workload_insights(workload_data, summary_stats, top_count, selected_categories)
 
-            print(f"✅ Assignee workload analysis updated: {len(workload_data)} assignees displayed")
+            # print(f"✅ Assignee workload analysis updated: {len(workload_data)} assignees displayed")
             return fig, insights
             
         except Exception as e:
