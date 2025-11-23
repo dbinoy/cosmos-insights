@@ -77,7 +77,7 @@ def apply_status_distribution_filters(work_items, stored_selections):
     # Convert to DataFrames and create explicit copies
     df_work_items = pd.DataFrame(work_items).copy()
     
-    print(f"📊 Starting status distribution filtering: {len(df_work_items)} work item records")
+    # print(f"📊 Starting status distribution filtering: {len(df_work_items)} work item records")
     
     if df_work_items.empty:
         return df_work_items
@@ -274,7 +274,7 @@ def prepare_status_distribution_data(filtered_data, status_transitions_data, ite
         # Sort by count for better visualization
         status_counts = status_counts.sort_values('Count', ascending=False).reset_index(drop=True)
         
-        print(f"📊 Prepared enhanced status distribution data: {len(status_counts)} status types with transition insights")
+        # print(f"📊 Prepared enhanced status distribution data: {len(status_counts)} status types with transition insights")
         return status_counts
         
     except Exception as e:
@@ -578,7 +578,7 @@ def register_workflow_status_distribution_callbacks(app):
                 # Ensure pie chart has more space
                 autosize=True
             )
-            print(f"📊 Created grouped status distribution chart: {len(status_data)} statuses grouped into {len(display_data)} segments")
+            # print(f"📊 Created grouped status distribution chart: {len(status_data)} statuses grouped into {len(display_data)} segments")
             return fig
             
         except Exception as e:
@@ -744,7 +744,7 @@ def register_workflow_status_distribution_callbacks(app):
             )
             
             # Return just the insights (button will be in the layout next to chart)
-            print(f"✅ Status distribution chart updated successfully")
+            # print(f"✅ Status distribution chart updated successfully")
             return fig, insights
             
         except Exception as e:

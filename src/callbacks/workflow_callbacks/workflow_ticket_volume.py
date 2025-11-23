@@ -486,7 +486,7 @@ def register_workflow_ticket_volume_callbacks(app):
             # Generate insights
             insights = generate_ticket_volume_insights(time_series_data, time_granularity)
             
-            print(f"✅ Ticket volume chart updated successfully ({time_granularity})")
+            # print(f"✅ Ticket volume chart updated successfully ({time_granularity})")
             return fig, insights
             
         except Exception as e:

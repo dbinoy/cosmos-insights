@@ -7,6 +7,7 @@ from src.utils.db import run_queries
 from src.utils.performance import monitor_performance, monitor_query_performance, monitor_chart_performance
 from inflection import titleize
 import dash_bootstrap_components as dbc
+import copy
 
 def register_workflow_escalated_tickets_callbacks(app):
     
@@ -78,14 +79,14 @@ def register_workflow_escalated_tickets_callbacks(app):
         """
         Apply filters to escalated tickets data using pandas, properly handling placeholder dates
         """
-        print(f"📊 Applying filters to escalated tickets data: {stored_selections}")
+        # print(f"📊 Applying filters to escalated tickets data: {stored_selections}")
         if not stored_selections:
             stored_selections = {}
         
         # Convert to DataFrame and create explicit copy
         df_work_items = pd.DataFrame(work_items).copy()
         
-        print(f"📊 Initial escalated tickets data: {len(df_work_items)} tickets")
+        # print(f"📊 Initial escalated tickets data: {len(df_work_items)} tickets")
         
         # Clean placeholder dates (convert 1900-01-01T00:00:00.0000000 to NaT)
         date_columns = ['CreatedOn', 'ModifiedOn', 'ClosedOn', 'EscalatedOn']
@@ -95,7 +96,7 @@ def register_workflow_escalated_tickets_callbacks(app):
                 # Replace dates that start with 1900-01-01 with NaT
                 mask_1900 = df_work_items[col].dt.strftime('%Y-%m-%d').eq('1900-01-01')
                 df_work_items.loc[mask_1900, col] = pd.NaT
-                print(f"🧹 Cleaned {mask_1900.sum()} placeholder dates from {col}")
+                # print(f"🧹 Cleaned {mask_1900.sum()} placeholder dates from {col}")
         
         # Apply date range filters using CreatedOn (respecting Day_From and Day_To)
         day_from = stored_selections.get('Day_From')
@@ -104,14 +105,14 @@ def register_workflow_escalated_tickets_callbacks(app):
         if day_from:
             day_from_dt = pd.to_datetime(day_from)
             df_work_items = df_work_items[df_work_items['CreatedOn'] >= day_from_dt]
-            print(f"📅 After Day_From filter ({day_from}): {len(df_work_items)} tickets")
+            # print(f"📅 After Day_From filter ({day_from}): {len(df_work_items)} tickets")
         
         if day_to:
             day_to_dt = pd.to_datetime(day_to)
             # Add one day to include the entire day_to date
             day_to_end = day_to_dt + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
             df_work_items = df_work_items[df_work_items['CreatedOn'] <= day_to_end]
-            print(f"📅 After Day_To filter ({day_to}): {len(df_work_items)} tickets")
+            # print(f"📅 After Day_To filter ({day_to}): {len(df_work_items)} tickets")
         
         # Apply categorical filters
         aor_filter = stored_selections.get('AOR', '').strip()
@@ -119,65 +120,65 @@ def register_workflow_escalated_tickets_callbacks(app):
             aor_values = [val.strip() for val in aor_filter.split(',') if val.strip()]
             if aor_values:
                 df_work_items = df_work_items[df_work_items['AorShortName'].isin(aor_values)]
-                print(f"🏢 After AOR filter ({aor_values}): {len(df_work_items)} tickets")
+                # print(f"🏢 After AOR filter ({aor_values}): {len(df_work_items)} tickets")
 
         case_types_filter = stored_selections.get('CaseTypes', '').strip()
         if case_types_filter:
             case_types_values = [val.strip() for val in case_types_filter.split(',') if val.strip()]
             if case_types_values:
                 df_work_items = df_work_items[df_work_items['WorkItemDefinitionShortCode'].isin(case_types_values)]
-                print(f"📋 After CaseTypes filter ({case_types_values}): {len(df_work_items)} tickets")
+                # print(f"📋 After CaseTypes filter ({case_types_values}): {len(df_work_items)} tickets")
 
         status_filter = stored_selections.get('Status', '').strip()
         if status_filter:
             status_values = [val.strip() for val in status_filter.split(',') if val.strip()]
             if status_values:
                 df_work_items = df_work_items[df_work_items['WorkItemStatus'].isin(status_values)]
-                print(f"📊 After Status filter ({status_values}): {len(df_work_items)} tickets")
+                # print(f"📊 After Status filter ({status_values}): {len(df_work_items)} tickets")
 
         priority_filter = stored_selections.get('Priority', '').strip()
         if priority_filter:
             priority_values = [val.strip() for val in priority_filter.split(',') if val.strip()]
             if priority_values:
                 df_work_items = df_work_items[df_work_items['Priority'].isin(priority_values)]
-                print(f"⚡ After Priority filter ({priority_values}): {len(df_work_items)} tickets")
+                # print(f"⚡ After Priority filter ({priority_values}): {len(df_work_items)} tickets")
 
         origins_filter = stored_selections.get('Origins', '').strip()
         if origins_filter:
             origins_values = [val.strip() for val in origins_filter.split(',') if val.strip()]
             if origins_values:
                 df_work_items = df_work_items[df_work_items['CaseOrigin'].isin(origins_values)]
-                print(f"🌐 After Origins filter ({origins_values}): {len(df_work_items)} tickets")
+                # print(f"🌐 After Origins filter ({origins_values}): {len(df_work_items)} tickets")
 
         products_filter = stored_selections.get('Products', '').strip()
         if products_filter:
             products_values = [val.strip() for val in products_filter.split(',') if val.strip()]
             if products_values:
                 df_work_items = df_work_items[df_work_items['Product'].isin(products_values)]
-                print(f"📦 After Products filter ({products_values}): {len(df_work_items)} tickets")
+                # print(f"📦 After Products filter ({products_values}): {len(df_work_items)} tickets")
 
         features_filter = stored_selections.get('Features', '').strip()
         if features_filter:
             features_values = [val.strip() for val in features_filter.split(',') if val.strip()]
             if features_values:
                 df_work_items = df_work_items[df_work_items['Feature'].isin(features_values)]
-                print(f"🔧 After Features filter ({features_values}): {len(df_work_items)} tickets")
+                # print(f"🔧 After Features filter ({features_values}): {len(df_work_items)} tickets")
 
         modules_filter = stored_selections.get('Modules', '').strip()
         if modules_filter:
             modules_values = [val.strip() for val in modules_filter.split(',') if val.strip()]
             if modules_values:
                 df_work_items = df_work_items[df_work_items['Module'].isin(modules_values)]
-                print(f"🧩 After Modules filter ({modules_values}): {len(df_work_items)} tickets")
+                # print(f"🧩 After Modules filter ({modules_values}): {len(df_work_items)} tickets")
 
         issues_filter = stored_selections.get('Issues', '').strip()
         if issues_filter:
             issues_values = [val.strip() for val in issues_filter.split(',') if val.strip()]
             if issues_values:
                 df_work_items = df_work_items[df_work_items['Issue'].isin(issues_values)]
-                print(f"🐛 After Issues filter ({issues_values}): {len(df_work_items)} tickets")
+                # print(f"🐛 After Issues filter ({issues_values}): {len(df_work_items)} tickets")
 
-        print(f"📊 Final filtered escalated tickets data: {len(df_work_items)} tickets")
+        # print(f"📊 Final filtered escalated tickets data: {len(df_work_items)} tickets")
         return df_work_items
 
     # Updated data preparation function to handle priority filtering
@@ -201,7 +202,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             # Apply priority filtering for Escalated view
             if view_type == 'current' and selected_priorities is not None and len(selected_priorities) > 0:
                 df = df[df['Priority'].isin(selected_priorities)]
-                print(f"🔽 Filtered to selected priorities: {selected_priorities}, {len(df)} tickets remaining")
+                # print(f"🔽 Filtered to selected priorities: {selected_priorities}, {len(df)} tickets remaining")
             
             # Clean and format assignee names
             def format_assignee_name(assignee):
@@ -367,7 +368,7 @@ def register_workflow_escalated_tickets_callbacks(app):
                 'stored_selections': stored_selections  # Add stored selections to summary stats
             }
             
-            print(f"📊 Prepared escalated tickets data: {len(visualization_data)} records for {view_type} view")
+            # print(f"📊 Prepared escalated tickets data: {len(visualization_data)} records for {view_type} view")
             return visualization_data, summary_stats
             
         except Exception as e:
@@ -710,7 +711,7 @@ def register_workflow_escalated_tickets_callbacks(app):
                     paper_bgcolor='white'
                 )
             
-            print(f"📊 Created escalated tickets chart: {view_type} view")
+            # print(f"📊 Created escalated tickets chart: {view_type} view")
             return fig
             
         except Exception as e:
@@ -719,6 +720,112 @@ def register_workflow_escalated_tickets_callbacks(app):
             traceback.print_exc()
             return create_error_figure("Error creating escalated tickets chart")
     
+    # @monitor_chart_performance("Enlarged Escalated Tickets Chart")
+    # def create_enlarged_escalated_tickets_chart(original_figure):
+    #     """
+    #     Create an enlarged version of the escalated tickets chart for modal display
+    #     """
+    #     if not original_figure:
+    #         return html.Div("No chart data available", className="text-center p-4")
+    #     try:
+    #         enlarged_fig = go.Figure(original_figure)
+    #         enlarged_fig.update_layout(
+    #             height=650,
+    #             margin={'l': 80, 'r': 60, 't': 100, 'b': 140},
+    #             title={
+    #                 **enlarged_fig.layout.title,
+    #                 'font': {'size': 20, 'color': '#2c3e50'}
+    #             }
+    #         )
+    #         return dcc.Graph(
+    #             figure=enlarged_fig,
+    #             config={
+    #                 'displayModeBar': True,
+    #                 'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
+    #                 'displaylogo': False,
+    #                 'toImageButtonOptions': {
+    #                     'format': 'png',
+    #                     'filename': 'workflow_escalated_tickets_chart',
+    #                     'height': 650,
+    #                     'width': 1200,
+    #                     'scale': 1
+    #                 }
+    #             },
+    #             style={'height': '650px'}
+    #         )
+    #     except Exception as e:
+    #         print(f"❌ Error creating enlarged escalated tickets chart: {e}")
+    #         return html.Div(f"Error displaying chart: {str(e)}", className="text-center p-4 text-danger")
+
+    @monitor_chart_performance("Enlarged Escalated Tickets Chart")
+    def create_enlarged_escalated_tickets_chart(original_figure):
+        """
+        Create an enlarged version of the escalated tickets chart for modal display
+        """
+        if not original_figure:
+            return html.Div("No chart data available", className="text-center p-4")
+        try:
+            # Deep copy the original figure to avoid mutating the dashboard chart
+            enlarged_fig = copy.deepcopy(original_figure)
+            # Update layout for enlarged modal display
+            enlarged_fig['layout'].update({
+                'height': 650,
+                'margin': {'l': 80, 'r': 60, 't': 100, 'b': 140},
+                'title': {
+                    **enlarged_fig['layout'].get('title', {}),
+                    'font': {'size': 20, 'color': '#2c3e50'}
+                },
+                'xaxis': {
+                    **enlarged_fig['layout'].get('xaxis', {}),
+                    'tickfont': {'size': 12},
+                    'title': {
+                        **enlarged_fig['layout'].get('xaxis', {}).get('title', {}),
+                        'font': {'size': 14}
+                    }
+                },
+                'yaxis': {
+                    **enlarged_fig['layout'].get('yaxis', {}),
+                    'tickfont': {'size': 12},
+                    'title': {
+                        **enlarged_fig['layout'].get('yaxis', {}).get('title', {}),
+                        'font': {'size': 14}
+                    }
+                },
+                'legend': {
+                    **enlarged_fig['layout'].get('legend', {}),
+                    'font': {'size': 12}
+                }
+            })
+            # Optionally, update traces for better visibility
+            if 'data' in enlarged_fig and enlarged_fig['data']:
+                for trace in enlarged_fig['data']:
+                    if trace.get('type') == 'bar':
+                        trace.update({
+                            'marker': {
+                                **trace.get('marker', {}),
+                                'line': {'width': 1, 'color': 'white'}
+                            }
+                        })
+            return dcc.Graph(
+                figure=enlarged_fig,
+                config={
+                    'displayModeBar': True,
+                    'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
+                    'displaylogo': False,
+                    'toImageButtonOptions': {
+                        'format': 'png',
+                        'filename': 'workflow_escalated_tickets_chart',
+                        'height': 650,
+                        'width': 1200,
+                        'scale': 1
+                    }
+                },
+                style={'height': '650px'}
+            )
+        except Exception as e:
+            print(f"❌ Error creating enlarged escalated tickets chart: {e}")
+            return html.Div(f"Error displaying chart: {str(e)}", className="text-center p-4 text-danger")
+           
     def create_escalated_tickets_table(detailed_data):
         """
         Create a detailed table for the modal showing all escalated tickets with filtering and pagination
@@ -1150,7 +1257,7 @@ def register_workflow_escalated_tickets_callbacks(app):
                 for priority in available_priorities
             ]
             
-            print(f"📊 Populated priorities dropdown with {len(priority_options)} options")
+            # print(f"📊 Populated priorities dropdown with {len(priority_options)} options")
             return priority_options
             
         except Exception as e:
@@ -1198,7 +1305,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             else:
                 selected_priorities = None  # Not relevant for other views
             
-            print(f"🔄 Updating escalated tickets analysis: view = {view_type}, period = {time_period}, categories = {selected_categories}, priorities = {selected_priorities}")
+            # print(f"🔄 Updating escalated tickets analysis: view = {view_type}, period = {time_period}, categories = {selected_categories}, priorities = {selected_priorities}")
             
             # Get base data
             base_data = get_escalated_tickets_base_data()
@@ -1217,7 +1324,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             # Generate insights
             insights = generate_escalated_tickets_insights(escalation_data, summary_stats, view_type, selected_categories)
 
-            print(f"✅ Escalated tickets analysis updated: {len(escalation_data)} records displayed")
+            # print(f"✅ Escalated tickets analysis updated: {len(escalation_data)} records displayed")
             return fig, insights
             
         except Exception as e:
@@ -1352,58 +1459,6 @@ def register_workflow_escalated_tickets_callbacks(app):
                    {'current_page': 1, 'page_size': 50, 'total_pages': 1}, 
                    "Error", True, True, True, True)
        
-    # Modal toggle callback
-    @callback(
-        [Output("workflow-escalated-tickets-modal", "is_open"),
-         Output("workflow-escalated-tickets-modal-chart", "figure")],
-        [Input("workflow-escalated-tickets-chart", "clickData"),
-         Input("workflow-escalated-tickets-modal-close", "n_clicks")],
-        [State("workflow-escalated-tickets-modal", "is_open"),
-         State("workflow-filtered-query-store", "data"),
-         State("workflow-escalated-view-dropdown", "value"),
-         State("workflow-escalated-period-dropdown", "value"),
-         State("workflow-escalated-categories-dropdown", "value")],
-        prevent_initial_call=True
-    )
-    def toggle_escalated_tickets_modal(click_data, close_clicks, is_open, stored_selections, view_type, time_period, selected_categories):
-        """
-        Toggle modal window for escalated tickets details table
-        """
-        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        
-        if triggered_id == "workflow-escalated-tickets-chart" and click_data:
-            # Open modal with details table
-            try:
-                if selected_categories is None or len(selected_categories) == 0:
-                    selected_categories = ['current_escalated', 'recently_resolved']
-                
-                # Get base data and prepare table
-                base_data = get_escalated_tickets_base_data()
-                filtered_data = apply_escalated_tickets_filters(base_data['work_items'], stored_selections)
-                escalation_data, summary_stats = prepare_escalated_tickets_data(
-                    filtered_data, base_data['case_type_mapping'], view_type or 'current', time_period or 30, selected_categories, stored_selections
-                )
-                
-                # Get detailed data for table
-                detailed_data = summary_stats.get('detailed_data', pd.DataFrame())
-                
-                # Create table content
-                table_content = create_escalated_tickets_table(detailed_data)
-                
-                # Return modal opened with table content (not chart)
-                return True, go.Figure()  # Empty figure since we're showing table
-                
-            except Exception as e:
-                print(f"❌ Error creating modal table: {e}")
-                return True, create_error_figure("Error loading escalated tickets details")
-        
-        elif triggered_id == "workflow-escalated-tickets-modal-close":
-            # Close modal
-            return False, go.Figure()
-        
-        return is_open, go.Figure()
-    
-
     # Details modal callback
     @callback(
         [Output("workflow-escalated-details-modal", "is_open"),
@@ -1423,7 +1478,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             if not is_open:
                 # Opening modal - generate fresh data
                 try:
-                    print("🔄 Generating fresh escalated tickets data for details modal...")
+                    # print("🔄 Generating fresh escalated tickets data for details modal...")
                     
                     # Get base data
                     base_data = get_escalated_tickets_base_data()
@@ -1442,7 +1497,7 @@ def register_workflow_escalated_tickets_callbacks(app):
                     # Create detailed table
                     detailed_table = create_escalated_tickets_table(detailed_data)
                     
-                    print("✅ Opening escalated details modal with fresh data")
+                    # print("✅ Opening escalated details modal with fresh data")
                     return True, detailed_table
                     
                 except Exception as e:
@@ -1459,6 +1514,30 @@ def register_workflow_escalated_tickets_callbacks(app):
                 return False, no_update
         
         return no_update, no_update
+    
+    @callback(
+        [Output("workflow-chart-modal", "is_open", allow_duplicate=True),
+        Output("workflow-modal-chart-content", "children", allow_duplicate=True)],
+        [Input("workflow-escalated-tickets-chart-wrapper", "n_clicks")],
+        [State("workflow-chart-modal", "is_open"),
+        State("workflow-escalated-tickets-chart", "figure")],
+        prevent_initial_call=True
+    )
+    @monitor_performance("Escalated Tickets Enlarged Modal Toggle")
+    def toggle_escalated_chart_modal(chart_wrapper_clicks, is_open, chart_figure):
+        """
+        Handle opening of the shared enlarged chart modal for escalated tickets chart
+        """
+        triggered = ctx.triggered
+        triggered_id = triggered[0]['prop_id'].split('.')[0] if triggered else None
+
+        if triggered_id == "workflow-escalated-tickets-chart-wrapper" and chart_wrapper_clicks and not is_open:
+            if not chart_figure or not chart_figure.get('data'):
+                return no_update, no_update
+            enlarged_chart = create_enlarged_escalated_tickets_chart(chart_figure)
+            return True, enlarged_chart
+
+        return no_update, no_update    
     
     # Close button callback for details modal
     @callback(
