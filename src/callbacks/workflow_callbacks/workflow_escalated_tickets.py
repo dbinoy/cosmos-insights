@@ -180,10 +180,12 @@ def register_workflow_escalated_tickets_callbacks(app):
         print(f"📊 Final filtered escalated tickets data: {len(df_work_items)} tickets")
         return df_work_items
 
+
     @monitor_performance("Escalated Tickets Data Preparation")
     def prepare_escalated_tickets_data(filtered_data, case_type_mapping, view_type='current', time_period=30, selected_categories=None, stored_selections=None):
         """
         Prepare escalated tickets analysis data with proper duration buckets and case type names
+        Updated to handle all view types properly
         """
         if filtered_data.empty:
             return pd.DataFrame(), {}
@@ -207,7 +209,6 @@ def register_workflow_escalated_tickets_callbacks(app):
             df['AssigneeDisplay'] = df['AssignedTo'].apply(format_assignee_name)
             
             # Map case type codes to names using the dimension table
-            # FIX: Proper DataFrame check
             if case_type_mapping is not None and not case_type_mapping.empty:
                 case_type_dict = dict(zip(case_type_mapping['CaseTypeCode'], case_type_mapping['CaseTypeName']))
                 case_type_dict['Unspecified'] = 'Unspecified'
@@ -220,7 +221,6 @@ def register_workflow_escalated_tickets_callbacks(app):
                 
                 df['CaseTypeName'] = df['WorkItemDefinitionShortCode'].apply(map_case_type)
             else:
-                # Fallback to titleized code
                 df['CaseTypeName'] = df['WorkItemDefinitionShortCode'].apply(
                     lambda x: 'Unspecified' if pd.isna(x) or x == '' else titleize(str(x))
                 )
@@ -271,25 +271,32 @@ def register_workflow_escalated_tickets_callbacks(app):
                 closed_on = row['ClosedOn']
                 escalated_on = row['EscalatedOn']
                 
-                # Currently escalated (not closed or closed date is placeholder)
-                if is_escalated and pd.isna(closed_on) and status in ['Escalated', 'Existing Escalation']:
-                    return 'current_escalated'
+                if not is_escalated:
+                    return 'other_escalated'
                 
-                # Recently resolved escalations (proper close date)
-                elif not pd.isna(closed_on) and status in ['Escalation Resolved', 'Escalation Canceled']:
-                    return 'recently_resolved'
+                # Check if ticket was escalated and is now closed (regardless of specific status)
+                if not pd.isna(closed_on) and not pd.isna(escalated_on):
+                    # This is a closed escalated ticket
+                    if status in ['Escalation Resolved', 'Escalation Canceled']:
+                        return 'recently_resolved'  # Explicitly resolved escalations
+                    else:
+                        return 'recently_resolved'  # Any other closed escalated ticket
                 
-                # Long duration escalations (more than 7 days, excluding placeholder dates)
-                elif is_escalated and not pd.isna(escalated_on):
-                    if pd.isna(closed_on):
-                        days_escalated = (datetime.now() - escalated_on).days
-                    else:
-                        days_escalated = (closed_on - escalated_on).days
-                    
-                    if days_escalated > 7:
-                        return 'long_duration'
-                    else:
+                # Currently open escalated tickets
+                elif pd.isna(closed_on) and not pd.isna(escalated_on):
+                    if status in ['Escalated', 'Existing Escalation']:
                         return 'current_escalated'
+                    else:
+                        # Calculate days since escalation for long duration check
+                        days_escalated = (datetime.now() - escalated_on).days
+                        if days_escalated > 3:
+                            return 'long_duration'
+                        else:
+                            return 'current_escalated'
+                
+                # Escalated but missing escalation date (data quality issue)
+                elif is_escalated:
+                    return 'other_escalated'
                 
                 else:
                     return 'other_escalated'
@@ -316,7 +323,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             df['EscalationDurationFormatted'] = df['EscalationDurationMinutes'].apply(format_duration)
             df['TimeToEscalationFormatted'] = df['TimeToEscalationMinutes'].apply(format_duration)
             
-            # For current view, prepare stacked bar chart data by priority vs duration buckets
+            # Prepare visualization data based on view type
             if view_type == 'current':
                 # Create cross-tabulation for stacked bar chart: Duration buckets x Priority
                 priority_duration_cross = pd.crosstab(
@@ -325,19 +332,17 @@ def register_workflow_escalated_tickets_callbacks(app):
                     margins=False
                 ).fillna(0)
                 
-                # Ensure proper ordering of duration buckets
                 duration_order = ['<1h', '1-2h', '2-3h', '3-6h', '6-12h', '12-24h', 
                                 '1-2d', '2-3d', '3-5d', '5-10d', '10-30d', '1-2m', 
                                 '2-3m', '3-6m', '6-12m', '>12m', 'No Duration Data']
                 
-                # Reindex to ensure proper order and include missing buckets
                 existing_buckets = [bucket for bucket in duration_order if bucket in priority_duration_cross.index]
                 priority_duration_cross = priority_duration_cross.reindex(existing_buckets, fill_value=0)
                 
                 visualization_data = priority_duration_cross
                 
             else:
-                # For other view types, use existing logic
+                # For other view types (trends, assignee, duration), return the processed DataFrame
                 visualization_data = df
             
             # Calculate summary statistics
@@ -359,7 +364,8 @@ def register_workflow_escalated_tickets_callbacks(app):
                 'view_type': view_type,
                 'time_period': time_period,
                 'selected_categories': selected_categories,
-                'detailed_data': df  # Store the full dataframe for modal table
+                'detailed_data': df,  # Store the full dataframe for all view types
+                'stored_selections': stored_selections  # Add stored selections to summary stats
             }
             
             print(f"📊 Prepared escalated tickets data: {len(visualization_data)} records for {view_type} view")
@@ -370,16 +376,16 @@ def register_workflow_escalated_tickets_callbacks(app):
             import traceback
             traceback.print_exc()
             return pd.DataFrame(), {}
-
+        
     @monitor_chart_performance("Escalated Tickets Chart")
-    def create_escalated_tickets_chart(escalation_data, summary_stats, view_type='current', selected_categories=None):
+    def create_escalated_tickets_chart(escalation_data, summary_stats, view_type='current', time_period=30, selected_categories=None):
         """
-        Create stacked bar chart showing priority distribution across escalation duration buckets
+        Create different chart types based on view_type selection
         """
         if selected_categories is None:
             selected_categories = ['current_escalated', 'recently_resolved']
         
-        if escalation_data.empty:
+        if escalation_data.empty and view_type == 'current':
             fig = go.Figure()
             fig.add_annotation(
                 text="No escalated tickets data available for selected filters",
@@ -405,9 +411,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             fig = go.Figure()
             
             if view_type == 'current':
-                # Create stacked bar chart: Duration buckets x Priority
-                
-                # Define priority colors
+                # Stacked bar chart: Duration buckets x Priority (existing code)
                 priority_colors = {
                     'critical': '#e74c3c',      # Red
                     'high': '#f39c12',          # Orange  
@@ -417,11 +421,9 @@ def register_workflow_escalated_tickets_callbacks(app):
                     'in-house-support': '#1abc9c'      # Teal
                 }
                 
-                # Get priorities in the data and sort by criticality
                 priorities = escalation_data.columns.tolist()
                 priority_order = ['critical', 'high', 'medium', 'low', 'association-support', 'in-house-support']
                 
-                # Sort priorities by the defined order, with unknown priorities at the end
                 sorted_priorities = []
                 for priority in priority_order:
                     if priority in priorities:
@@ -430,12 +432,9 @@ def register_workflow_escalated_tickets_callbacks(app):
                     if priority not in sorted_priorities:
                         sorted_priorities.append(priority)
                 
-                # Create stacked bars for each priority
                 for priority in sorted_priorities:
                     if priority in escalation_data.columns:
                         color = priority_colors.get(priority.lower(), '#7f8c8d')
-                        
-                        # Calculate percentages for hover
                         total_counts = escalation_data.sum(axis=1)
                         percentages = ((escalation_data[priority] / total_counts) * 100).fillna(0)
                         
@@ -454,59 +453,265 @@ def register_workflow_escalated_tickets_callbacks(app):
                 
                 title_text = f"Escalated Tickets by Priority & Duration ({escalation_data.sum().sum():,.0f} tickets)"
                 
-                # Update layout for stacked bar chart
                 fig.update_layout(
-                    title={
-                        'text': title_text,
-                        'x': 0.5,
-                        'xanchor': 'center',
-                        'font': {'size': 14, 'color': '#2c3e50'}
-                    },
+                    title={'text': title_text, 'x': 0.5, 'xanchor': 'center', 'font': {'size': 14, 'color': '#2c3e50'}},
                     xaxis_title="Escalation Duration",
                     yaxis_title="Number of Tickets",
                     height=450,
-                    margin={'l': 60, 'r': 50, 't': 80, 'b': 120},  # More space for x-axis labels
+                    margin={'l': 60, 'r': 50, 't': 80, 'b': 120},
                     plot_bgcolor='white',
                     paper_bgcolor='white',
                     showlegend=True,
-                    legend=dict(
-                        orientation="h",
-                        yanchor="bottom",
-                        y=1.02,
-                        xanchor="center",
-                        x=0.5,
-                        font=dict(size=10)
-                    ),
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=10)),
                     barmode='stack',
                     hovermode='closest',
-                    xaxis=dict(
-                        tickangle=45,
-                        tickfont={'size': 10}
-                    )
+                    xaxis=dict(tickangle=45, tickfont={'size': 10})
                 )
                 
-            else:
-                # For other view types, create a simple message
+            elif view_type == 'trends':
+                # Time series chart showing escalation trends over time with dynamic granularity
+                detailed_data = summary_stats.get('detailed_data', pd.DataFrame())
+                if not detailed_data.empty:
+                    # Determine the effective end date (either Day_To filter or current date)
+                    stored_selections = summary_stats.get('stored_selections', {}) or stored_selections or {}
+                    day_to = stored_selections.get('Day_To')
+                    if day_to:
+                        end_date = pd.to_datetime(day_to)
+                    else:
+                        end_date = pd.Timestamp.now().normalize()
+                    
+                    # Filter data based on time period selection
+                    if time_period != 'all':
+                        # Calculate start date based on period and end date
+                        if time_period == 7:
+                            start_date = end_date - pd.Timedelta(days=6)  # 7 days total including end date
+                            granularity = 'D'  # Daily
+                            date_format = '%Y-%m-%d'
+                            title_period = f"Last {time_period} Days"
+                        elif time_period == 30:
+                            start_date = end_date - pd.Timedelta(days=29)  # 30 days total
+                            granularity = 'D'  # Daily
+                            date_format = '%Y-%m-%d'
+                            title_period = f"Last {time_period} Days"
+                        elif time_period == 90:
+                            start_date = end_date - pd.Timedelta(days=89)  # 90 days total
+                            granularity = 'W'  # Weekly
+                            date_format = '%Y-W%U'
+                            title_period = f"Last {time_period} Days"
+                        
+                        # Filter detailed_data to the calculated time window using EscalatedOn
+                        mask = (detailed_data['EscalatedOn'] >= start_date) & (detailed_data['EscalatedOn'] <= end_date + pd.Timedelta(days=1))
+                        filtered_detailed_data = detailed_data[mask].copy()
+                    else:
+                        # 'all' time period - determine granularity based on data span
+                        filtered_detailed_data = detailed_data.copy()
+                        if not filtered_detailed_data.empty and not filtered_detailed_data['EscalatedOn'].isna().all():
+                            data_start = filtered_detailed_data['EscalatedOn'].min()
+                            data_end = filtered_detailed_data['EscalatedOn'].max()
+                            data_span_days = (data_end - data_start).days
+                            
+                            if data_span_days <= 365:  # Less than or equal to 1 year
+                                granularity = 'W'  # Weekly
+                                date_format = '%Y-W%U'
+                            else:  # More than 1 year
+                                granularity = 'M'  # Monthly
+                                date_format = '%Y-%m'
+                            title_period = "All Time"
+                        else:
+                            granularity = 'W'
+                            date_format = '%Y-W%U'
+                            title_period = "All Time"
+                    
+                    if not filtered_detailed_data.empty:
+                        # Create time period column based on granularity
+                        if granularity == 'D':
+                            filtered_detailed_data['TimePeriod'] = filtered_detailed_data['EscalatedOn'].dt.strftime(date_format)
+                        elif granularity == 'W':
+                            filtered_detailed_data['TimePeriod'] = filtered_detailed_data['EscalatedOn'].dt.to_period('W').astype(str)
+                        elif granularity == 'M':
+                            filtered_detailed_data['TimePeriod'] = filtered_detailed_data['EscalatedOn'].dt.to_period('M').astype(str)
+                        
+                        # Group by time period and escalation category
+                        trends_data = filtered_detailed_data.groupby(['TimePeriod', 'EscalationCategory']).size().unstack(fill_value=0)
+                        
+                        # Sort the time periods properly
+                        if granularity == 'D':
+                            # For daily, convert back to datetime for proper sorting
+                            trends_data.index = pd.to_datetime(trends_data.index)
+                            trends_data = trends_data.sort_index()
+                            # Convert back to string for display
+                            trends_data.index = trends_data.index.strftime('%Y-%m-%d')
+                        elif granularity == 'W':
+                            # For weekly, sort by converting to period and back
+                            period_index = pd.to_datetime([pd.Period(p).start_time for p in trends_data.index])
+                            trends_data.index = period_index
+                            trends_data = trends_data.sort_index()
+                            trends_data.index = [f"Week of {d.strftime('%Y-%m-%d')}" for d in trends_data.index]
+                        elif granularity == 'M':
+                            # For monthly, sort by converting to period and back
+                            period_index = pd.to_datetime([pd.Period(p).start_time for p in trends_data.index])
+                            trends_data.index = period_index
+                            trends_data = trends_data.sort_index()
+                            trends_data.index = [d.strftime('%Y-%m') for d in trends_data.index]
+                        
+                        # Define colors for all escalation categories
+                        category_colors = {
+                            'current_escalated': '#e74c3c',      # Red - Currently escalated
+                            'recently_resolved': '#27ae60',      # Green - Recently resolved escalations
+                            'long_duration': '#f39c12',         # Orange - Long duration escalations
+                            'other_escalated': '#95a5a6'        # Gray - Other escalated tickets
+                        }
+                        
+                        category_names = {
+                            'current_escalated': 'Currently Escalated',
+                            'recently_resolved': 'Recently Resolved',
+                            'long_duration': 'Long Duration',
+                            'other_escalated': 'Other Escalated'
+                        }
+                        
+                        # Add traces for all available categories (not just selected ones for trends)
+                        for category in trends_data.columns:
+                            if category in category_colors:
+                                fig.add_trace(go.Scatter(
+                                    name=category_names.get(category, category.replace('_', ' ').title()),
+                                    x=trends_data.index,
+                                    y=trends_data[category],
+                                    mode='lines+markers',
+                                    line=dict(color=category_colors.get(category, '#7f8c8d'), width=2),
+                                    marker=dict(size=6),
+                                    hovertemplate=f'<b>{category_names.get(category, category.replace("_", " ").title())}</b><br>' +
+                                                f'Period: %{{x}}<br>' +
+                                                f'Escalations: %{{y}}<br>' +
+                                                '<extra></extra>',
+                                    visible=True if category in selected_categories else 'legendonly'  # Show/hide based on selection
+                                ))
+                        
+                        # Determine granularity label for title
+                        granularity_label = {
+                            'D': 'Daily',
+                            'W': 'Weekly', 
+                            'M': 'Monthly'
+                        }.get(granularity, 'Weekly')
+                        
+                        title_text = f"Escalation Trends - {granularity_label} ({title_period}) - {len(filtered_detailed_data):,} total tickets"
+                        
+                        fig.update_layout(
+                            title={'text': title_text, 'x': 0.5, 'xanchor': 'center', 'font': {'size': 14, 'color': '#2c3e50'}},
+                            xaxis_title=f"Time Period ({granularity_label})",
+                            yaxis_title="Number of Escalations",
+                            height=450,
+                            margin={'l': 60, 'r': 50, 't': 80, 'b': 60},
+                            plot_bgcolor='white',
+                            paper_bgcolor='white',
+                            hovermode='x unified',
+                            legend=dict(
+                                orientation="h", 
+                                yanchor="bottom", 
+                                y=1.02, 
+                                xanchor="center", 
+                                x=0.5, 
+                                font=dict(size=10)
+                            )
+                        )
+                        
+                        # Adjust x-axis based on granularity
+                        if granularity == 'D':
+                            fig.update_layout(xaxis=dict(tickangle=45, tickfont={'size': 10}))
+                        elif granularity == 'W':
+                            fig.update_layout(xaxis=dict(tickangle=45, tickfont={'size': 10}))
+                        else:  # Monthly
+                            fig.update_layout(xaxis=dict(tickangle=0, tickfont={'size': 10}))
+                
+            elif view_type == 'assignee':
+                # Bar chart showing escalations by assignee
+                detailed_data = summary_stats.get('detailed_data', pd.DataFrame())
+                if not detailed_data.empty:
+                    # Get top 15 assignees by escalation count
+                    assignee_counts = detailed_data['AssigneeDisplay'].value_counts().head(15)
+                    
+                    fig.add_trace(go.Bar(
+                        x=assignee_counts.values,
+                        y=assignee_counts.index,
+                        orientation='h',
+                        marker_color='#3498db',
+                        hovertemplate='<b>%{y}</b><br>' +
+                                    'Escalated Tickets: %{x}<br>' +
+                                    '<extra></extra>'
+                    ))
+                    
+                    title_text = f"Escalated Tickets by Assignee (Top 15 of {len(detailed_data):,} tickets)"
+                    
+                    fig.update_layout(
+                        title={'text': title_text, 'x': 0.5, 'xanchor': 'center', 'font': {'size': 14, 'color': '#2c3e50'}},
+                        xaxis_title="Number of Escalated Tickets",
+                        yaxis_title="Assignee",
+                        height=450,
+                        margin={'l': 150, 'r': 50, 't': 80, 'b': 60},
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        yaxis=dict(tickfont={'size': 10})
+                    )
+                
+            elif view_type == 'duration':
+                # Distribution chart showing duration buckets
+                detailed_data = summary_stats.get('detailed_data', pd.DataFrame())
+                if not detailed_data.empty:
+                    # Count tickets by duration bucket
+                    duration_counts = detailed_data['EscalationDurationBucket'].value_counts()
+                    
+                    # Ensure proper ordering
+                    duration_order = ['<1h', '1-2h', '2-3h', '3-6h', '6-12h', '12-24h', 
+                                    '1-2d', '2-3d', '3-5d', '5-10d', '10-30d', '1-2m', 
+                                    '2-3m', '3-6m', '6-12m', '>12m', 'No Duration Data']
+                    
+                    ordered_durations = [d for d in duration_order if d in duration_counts.index]
+                    ordered_counts = [duration_counts[d] for d in ordered_durations]
+                    
+                    # Color code based on severity (longer = more red)
+                    colors = ['#27ae60' if i < 6 else '#f39c12' if i < 11 else '#e74c3c' 
+                            for i in range(len(ordered_durations))]
+                    
+                    fig.add_trace(go.Bar(
+                        x=ordered_durations,
+                        y=ordered_counts,
+                        marker_color=colors,
+                        hovertemplate='<b>%{x} Duration</b><br>' +
+                                    'Tickets: %{y}<br>' +
+                                    'Percentage: %{customdata:.1f}%<br>' +
+                                    '<extra></extra>',
+                        customdata=[(count/sum(ordered_counts)*100) for count in ordered_counts]
+                    ))
+                    
+                    title_text = f"Escalation Duration Distribution ({len(detailed_data):,} tickets)"
+                    
+                    fig.update_layout(
+                        title={'text': title_text, 'x': 0.5, 'xanchor': 'center', 'font': {'size': 14, 'color': '#2c3e50'}},
+                        xaxis_title="Duration Bucket",
+                        yaxis_title="Number of Tickets",
+                        height=450,
+                        margin={'l': 60, 'r': 50, 't': 80, 'b': 120},
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        xaxis=dict(tickangle=45, tickfont={'size': 10})
+                    )
+            
+            # If no data available for non-current views
+            if view_type != 'current' and fig.data == ():
                 fig.add_annotation(
-                    text="Stacked bar view is only available for 'Escalated' view type",
+                    text=f"No data available for {view_type} view with current filters",
                     xref="paper", yref="paper",
                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
                     showarrow=False,
                     font=dict(size=16, color="gray")
                 )
                 fig.update_layout(
-                    title={
-                        'text': "Escalated Tickets Overview",
-                        'x': 0.5,
-                        'xanchor': 'center',
-                        'font': {'size': 16, 'color': '#2c3e50'}
-                    },
+                    title={'text': f"Escalated Tickets - {view_type.title()} View", 'x': 0.5, 'xanchor': 'center', 'font': {'size': 16, 'color': '#2c3e50'}},
                     height=450,
                     plot_bgcolor='white',
                     paper_bgcolor='white'
                 )
             
-            print(f"📊 Created escalated tickets chart: {view_type} view with {len(escalation_data)} records")
+            print(f"📊 Created escalated tickets chart: {view_type} view")
             return fig
             
         except Exception as e:
@@ -514,7 +719,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             import traceback
             traceback.print_exc()
             return create_error_figure("Error creating escalated tickets chart")
-
+    
     def create_escalated_tickets_table(detailed_data):
         """
         Create a detailed table for the modal showing all escalated tickets with filtering and pagination
@@ -632,7 +837,6 @@ def register_workflow_escalated_tickets_callbacks(app):
             return html.Div([
                 # Header with summary
                 html.P([
-                    # html.I(className="fas fa-exclamation-triangle me-2"),
                     f"Total: {len(df_sorted):,} escalated tickets"
                 ], className="text-muted mb-3"),
                 
@@ -870,7 +1074,6 @@ def register_workflow_escalated_tickets_callbacks(app):
         )
         return fig
 
-    # Quick select callbacks
     @callback(
         Output("workflow-escalated-categories-dropdown", "value"),
         [Input("btn-escalated-active", "n_clicks"),
@@ -927,9 +1130,9 @@ def register_workflow_escalated_tickets_callbacks(app):
             escalation_data, summary_stats = prepare_escalated_tickets_data(
                 filtered_data, base_data['case_type_mapping'], view_type, time_period, selected_categories, stored_selections
             )
-            
+
             # Create visualization
-            fig = create_escalated_tickets_chart(escalation_data, summary_stats, view_type, selected_categories)
+            fig = create_escalated_tickets_chart(escalation_data, summary_stats, view_type, time_period, selected_categories)
             
             # Generate insights
             insights = generate_escalated_tickets_insights(escalation_data, summary_stats, view_type, selected_categories)

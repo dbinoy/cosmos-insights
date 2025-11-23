@@ -51,8 +51,7 @@ def get_escalated_tickets_layout():
                             options=[
                                 {'label': '🔴 Escalated', 'value': 'current_escalated'},
                                 {'label': '✅ Resolved', 'value': 'recently_resolved'},
-                                {'label': '⏰ Long Duration', 'value': 'long_duration'},
-                                {'label': '📊 All Categories', 'value': 'all'}
+                                {'label': '⏰ Long Duration', 'value': 'long_duration'}
                             ],
                             value=['current_escalated'],
                             multi=True,
