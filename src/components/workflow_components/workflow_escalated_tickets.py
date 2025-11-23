@@ -109,7 +109,31 @@ def get_escalated_tickets_layout():
                                             style={'fontSize': '11px'})
                                 ], className="d-grid gap-1")
                             ], width=3)
-                        ], style={'display': 'none'})  # Initially hidden
+                        ], style={'display': 'none'}),  # Initially hidden
+
+                        # By Assignee-specific controls container - conditionally visible
+                        html.Div(id="workflow-escalated-assignee-controls", children=[
+                            dbc.Col([
+                                html.Label("Show Assignees:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
+                                dcc.Dropdown(
+                                    id="workflow-escalated-assignee-count-dropdown",
+                                    options=[
+                                        {'label': 'Top 5', 'value': 5},
+                                        {'label': 'Top 10', 'value': 10},
+                                        {'label': 'Top 15', 'value': 15},
+                                        {'label': 'Top 20', 'value': 20},
+                                        {'label': 'Top 25', 'value': 25},
+                                        {'label': 'Top 50', 'value': 50},
+                                        {'label': 'All', 'value': 'all'}
+                                    ],
+                                    value=15,
+                                    clearable=False,
+                                    style={'fontSize': '12px'},
+                                    className="mb-3"
+                                )
+                            ], width=6)
+                        ], style={'display': 'none'})# Initially hidden
+
                     ], width=9)
                 ], className="mb-3"),                
             ], style={'display': 'block', 'marginBottom': '15px'}),

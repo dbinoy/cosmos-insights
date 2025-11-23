@@ -377,7 +377,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             return pd.DataFrame(), {}
  
     @monitor_chart_performance("Escalated Tickets Chart")
-    def create_escalated_tickets_chart(escalation_data, summary_stats, view_type='current', time_period=30, selected_categories=None):
+    def create_escalated_tickets_chart(escalation_data, summary_stats, view_type='current', time_period=30, selected_categories=None, assignee_count=None):
         """
         Create different chart types based on view_type selection
         """
@@ -626,29 +626,29 @@ def register_workflow_escalated_tickets_callbacks(app):
                 detailed_data = summary_stats.get('detailed_data', pd.DataFrame())
                 if not detailed_data.empty:
                     # Get top 15 assignees by escalation count
-                    assignee_counts = detailed_data['AssigneeDisplay'].value_counts().head(15)
-                    
+                    assignee_counts = detailed_data['AssigneeDisplay'].value_counts()
+                    if assignee_count == 'all' or assignee_count is None:
+                        top_assignees = assignee_counts
+                    else:
+                        top_assignees = assignee_counts.head(int(assignee_count))      
                     fig.add_trace(go.Bar(
-                        x=assignee_counts.values,
-                        y=assignee_counts.index,
-                        orientation='h',
+                        x=top_assignees.index,
+                        y=top_assignees.values,
                         marker_color='#3498db',
-                        hovertemplate='<b>%{y}</b><br>' +
-                                    'Escalated Tickets: %{x}<br>' +
-                                    '<extra></extra>'
-                    ))
+                        hovertemplate='<b>%{x}</b><br>Escalated Tickets: %{y}<br><extra></extra>'
+                    ))                                      
                     
-                    title_text = f"Escalated Tickets by Assignee (Top 15 of {len(detailed_data):,} tickets)"
+                    title_text = f"Escalated Tickets by Assignee (Top {len(top_assignees)})"
                     
                     fig.update_layout(
                         title={'text': title_text, 'x': 0.5, 'xanchor': 'center', 'font': {'size': 14, 'color': '#2c3e50'}},
-                        xaxis_title="Number of Escalated Tickets",
-                        yaxis_title="Assignee",
+                        xaxis_title="Assignee",
+                        yaxis_title="Number of Escalated Tickets",
                         height=450,
-                        margin={'l': 150, 'r': 50, 't': 80, 'b': 60},
+                        margin={'l': 60, 'r': 50, 't': 80, 'b': 120},
                         plot_bgcolor='white',
                         paper_bgcolor='white',
-                        yaxis=dict(tickfont={'size': 10})
+                        xaxis=dict(tickangle=45, tickfont={'size': 10})
                     )
                 
             elif view_type == 'duration':
@@ -1102,21 +1102,20 @@ def register_workflow_escalated_tickets_callbacks(app):
     
     @callback(
         [Output("workflow-escalated-trends-controls", "style"),
-         Output("workflow-escalated-current-controls", "style")],
+        Output("workflow-escalated-current-controls", "style"),
+        Output("workflow-escalated-assignee-controls", "style")],
         Input("workflow-escalated-view-dropdown", "value"),
         prevent_initial_call=False
     )
     def toggle_view_specific_controls(view_type):
-        """
-        Show/hide view-specific controls based on selected view type
-        """
         if view_type == 'trends':
-            return {'display': 'flex', 'width': '100%'}, {'display': 'none'}
+            return {'display': 'flex', 'width': '100%'}, {'display': 'none'}, {'display': 'none'}
         elif view_type == 'current':
-            return {'display': 'none'}, {'display': 'flex', 'width': '100%'}
+            return {'display': 'none'}, {'display': 'flex', 'width': '100%'}, {'display': 'none'}
+        elif view_type == 'assignee':
+            return {'display': 'none'}, {'display': 'none'}, {'display': 'flex', 'width': '100%'}
         else:
-            # For 'assignee' and 'duration' views, hide both control sets
-            return {'display': 'none'}, {'display': 'none'}
+            return {'display': 'none'}, {'display': 'none'}, {'display': 'none'}
         
     @callback(
         Output("workflow-escalated-priorities-dropdown", "options"),
@@ -1166,11 +1165,12 @@ def register_workflow_escalated_tickets_callbacks(app):
          Input("workflow-escalated-view-dropdown", "value"),
          Input("workflow-escalated-period-dropdown", "value"),
          Input("workflow-escalated-categories-dropdown", "value"),
-         Input("workflow-escalated-priorities-dropdown", "value")],  # Add priorities dropdown
+         Input("workflow-escalated-priorities-dropdown", "value"),
+         Input("workflow-escalated-assignee-count-dropdown", "value")],  # Add priorities dropdown
         prevent_initial_call=False
     )
     @monitor_performance("Escalated Tickets Chart Update")
-    def update_escalated_tickets_chart(stored_selections, view_type, time_period, selected_categories, selected_priorities):
+    def update_escalated_tickets_chart(stored_selections, view_type, time_period, selected_categories, selected_priorities, assignee_count):
         """
         Update escalated tickets chart based on filter selections and display options
         """
@@ -1212,7 +1212,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             )
 
             # Create visualization
-            fig = create_escalated_tickets_chart(escalation_data, summary_stats, view_type, time_period, selected_categories)
+            fig = create_escalated_tickets_chart(escalation_data, summary_stats, view_type, time_period, selected_categories, assignee_count)
             
             # Generate insights
             insights = generate_escalated_tickets_insights(escalation_data, summary_stats, view_type, selected_categories)
