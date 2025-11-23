@@ -180,12 +180,11 @@ def register_workflow_escalated_tickets_callbacks(app):
         print(f"📊 Final filtered escalated tickets data: {len(df_work_items)} tickets")
         return df_work_items
 
-
-    @monitor_performance("Escalated Tickets Data Preparation")
-    def prepare_escalated_tickets_data(filtered_data, case_type_mapping, view_type='current', time_period=30, selected_categories=None, stored_selections=None):
+    # Updated data preparation function to handle priority filtering
+    def prepare_escalated_tickets_data(filtered_data, case_type_mapping, view_type='current', time_period=30, selected_categories=None, stored_selections=None, selected_priorities=None):
         """
         Prepare escalated tickets analysis data with proper duration buckets and case type names
-        Updated to handle all view types properly
+        Updated to handle priority filtering for Escalated view
         """
         if filtered_data.empty:
             return pd.DataFrame(), {}
@@ -198,6 +197,11 @@ def register_workflow_escalated_tickets_callbacks(app):
         
         try:
             df = filtered_data.copy()
+            
+            # Apply priority filtering for Escalated view
+            if view_type == 'current' and selected_priorities is not None and len(selected_priorities) > 0:
+                df = df[df['Priority'].isin(selected_priorities)]
+                print(f"🔽 Filtered to selected priorities: {selected_priorities}, {len(df)} tickets remaining")
             
             # Clean and format assignee names
             def format_assignee_name(assignee):
@@ -277,22 +281,16 @@ def register_workflow_escalated_tickets_callbacks(app):
                 # Check if ticket was escalated and is now closed (regardless of specific status)
                 if not pd.isna(closed_on) and not pd.isna(escalated_on):
                     # This is a closed escalated ticket
-                    if status in ['Escalation Resolved', 'Escalation Canceled']:
-                        return 'recently_resolved'  # Explicitly resolved escalations
-                    else:
-                        return 'recently_resolved'  # Any other closed escalated ticket
+                    return 'recently_resolved'
                 
                 # Currently open escalated tickets
                 elif pd.isna(closed_on) and not pd.isna(escalated_on):
-                    if status in ['Escalated', 'Existing Escalation']:
-                        return 'current_escalated'
+                    # Calculate days since escalation for long duration check
+                    days_escalated = (datetime.now() - escalated_on).days
+                    if days_escalated > 5:  # Using 5-day threshold
+                        return 'long_duration'
                     else:
-                        # Calculate days since escalation for long duration check
-                        days_escalated = (datetime.now() - escalated_on).days
-                        if days_escalated > 3:
-                            return 'long_duration'
-                        else:
-                            return 'current_escalated'
+                        return 'current_escalated'
                 
                 # Escalated but missing escalation date (data quality issue)
                 elif is_escalated:
@@ -364,6 +362,7 @@ def register_workflow_escalated_tickets_callbacks(app):
                 'view_type': view_type,
                 'time_period': time_period,
                 'selected_categories': selected_categories,
+                'selected_priorities': selected_priorities,  # Add selected priorities to summary
                 'detailed_data': df,  # Store the full dataframe for all view types
                 'stored_selections': stored_selections  # Add stored selections to summary stats
             }
@@ -376,7 +375,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             import traceback
             traceback.print_exc()
             return pd.DataFrame(), {}
-        
+ 
     @monitor_chart_performance("Escalated Tickets Chart")
     def create_escalated_tickets_chart(escalation_data, summary_stats, view_type='current', time_period=30, selected_categories=None):
         """
@@ -1101,35 +1100,77 @@ def register_workflow_escalated_tickets_callbacks(app):
         
         return ['current_escalated']
     
-    # Add this callback after the existing quick select callback
     @callback(
-        Output("workflow-escalated-trends-controls", "style"),
+        [Output("workflow-escalated-trends-controls", "style"),
+         Output("workflow-escalated-current-controls", "style")],
         Input("workflow-escalated-view-dropdown", "value"),
         prevent_initial_call=False
     )
-    def toggle_trends_controls_visibility(view_type):
+    def toggle_view_specific_controls(view_type):
         """
-        Show/hide Period, Categories, and Quick Select controls based on selected view type
-        Only show these controls when Trends view is selected
+        Show/hide view-specific controls based on selected view type
         """
         if view_type == 'trends':
-            return {'display': 'flex', 'width': '100%'}
+            return {'display': 'flex', 'width': '100%'}, {'display': 'none'}
+        elif view_type == 'current':
+            return {'display': 'none'}, {'display': 'flex', 'width': '100%'}
         else:
-            return {'display': 'none'}
+            # For 'assignee' and 'duration' views, hide both control sets
+            return {'display': 'none'}, {'display': 'none'}
         
+    @callback(
+        Output("workflow-escalated-priorities-dropdown", "options"),
+        [Input("workflow-filtered-query-store", "data"),
+         Input("workflow-escalated-view-dropdown", "value")],
+        prevent_initial_call=False
+    )
+    def populate_escalated_priorities_dropdown(stored_selections, view_type):
+        """
+        Populate the priorities dropdown based on current filter selections
+        Only active when Escalated view is selected
+        """
+        if view_type != 'current':
+            return []
+        
+        try:
+            # Get base data
+            base_data = get_escalated_tickets_base_data()
+            
+            # Apply current filters to get available priorities
+            filtered_data = apply_escalated_tickets_filters(base_data['work_items'], stored_selections)
+            
+            if filtered_data.empty:
+                return []
+            
+            # Get unique priorities from filtered data
+            available_priorities = sorted([p for p in filtered_data['Priority'].dropna().unique() if str(p).strip()])
+            
+            # Create dropdown options
+            priority_options = [
+                {'label': f'🔸 {priority.title()}', 'value': priority}
+                for priority in available_priorities
+            ]
+            
+            print(f"📊 Populated priorities dropdown with {len(priority_options)} options")
+            return priority_options
+            
+        except Exception as e:
+            print(f"❌ Error populating priorities dropdown: {e}")
+            return []
+                
     # Main update callback
-    # Update the main callback to handle None values from hidden controls
     @callback(
         [Output("workflow-escalated-tickets-chart", "figure"),
          Output("workflow-escalated-insights", "children")],
         [Input("workflow-filtered-query-store", "data"),
          Input("workflow-escalated-view-dropdown", "value"),
          Input("workflow-escalated-period-dropdown", "value"),
-         Input("workflow-escalated-categories-dropdown", "value")],
+         Input("workflow-escalated-categories-dropdown", "value"),
+         Input("workflow-escalated-priorities-dropdown", "value")],  # Add priorities dropdown
         prevent_initial_call=False
     )
     @monitor_performance("Escalated Tickets Chart Update")
-    def update_escalated_tickets_chart(stored_selections, view_type, time_period, selected_categories):
+    def update_escalated_tickets_chart(stored_selections, view_type, time_period, selected_categories, selected_priorities):
         """
         Update escalated tickets chart based on filter selections and display options
         """
@@ -1149,7 +1190,15 @@ def register_workflow_escalated_tickets_callbacks(app):
                 if selected_categories is None or len(selected_categories) == 0:
                     selected_categories = ['current_escalated', 'recently_resolved']
             
-            print(f"🔄 Updating escalated tickets analysis: view = {view_type}, period = {time_period}, categories = {selected_categories}")
+            # Handle priorities selection for Escalated view
+            if view_type == 'current':
+                # If no priorities selected, treat as "all priorities"
+                if selected_priorities is None or len(selected_priorities) == 0:
+                    selected_priorities = None  # Will be handled in data preparation
+            else:
+                selected_priorities = None  # Not relevant for other views
+            
+            print(f"🔄 Updating escalated tickets analysis: view = {view_type}, period = {time_period}, categories = {selected_categories}, priorities = {selected_priorities}")
             
             # Get base data
             base_data = get_escalated_tickets_base_data()
@@ -1159,7 +1208,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             
             # Prepare analysis data with case type mapping
             escalation_data, summary_stats = prepare_escalated_tickets_data(
-                filtered_data, base_data['case_type_mapping'], view_type, time_period, selected_categories, stored_selections
+                filtered_data, base_data['case_type_mapping'], view_type, time_period, selected_categories, stored_selections, selected_priorities
             )
 
             # Create visualization
@@ -1186,7 +1235,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             ], className="insights-container")
             
             return fig, error_insights
-        
+               
     # Enhanced modal callback to handle pagination
     @callback(
         [Output("escalated-modal-table-container", "children"),

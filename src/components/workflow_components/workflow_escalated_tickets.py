@@ -24,10 +24,11 @@ def get_escalated_tickets_layout():
                     ], className="d-flex justify-content-end mb-2")
                 ], width=12)
             ]),
-                        
+
             # Controls section above the chart
             html.Div([
                 dbc.Row([
+                    # View dropdown - always visible
                     dbc.Col([
                         html.Label("View:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
                         dcc.Dropdown(
@@ -45,6 +46,23 @@ def get_escalated_tickets_layout():
                         )
                     ], width=3),
                     dbc.Col([
+                        # Escalated view controls - conditionally visible
+                        html.Div(id="workflow-escalated-current-controls", children=[
+                            dbc.Col([
+                                html.Label("Include Priorities:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
+                                dcc.Dropdown(
+                                    id="workflow-escalated-priorities-dropdown",
+                                    options=[],  # Will be populated by callback
+                                    value=None,  # Nothing selected initially (means all)
+                                    multi=True,
+                                    clearable=True,
+                                    placeholder="All priorities (leave empty for all)",
+                                    style={'fontSize': '12px'},
+                                    className="mb-3"
+                                )
+                            ], width=8)
+                        ], style={'display': 'flex'}),  # Initially visible for current view
+                        
                         # Trends-specific controls container - conditionally visible
                         html.Div(id="workflow-escalated-trends-controls", children=[
                             dbc.Col([
@@ -62,8 +80,7 @@ def get_escalated_tickets_layout():
                                     style={'fontSize': '12px'},
                                     className="mb-3"
                                 )
-                            ], width=4),
-                            
+                            ], width=4),                        
                             dbc.Col([
                                 html.Label("Categories:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
                                 dcc.Dropdown(
@@ -80,8 +97,7 @@ def get_escalated_tickets_layout():
                                     style={'fontSize': '12px'},
                                     className="mb-3"
                                 )
-                            ], width=5),
-                            
+                            ], width=5),                        
                             dbc.Col([
                                 html.Label("Quick Select:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
                                 dbc.ButtonGroup([
@@ -94,11 +110,9 @@ def get_escalated_tickets_layout():
                                 ], className="d-grid gap-1")
                             ], width=3)
                         ], style={'display': 'none'})  # Initially hidden
-                    ], width=9),
+                    ], width=9)
                 ], className="mb-3"),                
             ], style={'display': 'block', 'marginBottom': '15px'}),
-
-
 
             # Chart container
             html.Div([
