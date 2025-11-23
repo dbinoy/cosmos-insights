@@ -9,6 +9,22 @@ def get_escalated_tickets_layout():
         ]),
         
         dbc.CardBody([
+            # Button row above chart - right aligned
+            dbc.Row([
+                dbc.Col([
+                    html.Div([
+                        dbc.Button([
+                            html.I(className="fas fa-table me-2"),
+                            "View Details"
+                        ], 
+                        id="workflow-escalated-details-btn",
+                        color="outline-primary", 
+                        size="sm",
+                        style={'whiteSpace': 'nowrap'})
+                    ], className="d-flex justify-content-end mb-2")
+                ], width=12)
+            ]),
+                        
             # Controls section above the chart
             html.Div([
                 dbc.Row([
@@ -29,71 +45,60 @@ def get_escalated_tickets_layout():
                         )
                     ], width=3),
                     dbc.Col([
-                        html.Label("Period:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
-                        dcc.Dropdown(
-                            id="workflow-escalated-period-dropdown",
-                            options=[
-                                {'label': 'Last 7', 'value': 7},
-                                {'label': 'Last 30', 'value': 30},
-                                {'label': 'Last 90', 'value': 90},
-                                {'label': 'All Time', 'value': 'all'}
-                            ],
-                            value=30,
-                            clearable=False,
-                            style={'fontSize': '12px'},
-                            className="mb-3"
-                        )
-                    ], width=2),
-                    dbc.Col([
-                        html.Label("Categories:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
-                        dcc.Dropdown(
-                            id="workflow-escalated-categories-dropdown",
-                            options=[
-                                {'label': '🔴 Escalated', 'value': 'current_escalated'},
-                                {'label': '✅ Resolved', 'value': 'recently_resolved'},
-                                {'label': '⏰ Long Duration', 'value': 'long_duration'}
-                            ],
-                            value=['current_escalated'],
-                            multi=True,
-                            clearable=False,
-                            placeholder="Select categories to display",
-                            style={'fontSize': '12px'},
-                            className="mb-3"
-                        )
-                    ], width=3),
-                    dbc.Col([
-                        # Quick select buttons for common views
-                        dbc.Col([
-                            dbc.Row([
-                                html.Label("Quick Select:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'})
-                            ]),
-                            dbc.Row([
+                        # Trends-specific controls container - conditionally visible
+                        html.Div(id="workflow-escalated-trends-controls", children=[
+                            dbc.Col([
+                                html.Label("Period:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
+                                dcc.Dropdown(
+                                    id="workflow-escalated-period-dropdown",
+                                    options=[
+                                        {'label': '📅 Last 7 Days', 'value': 7},
+                                        {'label': '📅 Last 30 Days', 'value': 30},
+                                        {'label': '📅 Last 90 Days', 'value': 90},
+                                        {'label': '📅 All Time', 'value': 'all'}
+                                    ],
+                                    value=30,
+                                    clearable=False,
+                                    style={'fontSize': '12px'},
+                                    className="mb-3"
+                                )
+                            ], width=4),
+                            
+                            dbc.Col([
+                                html.Label("Categories:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
+                                dcc.Dropdown(
+                                    id="workflow-escalated-categories-dropdown",
+                                    options=[
+                                        {'label': '🔴 Escalated', 'value': 'current_escalated'},
+                                        {'label': '✅ Resolved', 'value': 'recently_resolved'},
+                                        {'label': '⏰ Long Duration', 'value': 'long_duration'}
+                                    ],
+                                    value=['current_escalated'],
+                                    multi=True,
+                                    clearable=False,
+                                    placeholder="Select categories to display",
+                                    style={'fontSize': '12px'},
+                                    className="mb-3"
+                                )
+                            ], width=5),
+                            
+                            dbc.Col([
+                                html.Label("Quick Select:", className="form-label mb-1", style={'fontSize': '13px', 'fontWeight': '500'}),
                                 dbc.ButtonGroup([
-                                    dbc.Button("Active", id="btn-escalated-active", size="sm", outline=True, color="danger", style={'fontSize': '11px'}),
-                                    dbc.Button("Critical", id="btn-escalated-critical", size="sm", outline=True, color="warning", style={'fontSize': '11px'}),
-                                    dbc.Button("All", id="btn-escalated-all", size="sm", outline=True, color="primary", style={'fontSize': '11px'})
-                                ], size="lg", className="mb-3")
-                            ])
-                        ])
-                    ], width=4)
-                ])
+                                    dbc.Button("Active", id="btn-escalated-active", size="sm", outline=True, color="primary",
+                                            style={'fontSize': '11px'}),
+                                    dbc.Button("Critical", id="btn-escalated-critical", size="sm", outline=True, color="warning",
+                                            style={'fontSize': '11px'}),
+                                    dbc.Button("All", id="btn-escalated-all", size="sm", outline=True, color="info",
+                                            style={'fontSize': '11px'})
+                                ], className="d-grid gap-1")
+                            ], width=3)
+                        ], style={'display': 'none'})  # Initially hidden
+                    ], width=9),
+                ], className="mb-3"),                
             ], style={'display': 'block', 'marginBottom': '15px'}),
 
-            # Button row above chart - right aligned
-            dbc.Row([
-                dbc.Col([
-                    html.Div([
-                        dbc.Button([
-                            html.I(className="fas fa-table me-2"),
-                            "View Details"
-                        ], 
-                        id="workflow-escalated-details-btn",
-                        color="outline-primary", 
-                        size="sm",
-                        style={'whiteSpace': 'nowrap'})
-                    ], className="d-flex justify-content-end mb-2")
-                ], width=12)
-            ]),
+
 
             # Chart container
             html.Div([

@@ -1078,12 +1078,17 @@ def register_workflow_escalated_tickets_callbacks(app):
         Output("workflow-escalated-categories-dropdown", "value"),
         [Input("btn-escalated-active", "n_clicks"),
          Input("btn-escalated-critical", "n_clicks"), 
-         Input("btn-escalated-all", "n_clicks")],
+         Input("btn-escalated-all", "n_clicks"),
+         Input("workflow-escalated-view-dropdown", "value")],  # Add view dropdown as input
         prevent_initial_call=True
     )
-    def handle_escalated_quick_select(btn_active, btn_critical, btn_all):
-        """Handle quick select buttons for escalated ticket categories"""
+    def handle_escalated_quick_select(btn_active, btn_critical, btn_all, view_type):
+        """Handle quick select buttons for escalated ticket categories - only active for Trends view"""
         triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
+        
+        # Only process quick select buttons when in Trends view
+        if view_type != 'trends':
+            return ['current_escalated']  # Default selection for non-Trends views
         
         if triggered_id == "btn-escalated-active":
             return ['current_escalated']
@@ -1091,10 +1096,29 @@ def register_workflow_escalated_tickets_callbacks(app):
             return ['current_escalated', 'long_duration']
         elif triggered_id == "btn-escalated-all":
             return ['current_escalated', 'recently_resolved', 'long_duration']
+        elif triggered_id == "workflow-escalated-view-dropdown" and view_type == 'trends':
+            return ['current_escalated', 'recently_resolved']  # Default for Trends view
         
-        return ['current_escalated', 'recently_resolved']
-
+        return ['current_escalated']
+    
+    # Add this callback after the existing quick select callback
+    @callback(
+        Output("workflow-escalated-trends-controls", "style"),
+        Input("workflow-escalated-view-dropdown", "value"),
+        prevent_initial_call=False
+    )
+    def toggle_trends_controls_visibility(view_type):
+        """
+        Show/hide Period, Categories, and Quick Select controls based on selected view type
+        Only show these controls when Trends view is selected
+        """
+        if view_type == 'trends':
+            return {'display': 'flex', 'width': '100%'}
+        else:
+            return {'display': 'none'}
+        
     # Main update callback
+    # Update the main callback to handle None values from hidden controls
     @callback(
         [Output("workflow-escalated-tickets-chart", "figure"),
          Output("workflow-escalated-insights", "children")],
@@ -1110,13 +1134,20 @@ def register_workflow_escalated_tickets_callbacks(app):
         Update escalated tickets chart based on filter selections and display options
         """
         try:
-            # Handle None or invalid values
+            # Handle None or invalid values (controls may be hidden)
             if view_type is None:
                 view_type = 'current'
-            if time_period is None:
-                time_period = 30
-            if selected_categories is None or len(selected_categories) == 0:
-                selected_categories = ['current_escalated', 'recently_resolved']
+            
+            # For non-Trends views, use default values since controls are hidden
+            if view_type != 'trends':
+                time_period = 30  # Default period for non-Trends views
+                selected_categories = ['current_escalated', 'recently_resolved']  # Default categories
+            else:
+                # For Trends view, handle None values from hidden-then-shown controls
+                if time_period is None:
+                    time_period = 30
+                if selected_categories is None or len(selected_categories) == 0:
+                    selected_categories = ['current_escalated', 'recently_resolved']
             
             print(f"🔄 Updating escalated tickets analysis: view = {view_type}, period = {time_period}, categories = {selected_categories}")
             
@@ -1155,7 +1186,7 @@ def register_workflow_escalated_tickets_callbacks(app):
             ], className="insights-container")
             
             return fig, error_insights
-
+        
     # Enhanced modal callback to handle pagination
     @callback(
         [Output("escalated-modal-table-container", "children"),
