@@ -3,11 +3,24 @@ import dash_bootstrap_components as dbc
 
 def get_product_impact_layout():
     return dbc.Card([
+        dcc.Store(id="workflow-product-impact-chart-type", data="bar"),
         dbc.CardHeader([
-            html.H5("Product/Feature Impact", className="mb-0")
-        ]),
+            dbc.Row([
+                dbc.Col([
+                    html.H5("Product/Feature Impact", className="mb-0")
+                ], width=6),
+                dbc.Col([
+                    # View type selector buttons - UPDATED: Make Box Plot active by default
+                    dbc.ButtonGroup([
+                        dbc.Button("Bar", id="product-impact-bar-btn", size="sm", outline=True, active=True),
+                        dbc.Button("Stacked", id="product-impact-stacked-btn", size="sm", outline=True, active=False),
+                        dbc.Button("Bubble", id="product-impact-bubble-btn", size="sm", outline=True, active=False),
+                        dbc.Button("Treemap", id="product-impact-treemap-btn", size="sm", outline=True, active=False)
+                    ], size="sm")
+                ], width=6, className="text-end")
+            ])
+        ]),        
         dbc.CardBody([
-            # Display dropdown control (same style as Workload by Assignee)
             html.Div([
                 dbc.Row([
                     dbc.Col([
@@ -20,7 +33,8 @@ def get_product_impact_layout():
                                 {'label': 'Top 15', 'value': 15},
                                 {'label': 'Top 20', 'value': 20},
                                 {'label': 'Top 25', 'value': 25},
-                                {'label': 'Top 50', 'value': 50}
+                                {'label': 'Top 50', 'value': 50},
+                                {'label': 'All', 'value': 'all'}
                             ],
                             value=15,
                             clearable=False,

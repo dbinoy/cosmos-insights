@@ -2,6 +2,7 @@ from dash import callback, Input, Output, State, ctx, html, dcc, no_update
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import copy
 from src.utils.db import run_queries
 from inflection import titleize, pluralize
@@ -132,7 +133,7 @@ def register_workflow_product_impact_callbacks(app):
         return impact_counts, summary_stats
 
     @monitor_chart_performance("Product Impact Chart")
-    def create_product_impact_chart(impact_counts, summary_stats):
+    def create_product_impact_bar_chart(impact_counts, summary_stats):
         """
         Create bar chart for product/feature impact
         """
@@ -173,6 +174,135 @@ def register_workflow_product_impact_callbacks(app):
         )
         return fig
 
+    @monitor_chart_performance("Product Impact Stacked Chart")
+    def create_product_impact_stacked_chart(filtered_data, top_count):
+        df = filtered_data.copy()
+        if df.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No product/feature data available for selected filters",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color="gray")
+            )
+            fig.update_layout(title="Product/Feature Impact (Stacked Bar)", height=400)
+            return fig
+
+        top_products = (
+            df.groupby('Product').size().reset_index(name='TicketCount')
+            .sort_values('TicketCount', ascending=False)
+            .head(top_count)['Product']
+            .tolist()
+        )
+        df_top = df[df['Product'].isin(top_products)]
+        grouped = df_top.groupby(['Product', 'Feature']).size().reset_index(name='TicketCount')
+
+        fig = go.Figure()
+        for feature in grouped['Feature'].unique():
+            feature_data = grouped[grouped['Feature'] == feature]
+            fig.add_trace(go.Bar(
+                x=feature_data['Product'],
+                y=feature_data['TicketCount'],
+                name=titleize(feature),
+                text=feature_data['TicketCount'],
+                textposition='auto'
+            ))
+        fig.update_layout(
+            barmode='stack',
+            title={'text': "Product/Feature Impact (Stacked Bar)", 'x': 0.5, 'xanchor': 'center', 'font': {'size': 16}},
+            height=400,
+            margin={'l': 40, 'r': 40, 't': 60, 'b': 80},
+            xaxis_title="Product",
+            yaxis_title="Ticket Count",
+            legend_title="Feature"
+        )
+        return fig
+
+    @monitor_chart_performance("Product Impact Bubble Chart")
+    def create_product_impact_bubble_chart(filtered_data, top_count):
+        df = filtered_data.copy()
+        if df.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No product/feature data available for selected filters",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color="gray")
+            )
+            fig.update_layout(title="Product/Feature Impact (Bubble Chart)", height=400)
+            return fig
+
+        grouped = (
+            df.groupby(['Product', 'Feature'])
+            .size()
+            .reset_index(name='TicketCount')
+            .sort_values('TicketCount', ascending=False)
+            .head(top_count)
+        )
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=grouped['Product'],
+            y=grouped['Feature'],
+            mode='markers',
+            marker=dict(
+                size=grouped['TicketCount'],
+                sizemode='area',
+                sizeref=max(grouped['TicketCount'])/60 if max(grouped['TicketCount']) > 0 else 1,
+                color=grouped['TicketCount'],
+                colorscale='Blues',
+                showscale=True,
+                line=dict(width=2, color='DarkSlateGrey')
+            ),
+            text=[f"Tickets: {v}" for v in grouped['TicketCount']],
+            hovertemplate="<b>%{x}</b> / %{y}<br>Tickets: %{marker.size}<extra></extra>"
+        ))
+        fig.update_layout(
+            title={'text': "Product/Feature Impact (Bubble Chart)", 'x': 0.5, 'xanchor': 'center', 'font': {'size': 16}},
+            height=400,
+            margin={'l': 40, 'r': 40, 't': 60, 'b': 80},
+            xaxis_title="Product",
+            yaxis_title="Feature"
+        )
+        return fig
+
+    @monitor_chart_performance("Product Impact Treemap Chart")
+    def create_product_impact_treemap_chart(filtered_data, top_count):
+        df = filtered_data.copy()
+        if df.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No product/feature data available for selected filters",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=16, color="gray")
+            )
+            fig.update_layout(title="Product/Feature Impact (Treemap)", height=400)
+            return fig
+
+        grouped = (
+            df.groupby(['Product', 'Feature'])
+            .size()
+            .reset_index(name='TicketCount')
+            .sort_values('TicketCount', ascending=False)
+            .head(top_count)
+        )
+
+        fig = px.treemap(
+            grouped,
+            path=['Product', 'Feature'],
+            values='TicketCount',
+            title="Product/Feature Impact (Treemap)",
+            color='TicketCount',
+            color_continuous_scale='Blues',
+            height=400
+        )
+        fig.update_layout(margin={'l': 40, 'r': 40, 't': 60, 'b': 80})
+        return fig
+     
+    @monitor_performance("Product Impact Insights Generation")
     def generate_product_impact_insights(impact_counts, summary_stats, filtered_data=None):
         """
         Generate meaningful insights for product/feature impact.
@@ -242,43 +372,45 @@ def register_workflow_product_impact_callbacks(app):
         except Exception as e:
             return html.Div(f"Error generating insights: {str(e)}", className="text-danger p-2")
 
-
-    # Main chart and insights callback
     @callback(
-        [Output("workflow-product-impact-chart", "figure"),
-         Output("workflow-product-insights", "children")],
-        [Input("workflow-product-count-dropdown", "value"),
-         Input("workflow-filtered-query-store", "data")],
+        [
+            Output("workflow-product-impact-chart", "figure"),
+            Output("workflow-product-insights", "children"),
+            Output("product-impact-bar-btn", "active"),
+            Output("product-impact-stacked-btn", "active"),
+            Output("product-impact-bubble-btn", "active"),
+            Output("product-impact-treemap-btn", "active"),
+        ],
+        [
+            Input("workflow-product-count-dropdown", "value"),
+            Input("workflow-filtered-query-store", "data"),
+            Input("workflow-product-impact-chart-type", "data"),
+        ],
         prevent_initial_call=False
     )
     @monitor_performance("Product Impact Chart Update")
-    def update_product_impact_chart(top_count, stored_selections):
-        """
-        Update product/feature impact chart and insights based on filters
-        """
-        try:
-            base_data = get_product_impact_base_data()
-            filtered_data = apply_product_impact_filters(base_data['work_items'], stored_selections)
-            impact_counts, summary_stats = prepare_product_impact_data(filtered_data, top_count)
-            fig = create_product_impact_chart(impact_counts, summary_stats)
-            insights = generate_product_impact_insights(impact_counts, summary_stats, filtered_data)
-            return fig, insights
-        except Exception as e:
-            fig = go.Figure()
-            fig.add_annotation(
-                text=f"Error loading product impact data: {str(e)}",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False,
-                font=dict(size=14, color="red")
-            )
-            fig.update_layout(
-                title={'text': "Product/Feature Impact - Error", 'x': 0.5, 'xanchor': 'center', 'font': {'size': 16}},
-                height=400,
-                plot_bgcolor='white',
-                paper_bgcolor='white'
-            )
-            return fig, html.Div("Error generating insights", className="text-danger p-2")
+    def update_product_impact_chart(top_count, stored_selections, chart_type):
+        base_data = get_product_impact_base_data()
+        filtered_data = apply_product_impact_filters(base_data['work_items'], stored_selections)
+        impact_counts, summary_stats = prepare_product_impact_data(filtered_data, top_count)
+        if chart_type == "bar":
+            fig = create_product_impact_bar_chart(impact_counts, summary_stats)
+        elif chart_type == "stacked":
+            fig = create_product_impact_stacked_chart(filtered_data, top_count)
+        elif chart_type == "bubble":
+            fig = create_product_impact_bubble_chart(filtered_data, top_count)
+        elif chart_type == "treemap":
+            fig = create_product_impact_treemap_chart(filtered_data, top_count)
+        else:
+            fig = create_product_impact_bar_chart(impact_counts, summary_stats)
+        insights = generate_product_impact_insights(impact_counts, summary_stats, filtered_data)
+        return (
+            fig, insights,
+            chart_type == "bar",
+            chart_type == "stacked",
+            chart_type == "bubble",
+            chart_type == "treemap"
+        )    
 
     # Enlarged chart modal callback
     @monitor_chart_performance("Enlarged Product Impact Chart")
@@ -355,3 +487,26 @@ def register_workflow_product_impact_callbacks(app):
             enlarged_chart = create_enlarged_product_impact_chart(chart_figure)
             return True, enlarged_chart
         return no_update, no_update
+    
+    @callback(
+        Output("workflow-product-impact-chart-type", "data"),
+        [
+            Input("product-impact-bar-btn", "n_clicks"),
+            Input("product-impact-stacked-btn", "n_clicks"),
+            Input("product-impact-bubble-btn", "n_clicks"),
+            Input("product-impact-treemap-btn", "n_clicks"),
+        ],
+        State("workflow-product-impact-chart-type", "data"),
+        prevent_initial_call=True
+    )
+    def set_chart_type(bar, stacked, bubble, treemap, current_type):
+        triggered = ctx.triggered_id
+        if triggered == "product-impact-bar-btn":
+            return "bar"
+        elif triggered == "product-impact-stacked-btn":
+            return "stacked"
+        elif triggered == "product-impact-bubble-btn":
+            return "bubble"
+        elif triggered == "product-impact-treemap-btn":
+            return "treemap"
+        return current_type    
