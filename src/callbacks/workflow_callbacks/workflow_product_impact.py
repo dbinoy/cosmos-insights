@@ -173,35 +173,75 @@ def register_workflow_product_impact_callbacks(app):
         )
         return fig
 
-    def generate_product_impact_insights(impact_counts, summary_stats):
+    def generate_product_impact_insights(impact_counts, summary_stats, filtered_data=None):
         """
-        Generate insights for product/feature impact
-        """
+        Generate meaningful insights for product/feature impact.
+        """ 
+
         if impact_counts.empty or not summary_stats:
             return html.Div([
-                html.Div([html.Span("📊 No product/feature data available for current filter selection", style={'fontSize': '13px'})], className="mb-2"),
-                html.Div([html.Span("🔍 Try adjusting your filters to see product/feature insights", style={'fontSize': '13px'})], className="mb-2")
+                html.Div("📊 No product/feature data available for current filter selection", className="mb-2", style={'fontSize': '13px'}),
+                html.Div("🔍 Try adjusting your filters to see product/feature insights", className="mb-2", style={'fontSize': '13px'})
             ], className="insights-container")
         try:
             insights = []
-            total = summary_stats['total_tickets']
-            top_product = summary_stats['top_product']
-            top_feature = summary_stats['top_feature']
-            top_count = summary_stats['top_count']
-            num_products = summary_stats['num_products']
-            num_features = summary_stats['num_features']
-            insights.append(f"📊 {total:,} tickets across {num_products} products and {num_features} features.")
-            if top_product and top_feature:
-                insights.append(f"🏆 Top: '{titleize(top_product)} / {titleize(top_feature)}' with {top_count:,} tickets")
-            if len(impact_counts) > 1:
-                least_row = impact_counts.iloc[-1]
-                least_product = titleize(least_row['Product'])
-                least_feature = titleize(least_row['Feature'])
-                least_count = least_row['TicketCount']
-                insights.append(f"🔻 Least: '{least_product} / {least_feature}' with {least_count:,} tickets")
-            return html.Div([html.Div(html.Span(i, style={'fontSize': '13px'}), className="mb-2") for i in insights], className="insights-container")
+
+            # 1. Product with highest total ticket volume
+            if filtered_data is not None and not filtered_data.empty:
+                product_ticket_counts = (
+                    filtered_data.groupby('Product')
+                    .size()
+                    .reset_index(name='TicketCount')
+                    .sort_values('TicketCount', ascending=False)
+                )
+                top_product_row = product_ticket_counts.iloc[0]
+                top_product = titleize(top_product_row['Product'])
+                top_product_count = top_product_row['TicketCount']
+                insights.append(
+                    f"📈 '{top_product}' generates the highest total number of tickets ({top_product_count:,}). "
+                    f"Consider prioritizing support and improvement efforts for this product."
+                )
+
+                # 2. Product with most number of different features generating tickets
+                product_feature_counts = (
+                    filtered_data.groupby('Product')['Feature']
+                    .nunique()
+                    .reset_index(name='FeatureCount')
+                    .sort_values('FeatureCount', ascending=False)
+                )
+                most_features_row = product_feature_counts.iloc[0]
+                most_features_product = titleize(most_features_row['Product'])
+                most_features_count = most_features_row['FeatureCount']
+                insights.append(
+                    f"🧩 '{most_features_product}' has the widest range of features generating tickets ({most_features_count} features). "
+                    f"This may indicate complexity or broad usage, and could benefit from targeted feature-level analysis."
+                )
+
+                # 3. Recurring issues tied to specific products/features
+                recurring_issues = (
+                    filtered_data.groupby(['Product', 'Feature', 'Issue'])
+                    .size()
+                    .reset_index(name='Count')
+                    .sort_values('Count', ascending=False)
+                )
+                recurring_issues = recurring_issues[recurring_issues['Issue'].notna() & (recurring_issues['Issue'] != '')]
+                if not recurring_issues.empty:
+                    top_issue_row = recurring_issues.iloc[0]
+                    issue_product = titleize(top_issue_row['Product'])
+                    issue_feature = titleize(top_issue_row['Feature'])
+                    issue_name = titleize(top_issue_row['Issue'])
+                    issue_count = top_issue_row['Count']
+                    insights.append(
+                        f"🔁 The most frequently reported issue is '{issue_name}' for the '{issue_feature}' feature of '{issue_product}' ({issue_count:,} tickets). "
+                        f"Addressing this issue could reduce overall ticket volume."
+                    )
+                else:
+                    insights.append("No recurring issues were identified for any product or feature in the current selection.")
+
+            return html.Div([html.Div(i, className="mb-2", style={'fontSize': '13px'}) for i in insights], className="insights-container")
         except Exception as e:
             return html.Div(f"Error generating insights: {str(e)}", className="text-danger p-2")
+
 
     # Main chart and insights callback
     @callback(
@@ -221,7 +261,7 @@ def register_workflow_product_impact_callbacks(app):
             filtered_data = apply_product_impact_filters(base_data['work_items'], stored_selections)
             impact_counts, summary_stats = prepare_product_impact_data(filtered_data, top_count)
             fig = create_product_impact_chart(impact_counts, summary_stats)
-            insights = generate_product_impact_insights(impact_counts, summary_stats)
+            insights = generate_product_impact_insights(impact_counts, summary_stats, filtered_data)
             return fig, insights
         except Exception as e:
             fig = go.Figure()
