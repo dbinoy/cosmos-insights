@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import copy
 from src.utils.db import run_queries
+from inflection import titleize, pluralize
 from src.utils.performance import monitor_performance, monitor_query_performance, monitor_chart_performance
 
 def register_workflow_source_analysis_callbacks(app):
@@ -80,23 +81,23 @@ def register_workflow_source_analysis_callbacks(app):
                 try:
                     start_dt = pd.to_datetime(start_date)
                     end_dt = pd.to_datetime(end_date)
-                    print(f"📅 Applying date filter: From {start_dt.date()} To {end_dt.date()}")
+                    # print(f"📅 Applying date filter: From {start_dt.date()} To {end_dt.date()}")
                     df_work_items = df_work_items.loc[
                         (df_work_items['CreatedOn'] >= start_dt) & 
                         (df_work_items['ClosedOn'] <= end_dt)
                     ].copy()
-                    print(f"📅 Date filter applied: {len(df_work_items)} work item records")
+                    # print(f"📅 Date filter applied: {len(df_work_items)} work item records")
                 except Exception as e:
                     print(f"❌ Error applying date filter: {e}")
         
         # Apply other filters
         if selected_aor is not None and len(selected_aor) > 0 and "All" not in selected_aor:
             df_work_items = df_work_items.loc[df_work_items['AorShortName'].isin(selected_aor)].copy()
-            print(f"🎯 AOR filter applied: {len(df_work_items)} records")
+            # print(f"🎯 AOR filter applied: {len(df_work_items)} records")
 
         if selected_case_types is not None and len(selected_case_types) > 0 and "All" not in selected_case_types:
             df_work_items = df_work_items.loc[df_work_items['WorkItemDefinitionShortCode'].isin(selected_case_types)].copy()
-            print(f"📋 Case Type filter applied: {len(df_work_items)} records")
+            # print(f"📋 Case Type filter applied: {len(df_work_items)} records")
 
         if selected_products is not None and len(selected_products) > 0 and "All" not in selected_products:
             df_work_items = df_work_items.loc[df_work_items['Product'].isin(selected_products)].copy()
@@ -104,7 +105,7 @@ def register_workflow_source_analysis_callbacks(app):
 
         if selected_modules is not None and len(selected_modules) > 0 and "All" not in selected_modules:
             df_work_items = df_work_items.loc[df_work_items['Module'].isin(selected_modules)].copy()
-            print(f"🧩 Module filter applied: {len(df_work_items)} records")
+            # print(f"🧩 Module filter applied: {len(df_work_items)} records")
             
         if selected_features is not None and len(selected_features) > 0 and "All" not in selected_features:
             df_work_items = df_work_items.loc[df_work_items['Feature'].isin(selected_features)].copy()
@@ -112,26 +113,44 @@ def register_workflow_source_analysis_callbacks(app):
 
         if selected_issues is not None and len(selected_issues) > 0 and "All" not in selected_issues:
             df_work_items = df_work_items.loc[df_work_items['Issue'].isin(selected_issues)].copy()
-            print(f"🐛 Issue filter applied: {len(df_work_items)} records")
+            # print(f"🐛 Issue filter applied: {len(df_work_items)} records")
 
         if selected_origins is not None and len(selected_origins) > 0 and "All" not in selected_origins:
             df_work_items = df_work_items.loc[df_work_items['CaseOrigin'].isin(selected_origins)].copy()
-            print(f"📍 Origin filter applied: {len(df_work_items)} records")
+            # print(f"📍 Origin filter applied: {len(df_work_items)} records")
 
         if selected_reasons is not None and len(selected_reasons) > 0 and "All" not in selected_reasons:
             df_work_items = df_work_items.loc[df_work_items['CaseReason'].isin(selected_reasons)].copy()
-            print(f"📝 Reason filter applied: {len(df_work_items)} records")
+            # print(f"📝 Reason filter applied: {len(df_work_items)} records")
 
         if selected_status is not None and len(selected_status) > 0 and "All" not in selected_status:
             df_work_items = df_work_items.loc[df_work_items['WorkItemStatus'].isin(selected_status)].copy()
-            print(f"📊 Status filter applied: {len(df_work_items)} records")
+            # print(f"📊 Status filter applied: {len(df_work_items)} records")
 
         if selected_priority is not None and len(selected_priority) > 0 and "All" not in selected_priority:
             df_work_items = df_work_items.loc[df_work_items['Priority'].isin(selected_priority)].copy()
-            print(f"⚡ Priority filter applied: {len(df_work_items)} records")
-        
+            # print(f"⚡ Priority filter applied: {len(df_work_items)} records")
+
         return df_work_items
 
+    def map_case_origin_group(origin):
+        origin = origin.lower() if isinstance(origin, str) else ''
+        if origin in ['phone-call']:
+            return 'Phone Call'
+        elif origin in ['chat']:
+            return 'Chat'
+        elif origin in [
+            'support-email', 'association-support-email', 'email', 
+            'compliance-email', 'training-request-email', 'legal-email', 'ceo-email'
+        ]:
+            return 'Email'
+        elif origin in ['crmls-staff']:
+            return 'Staff Reported'
+        elif origin in ['voicemail']:
+            return 'Voicemail'
+        else:
+            return 'Others'
+    
     @monitor_performance("Source Analysis Data Preparation")
     def prepare_source_analysis_data(filtered_data):
         """
@@ -140,26 +159,76 @@ def register_workflow_source_analysis_callbacks(app):
         if filtered_data.empty:
             return pd.DataFrame(), {}
         df = filtered_data.copy()
-        # Group by CaseOrigin and count tickets
-        origin_counts = df['CaseOrigin'].value_counts().reset_index()
-        origin_counts.columns = ['CaseOrigin', 'TicketCount']
-        # Calculate percentages
-        total = origin_counts['TicketCount'].sum()
-        origin_counts['Percentage'] = (origin_counts['TicketCount'] / total * 100).round(1)
+        df['OriginGroup'] = df['CaseOrigin'].apply(map_case_origin_group)
+        grouped = df.groupby('OriginGroup').agg(
+            TicketCount=('CaseOrigin', 'count')
+        ).reset_index()
+        grouped['Percentage'] = (grouped['TicketCount'] / grouped['TicketCount'].sum() * 100).round(1)
+        # For hover details: collect all sub-origins per group
+        sub_origin_details = (
+            df.groupby('OriginGroup')['CaseOrigin']
+            .value_counts()
+            .groupby(level=0)
+            .apply(lambda x: "<br>".join([f"{pluralize(titleize(k[1]))}: {v}" for k, v in x.items()]))
+        )
+        grouped['Details'] = grouped['OriginGroup'].map(sub_origin_details)
+        # Sort by TicketCount descending for top, ascending for least
+        grouped_sorted_desc = grouped.sort_values('TicketCount', ascending=False).reset_index(drop=True)
+        grouped_sorted_asc = grouped.sort_values('TicketCount', ascending=True).reset_index(drop=True)
         summary_stats = {
-            'total_tickets': total,
-            'num_origins': len(origin_counts),
-            'top_origin': origin_counts.iloc[0]['CaseOrigin'] if len(origin_counts) > 0 else 'N/A',
-            'top_origin_count': origin_counts.iloc[0]['TicketCount'] if len(origin_counts) > 0 else 0
+            'total_tickets': grouped['TicketCount'].sum(),
+            'num_groups': len(grouped),
+            'top_group': grouped_sorted_desc.iloc[0]['OriginGroup'] if len(grouped_sorted_desc) > 0 else 'N/A',
+            'top_group_count': grouped_sorted_desc.iloc[0]['TicketCount'] if len(grouped_sorted_desc) > 0 else 0,
+            'least_group': grouped_sorted_asc.iloc[0]['OriginGroup'] if len(grouped_sorted_asc) > 0 else 'N/A',
+            'least_group_count': grouped_sorted_asc.iloc[0]['TicketCount'] if len(grouped_sorted_asc) > 0 else 0
         }
-        return origin_counts, summary_stats
+        return grouped, summary_stats    
+        
+    def generate_source_analysis_insights(origin_counts, summary_stats, filtered_data=None):
+        """
+        Generate insights for source/origin analysis.
+        Shows least used original channel (not consolidated group).
+        """
+        if origin_counts.empty or not summary_stats:
+            return html.Div([
+                html.Div([html.Span("📊 No source/origin data available for current filter selection", style={'fontSize': '13px'})], className="mb-2"),
+                html.Div([html.Span("🔍 Try adjusting your filters to see source channel insights", style={'fontSize': '13px'})], className="mb-2")
+            ], className="insights-container")
+        try:
+            insights = []
+            total = summary_stats['total_tickets']
+            top_group = summary_stats['top_group']
+            top_group_count = summary_stats['top_group_count']
+            num_groups = summary_stats['num_groups']
+            insights.append(f"📊 {total:,} tickets submitted via {num_groups} channels.")
+            if top_group:
+                pct = (top_group_count / total * 100) if total > 0 else 0
+                insights.append(f"🏆 Top Channel: '{top_group}' with {top_group_count:,} tickets ({pct:.1f}%)")
+            # Find least used original CaseOrigin
+            if filtered_data is not None and not filtered_data.empty:
+                origin_counts_raw = (
+                    filtered_data['CaseOrigin']
+                    .value_counts()
+                    .reset_index()
+                )
+                origin_counts_raw.columns = ['CaseOrigin', 'TicketCount']
+                origin_counts_raw = origin_counts_raw.sort_values('TicketCount', ascending=True)
+                least_origin_row = origin_counts_raw.iloc[0]
+                least_origin = pluralize(titleize(least_origin_row['CaseOrigin']))
+                least_count = least_origin_row['TicketCount']
+                insights.append(f"🔻 Least Used Channel: '{least_origin}' with {least_count:,} tickets")                
+            return html.Div([html.Div(html.Span(i, style={'fontSize': '13px'}), className="mb-2") for i in insights], className="insights-container")
+        except Exception as e:
+            print(f"❌ Error generating insights::: {e}")
+            return html.Div(f"Error generating insights: {str(e)}", className="text-danger p-2")
 
     @monitor_chart_performance("Source Analysis Chart")
-    def create_source_analysis_chart(origin_counts, summary_stats):
+    def create_source_analysis_chart(grouped, summary_stats):
         """
-        Create pie/bar chart for ticket source/origin analysis
+        Create pie chart for grouped ticket source/origin analysis
         """
-        if origin_counts.empty:
+        if grouped.empty:
             fig = go.Figure()
             fig.add_annotation(
                 text="No source/origin data available for selected filters",
@@ -177,12 +246,12 @@ def register_workflow_source_analysis_callbacks(app):
             return fig
 
         fig = go.Figure()
-        # Pie chart for distribution
         fig.add_trace(go.Pie(
-            labels=origin_counts['CaseOrigin'],
-            values=origin_counts['TicketCount'],
+            labels=grouped['OriginGroup'],
+            values=grouped['TicketCount'],
             textinfo='label+percent',
-            hovertemplate="<b>%{label}</b><br>Tickets: %{value}<br>Percent: %{percent}<extra></extra>",
+            hovertemplate="<b>%{label}</b><br>Tickets: %{value}<br>Percent: %{percent}<br><br>Details:<br> %{customdata}<extra></extra>",
+            customdata=grouped['Details'],
             marker=dict(line=dict(color='white', width=2))
         ))
         fig.update_layout(
@@ -191,37 +260,10 @@ def register_workflow_source_analysis_callbacks(app):
             margin={'l': 30, 'r': 30, 't': 60, 'b': 30},
             plot_bgcolor='white',
             paper_bgcolor='white',
-            showlegend=True,
-            # legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5, font=dict(size=11))
+            showlegend=True
         )
-        return fig
+        return fig        
 
-    def generate_source_analysis_insights(origin_counts, summary_stats):
-        """
-        Generate insights for source/origin analysis
-        """
-        if origin_counts.empty or not summary_stats:
-            return html.Div([
-                html.Div([html.Span("📊 No source/origin data available for current filter selection", style={'fontSize': '13px'})], className="mb-2"),
-                html.Div([html.Span("🔍 Try adjusting your filters to see source channel insights", style={'fontSize': '13px'})], className="mb-2")
-            ], className="insights-container")
-        try:
-            insights = []
-            total = summary_stats['total_tickets']
-            top_origin = summary_stats['top_origin']
-            top_count = summary_stats['top_origin_count']
-            num_origins = summary_stats['num_origins']
-            insights.append(f"📊 {total:,} tickets submitted via {num_origins} channels.")
-            if top_origin:
-                pct = (top_count / total * 100) if total > 0 else 0
-                insights.append(f"🏆 Top Channel: '{top_origin}' with {top_count:,} tickets ({pct:.1f}%)")
-            if num_origins > 1:
-                least_origin = origin_counts.iloc[-1]['CaseOrigin']
-                least_count = origin_counts.iloc[-1]['TicketCount']
-                insights.append(f"🔻 Least Used Channel: '{least_origin}' with {least_count:,} tickets")
-            return html.Div([html.Div(html.Span(i, style={'fontSize': '13px'}), className="mb-2") for i in insights], className="insights-container")
-        except Exception as e:
-            return html.Div(f"Error generating insights: {str(e)}", className="text-danger p-2")
 
     # Main chart and insights callback
     @callback(
@@ -240,9 +282,10 @@ def register_workflow_source_analysis_callbacks(app):
             filtered_data = apply_source_analysis_filters(base_data['work_items'], stored_selections)
             origin_counts, summary_stats = prepare_source_analysis_data(filtered_data)
             fig = create_source_analysis_chart(origin_counts, summary_stats)
-            insights = generate_source_analysis_insights(origin_counts, summary_stats)
+            insights = generate_source_analysis_insights(origin_counts, summary_stats, filtered_data)
             return fig, insights
         except Exception as e:
+            print(f"❌ Error updating source analysis chart: {e}")
             fig = go.Figure()
             fig.add_annotation(
                 text=f"Error loading source analysis data: {str(e)}",
@@ -329,3 +372,53 @@ def register_workflow_source_analysis_callbacks(app):
             enlarged_chart = create_enlarged_source_analysis_chart(chart_figure)
             return True, enlarged_chart
         return no_update, no_update
+
+    @callback(
+        [Output("workflow-source-details-modal", "is_open"),
+        Output("workflow-source-details-content", "children")],
+        [Input("workflow-source-details-btn", "n_clicks"),
+        Input("workflow-source-details-close-btn", "n_clicks")],
+        [State("workflow-source-details-modal", "is_open"),
+        State("workflow-filtered-query-store", "data")],
+        prevent_initial_call=True
+    )
+    def toggle_source_details_modal(open_click, close_click, is_open, stored_selections):
+        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+        if triggered_id == "workflow-source-details-btn" and open_click:
+            # Prepare details table
+            base_data = get_source_analysis_base_data()
+            filtered_data = apply_source_analysis_filters(base_data['work_items'], stored_selections)
+            df = filtered_data.copy()
+            df['OriginGroup'] = df['CaseOrigin'].apply(map_case_origin_group)
+            # Aggregate ticket counts
+            agg = (
+                df.groupby(['OriginGroup', 'CaseOrigin'])
+                .size()
+                .reset_index(name='TicketCount')
+            )
+            # Get total tickets per OriginGroup for sorting
+            group_totals = agg.groupby('OriginGroup')['TicketCount'].sum().reset_index()
+            # Merge totals for sorting
+            agg = agg.merge(group_totals, on='OriginGroup', suffixes=('', '_GroupTotal'))
+            # Sort by group total descending, then CaseOrigin ticket count descending
+            agg = agg.sort_values(['TicketCount_GroupTotal', 'TicketCount'], ascending=[False, False])
+            table = html.Table([
+                html.Thead([
+                    html.Tr([
+                        html.Th("Origin Group"),
+                        html.Th("CaseOrigin"),
+                        html.Th("Ticket Count")
+                    ])
+                ]),
+                html.Tbody([
+                    html.Tr([
+                        html.Td(row['OriginGroup']),
+                        html.Td(pluralize(titleize(row['CaseOrigin']))),
+                        html.Td(row['TicketCount'])
+                    ]) for _, row in agg.iterrows()
+                ])
+            ], className="table table-hover")
+            return True, table
+        elif triggered_id == "workflow-source-details-close-btn" and close_click:
+            return False, no_update
+        return is_open, no_update    
