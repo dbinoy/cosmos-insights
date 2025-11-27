@@ -1,6 +1,7 @@
 from dash import callback, Input, Output, State, ctx, html, dcc, no_update
 import dash_bootstrap_components as dbc
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 import copy
 from src.utils.db import run_queries
@@ -31,7 +32,17 @@ def register_workflow_user_performance_callbacks(app):
                 FROM [consumable].[Fact_WorkFlowItems]
             """,
             "duration_summary": """
-                SELECT WorkItemId, OpenToClosed_Min
+                SELECT WorkItemId,
+                    OpenToCanceled_Min,
+                    OpenToFirstCallClosed_Min,
+                    OpenToClosed_Min,
+                    OpenToResolved_Min,
+                    OpenToSelfFix_Min,
+                    OpenToInProgress_Min,
+                    OpenToInsufficientDetails_Min,
+                    OpenToOnHold_Min,
+                    OpenToPendingVerification_Min,
+                    OpenToScheduled_Min
                 FROM [consumable].[Fact_DurationSummary]
             """,
             "workflow_history": """
@@ -109,36 +120,70 @@ def register_workflow_user_performance_callbacks(app):
         duration_summary = pd.DataFrame(base_data['duration_summary'])
         workflow_history = pd.DataFrame(base_data['workflow_history'])
 
+        # Merge work_items with duration_summary
+        df = work_items.merge(duration_summary, on='WorkItemId', how='left')
+
         if chart_type == "tickets_handled":
             ticket_counts = work_items.groupby('AssignedTo').size().reset_index(name='TicketsHandled')
             ticket_counts = ticket_counts.sort_values('TicketsHandled', ascending=False)
             return ticket_counts
 
         elif chart_type == "avg_resolution":
-            df = work_items.merge(duration_summary, on='WorkItemId', how='left')
-            avg_resolution = df.groupby('AssignedTo')['OpenToClosed_Min'].mean().reset_index()
-            avg_resolution['AvgResolutionHours'] = (avg_resolution['OpenToClosed_Min'] / 60).round(2)
+            resolution_fields = [
+                'OpenToCanceled_Min',
+                'OpenToFirstCallClosed_Min',
+                'OpenToClosed_Min',
+                'OpenToResolved_Min',
+                'OpenToSelfFix_Min'
+            ]
+            df['Resolution_Min'] = df[resolution_fields].bfill(axis=1).iloc[:, 0]
+            avg_resolution = df.groupby('AssignedTo')['Resolution_Min'].mean().reset_index()
+            avg_resolution = avg_resolution[avg_resolution['Resolution_Min'].notnull()]
+            avg_resolution['AvgResolutionHours'] = (avg_resolution['Resolution_Min'] / 60).round(2)
             avg_resolution = avg_resolution.sort_values('AvgResolutionHours')
             return avg_resolution
 
-        elif chart_type == "notes_tasks":
-            df = workflow_history.copy()
-            notes_tasks = df[df['ChangedBy'].isin(work_items['AssignedTo']) & df['ChangedField'].isin(['Note', 'Task'])].groupby('ChangedBy').size().reset_index(name='NotesTasksCompleted')
-            notes_tasks = notes_tasks.sort_values('NotesTasksCompleted', ascending=False)
-            return notes_tasks
+        elif chart_type == "first_action":
+            action_fields = [
+                'OpenToInProgress_Min',
+                'OpenToInsufficientDetails_Min',
+                'OpenToOnHold_Min',
+                'OpenToPendingVerification_Min',
+                'OpenToScheduled_Min'
+            ]
+            df['FirstAction_Min'] = df[action_fields].bfill(axis=1).iloc[:, 0]
+            avg_first_action = df.groupby('AssignedTo')['FirstAction_Min'].mean().reset_index()
+            avg_first_action = avg_first_action[avg_first_action['FirstAction_Min'].notnull()]
+            avg_first_action['AvgFirstActionHours'] = (avg_first_action['FirstAction_Min'] / 60).round(2)
+            avg_first_action = avg_first_action.sort_values('AvgFirstActionHours')
+            return avg_first_action
+
+        elif chart_type == "actions_tasks":
+            actions_tasks = workflow_history.copy()
+            actions_tasks = actions_tasks[actions_tasks['ChangedBy'].isin(work_items['AssignedTo'])].groupby('ChangedBy').size().reset_index(name='ActionsTasksCompleted')
+            actions_tasks = actions_tasks.sort_values('ActionsTasksCompleted', ascending=False)
+            return actions_tasks
 
         elif chart_type == "top_performers":
             tickets = work_items.groupby('AssignedTo').size().reset_index(name='TicketsHandled')
-            avg_res = work_items.merge(duration_summary, on='WorkItemId', how='left').groupby('AssignedTo')['OpenToClosed_Min'].mean().reset_index()
-            avg_res['AvgResolutionHours'] = (avg_res['OpenToClosed_Min'] / 60).round(2)
-            merged = tickets.merge(avg_res[['AssignedTo', 'AvgResolutionHours']], on='AssignedTo', how='left')
+            resolution_fields = [
+                'OpenToCanceled_Min',
+                'OpenToFirstCallClosed_Min',
+                'OpenToClosed_Min',
+                'OpenToResolved_Min',
+                'OpenToSelfFix_Min'
+            ]
+            df['Resolution_Min'] = df[resolution_fields].bfill(axis=1).iloc[:, 0]
+            avg_res = df.groupby('AssignedTo')['Resolution_Min'].mean().reset_index()
+            avg_res['AvgResolutionHours'] = (avg_res['Resolution_Min'] / 60).round(2)
+            merged = tickets.merge(avg_res[['AssignedTo', 'AvgResolutionHours']], on='AssignedTo', how='inner')
             merged = merged.sort_values(['TicketsHandled', 'AvgResolutionHours'], ascending=[False, True])
             return merged
 
         return pd.DataFrame()
 
     @monitor_chart_performance("User Performance Chart")
-    def create_user_performance_chart(data, chart_type):
+    def create_user_performance_chart(data, chart_type, count_bottom=None):
         if data.empty:
             fig = go.Figure()
             fig.add_annotation(
@@ -175,34 +220,60 @@ def register_workflow_user_performance_callbacks(app):
             fig.update_layout(title="Average Resolution Time by User", xaxis_title="User", yaxis_title="Avg Resolution (hrs)", height=400)
             return fig
 
-        elif chart_type == "notes_tasks":
+        elif chart_type == "first_action":
             fig = go.Figure(go.Bar(
-                x=[titleize(u) for u in data['ChangedBy']],
-                y=data['NotesTasksCompleted'],
-                text=data['NotesTasksCompleted'],
+                x=[titleize(u) for u in data['AssignedTo']],
+                y=data['AvgFirstActionHours'],
+                text=data['AvgFirstActionHours'],
                 textposition='auto',
                 marker=dict(color='#f39c12'),
-                hovertemplate="<b>%{x}</b><br>Notes/Tasks: %{y}<extra></extra>"
+                hovertemplate="<b>%{x}</b><br>Avg First Action (hrs): %{y}<extra></extra>"
             ))
-            fig.update_layout(title="Notes/Tasks Completed by User", xaxis_title="User", yaxis_title="Notes/Tasks", height=400)
+            fig.update_layout(title="Average First Action Time by User", xaxis_title="User", yaxis_title="Avg First Action (hrs)", height=400)
             return fig
 
+        elif chart_type == "actions_tasks":
+            fig = go.Figure(go.Bar(
+                x=[titleize(u) for u in data['ChangedBy']],
+                y=data['ActionsTasksCompleted'],
+                text=data['ActionsTasksCompleted'],
+                textposition='auto',
+                marker=dict(color='#f39c12'),
+                hovertemplate="<b>%{x}</b><br>Actions/Tasks: %{y}<extra></extra>"
+            ))
+            fig.update_layout(title="Actions/Tasks Completed by User", xaxis_title="User", yaxis_title="Actions/Tasks", height=400)
+            return fig
+       
         elif chart_type == "top_performers":
+            if count_bottom and count_bottom != "all":
+                max_scale = 20
+                min_scale = 2
+                max_dropdown = 50
+                n = int(count_bottom)
+                scale = min_scale + (max_scale - min_scale) * (1 - (n - 1) / (max_dropdown - 1))
+            else:
+                scale = 2
+            marker_sizes = np.log1p(data['TicketsHandled']) * scale
             fig = go.Figure(go.Scatter(
-                x=[titleize(u) for u in data['AssignedTo']],
-                y=data['TicketsHandled'],
+                x=data['TicketsHandled'],
+                y=data['AvgResolutionHours'],
                 mode='markers',
                 marker=dict(
-                    size=data['TicketsHandled'],
+                    size=marker_sizes,
                     color=data['AvgResolutionHours'],
                     colorscale='Viridis',
                     showscale=True
                 ),
-                text=[f"Avg Resolution: {v} hrs" for v in data['AvgResolutionHours']],
-                hovertemplate="<b>%{x}</b><br>Tickets: %{y}<br>Avg Resolution: %{marker.color} hrs<extra></extra>"
+                text=[titleize(u) for u in data['AssignedTo']],
+                hovertemplate="<b>%{text}</b><br>Tickets: %{x}<br>Avg Resolution: %{y} hrs<extra></extra>"
             ))
-            fig.update_layout(title="Top Performers (Tickets vs Resolution)", xaxis_title="User", yaxis_title="Tickets Handled", height=400)
-            return fig
+            fig.update_layout(
+                title="Top Performers: Tickets vs Avg Resolution",
+                xaxis_title="Tickets Handled",
+                yaxis_title="Avg Resolution (hrs)",
+                height=400
+            )
+            return fig        
 
         return go.Figure()
 
@@ -220,9 +291,12 @@ def register_workflow_user_performance_callbacks(app):
         elif chart_type == "avg_resolution":
             fastest_user = data.iloc[0]
             insights.append(f"⏱️ {titleize(fastest_user['AssignedTo'])} resolves tickets fastest (avg {fastest_user['AvgResolutionHours']} hrs).")
-        elif chart_type == "notes_tasks":
-            top_notes = data.iloc[0]
-            insights.append(f"📝 {titleize(top_notes['ChangedBy'])} has completed the most notes/tasks ({top_notes['NotesTasksCompleted']:,}).")
+        elif chart_type == "first_action":
+            quickest_user = data.iloc[0]
+            insights.append(f"🚀 {titleize(quickest_user['AssignedTo'])} takes action fastest (avg {quickest_user['AvgFirstActionHours']} hrs).")
+        elif chart_type == "actions_tasks":
+            top_actions = data.iloc[0]
+            insights.append(f"📝 {titleize(top_actions['ChangedBy'])} has completed the most actions/tasks ({top_actions['ActionsTasksCompleted']:,}).")
         elif chart_type == "top_performers":
             top_perf = data.iloc[0]
             insights.append(f"🌟 Top performer: {titleize(top_perf['AssignedTo'])} ({top_perf['TicketsHandled']} tickets, avg {top_perf['AvgResolutionHours']} hrs resolution).")
@@ -234,21 +308,46 @@ def register_workflow_user_performance_callbacks(app):
         [
             Output("workflow-user-performance-chart", "figure"),
             Output("workflow-performance-insights", "children"),
+            Output("workflow-user-performance-count-top-dropdown", "value"),
+            Output("workflow-user-performance-count-bottom-dropdown", "value"),
         ],
         [
             Input("workflow-user-performance-view-dropdown", "value"),
+            Input("workflow-user-performance-count-top-dropdown", "value"),
+            Input("workflow-user-performance-count-bottom-dropdown", "value"),
             Input("workflow-filtered-query-store", "data"),
         ],
         prevent_initial_call=False
     )
-    def update_user_performance_chart(chart_type, stored_selections):
-        base_data = get_user_performance_base_data()
+    @monitor_performance("User Performance Chart Update")
+    def update_user_performance_chart(chart_type, count_top, count_bottom, stored_selections):
+        # Logic to ensure only one of top/bottom is active at a time
+        ctx_trigger = ctx.triggered_id if hasattr(ctx, "triggered_id") else None
 
+        # If top changed and not "all", set bottom to "all"
+        if ctx_trigger == "workflow-user-performance-count-top-dropdown" and count_top != "all":
+            count_bottom = "all"
+        # If bottom changed and not "all", set top to "all"
+        elif ctx_trigger == "workflow-user-performance-count-bottom-dropdown" and count_bottom != "all":
+            count_top = "all"
+
+        base_data = get_user_performance_base_data()
         filtered_work_items = apply_user_performance_filters(base_data['work_items'], stored_selections)
         data = prepare_user_performance_data(base_data, filtered_work_items, chart_type)
-        fig = create_user_performance_chart(data, chart_type)
+
+        # Apply top/bottom filtering
+        if isinstance(data, pd.DataFrame) and not data.empty:
+            top_n = None if count_top == "all" else int(count_top)
+            bottom_n = None if count_bottom == "all" else int(count_bottom)
+            if top_n:
+                data = data.head(top_n)
+            elif bottom_n:
+                data = data.tail(bottom_n)
+            # If both are "all", show all
+
+        fig = create_user_performance_chart(data, chart_type, count_bottom)
         insights = generate_user_performance_insights(data, chart_type)
-        return fig, insights
+        return fig, insights, count_top, count_bottom
 
     @monitor_chart_performance("Enlarged User Performance Chart")
     def create_enlarged_user_performance_chart(original_figure):
@@ -305,11 +404,11 @@ def register_workflow_user_performance_callbacks(app):
 
     @callback(
         [Output("workflow-chart-modal", "is_open", allow_duplicate=True),
-         Output("workflow-modal-chart-content", "children", allow_duplicate=True)],
+        Output("workflow-modal-chart-content", "children", allow_duplicate=True)],
         [Input("workflow-user-performance-chart", "clickData"),
-         Input("workflow-chart-modal", "is_open")],
+        Input("workflow-chart-modal", "is_open")],
         [State("workflow-user-performance-chart", "figure"),
-         State("workflow-chart-modal", "is_open")],
+        State("workflow-chart-modal", "is_open")],
         prevent_initial_call=True
     )
     def toggle_user_performance_chart_modal(chart_click, modal_is_open, chart_figure, is_open_state):
