@@ -279,29 +279,45 @@ def register_workflow_user_performance_callbacks(app):
 
     @monitor_performance("User Performance Insights Generation")
     def generate_user_performance_insights(data, chart_type):
+        # Always use the full dataset for insights, not just the chart subset
         if data.empty:
             return html.Div([
                 html.Div("📊 No user activity data available for current filter selection", className="mb-2", style={'fontSize': '13px'}),
                 html.Div("🔍 Try adjusting your filters to see user performance insights", className="mb-2", style={'fontSize': '13px'})
             ], className="insights-container")
+
         insights = []
         if chart_type == "tickets_handled":
             top_user = data.iloc[0]
+            bottom_user = data.iloc[-1]
             insights.append(f"🏆 {titleize(top_user['AssignedTo'])} has handled the most tickets ({top_user['TicketsHandled']:,}).")
+            insights.append(f"📉 {titleize(bottom_user['AssignedTo'])} has handled the fewest tickets ({bottom_user['TicketsHandled']:,}).")
+            insights.append(f"🔢 Total users: {len(data)}. Median tickets handled: {int(data['TicketsHandled'].median())}.")
         elif chart_type == "avg_resolution":
             fastest_user = data.iloc[0]
+            slowest_user = data.iloc[-1]
             insights.append(f"⏱️ {titleize(fastest_user['AssignedTo'])} resolves tickets fastest (avg {fastest_user['AvgResolutionHours']} hrs).")
+            insights.append(f"🐢 {titleize(slowest_user['AssignedTo'])} has the slowest resolution (avg {slowest_user['AvgResolutionHours']} hrs).")
+            insights.append(f"🔢 Median resolution time: {data['AvgResolutionHours'].median()} hrs.")
         elif chart_type == "first_action":
             quickest_user = data.iloc[0]
+            slowest_user = data.iloc[-1]
             insights.append(f"🚀 {titleize(quickest_user['AssignedTo'])} takes action fastest (avg {quickest_user['AvgFirstActionHours']} hrs).")
+            insights.append(f"🐢 {titleize(slowest_user['AssignedTo'])} takes longest to act (avg {slowest_user['AvgFirstActionHours']} hrs).")
+            insights.append(f"🔢 Median first action time: {data['AvgFirstActionHours'].median()} hrs.")
         elif chart_type == "actions_tasks":
             top_actions = data.iloc[0]
+            bottom_actions = data.iloc[-1]
             insights.append(f"📝 {titleize(top_actions['ChangedBy'])} has completed the most actions/tasks ({top_actions['ActionsTasksCompleted']:,}).")
+            insights.append(f"📉 {titleize(bottom_actions['ChangedBy'])} has completed the fewest actions/tasks ({bottom_actions['ActionsTasksCompleted']:,}).")
+            insights.append(f"🔢 Median actions/tasks completed: {int(data['ActionsTasksCompleted'].median())}.")
         elif chart_type == "top_performers":
             top_perf = data.iloc[0]
-            insights.append(f"🌟 Top performer: {titleize(top_perf['AssignedTo'])} ({top_perf['TicketsHandled']} tickets, avg {top_perf['AvgResolutionHours']} hrs resolution).")
             low_perf = data.iloc[-1]
+            insights.append(f"🌟 Top performer: {titleize(top_perf['AssignedTo'])} ({top_perf['TicketsHandled']} tickets, avg {top_perf['AvgResolutionHours']} hrs resolution).")
             insights.append(f"⚠️ {titleize(low_perf['AssignedTo'])} may need support/training ({low_perf['TicketsHandled']} tickets, avg {low_perf['AvgResolutionHours']} hrs resolution).")
+            insights.append(f"🔢 Median tickets handled: {int(data['TicketsHandled'].median())}, median resolution: {data['AvgResolutionHours'].median()} hrs.")
+
         return html.Div([html.Div(i, className="mb-2", style={'fontSize': '13px'}) for i in insights], className="insights-container")
 
     @callback(
@@ -340,12 +356,13 @@ def register_workflow_user_performance_callbacks(app):
             top_n = None if count_top == "all" else int(count_top)
             bottom_n = None if count_bottom == "all" else int(count_bottom)
             if top_n:
-                data = data.head(top_n)
+                chart_data = data.head(top_n)
             elif bottom_n:
-                data = data.tail(bottom_n)
-            # If both are "all", show all
+                chart_data = data.tail(bottom_n)
+            else:
+                chart_data = data
 
-        fig = create_user_performance_chart(data, chart_type, count_bottom)
+        fig = create_user_performance_chart(chart_data, chart_type, count_bottom)
         insights = generate_user_performance_insights(data, chart_type)
         return fig, insights, count_top, count_bottom
 
