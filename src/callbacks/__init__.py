@@ -28,6 +28,7 @@ from src.callbacks.workflow_callbacks.workflow_source_analysis import register_w
 from src.callbacks.workflow_callbacks.workflow_product_impact import register_workflow_product_impact_callbacks
 from src.callbacks.workflow_callbacks.workflow_user_performance import register_workflow_user_performance_callbacks
 from src.callbacks.workflow_callbacks.workflow_trends_analysis import register_workflow_trends_case_reasons_issues_callbacks
+from src.callbacks.workflow_callbacks.workflow_data_table import register_workflow_data_table_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
@@ -60,3 +61,4 @@ def register_all_callbacks(app):
     register_workflow_product_impact_callbacks(app)
     register_workflow_user_performance_callbacks(app)
     register_workflow_trends_case_reasons_issues_callbacks(app)
+    register_workflow_data_table_callbacks(app)
