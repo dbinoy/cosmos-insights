@@ -420,17 +420,23 @@ def register_workflow_user_performance_callbacks(app):
             return html.Div(f"Error displaying chart: {str(e)}", className="text-center p-4 text-danger")
 
     @callback(
-        [Output("workflow-chart-modal", "is_open", allow_duplicate=True),
-        Output("workflow-modal-chart-content", "children", allow_duplicate=True)],
-        [Input("workflow-user-performance-chart", "clickData"),
-        Input("workflow-chart-modal", "is_open")],
-        [State("workflow-user-performance-chart", "figure"),
-        State("workflow-chart-modal", "is_open")],
+        [
+            Output("workflow-chart-modal", "is_open", allow_duplicate=True),
+            Output("workflow-modal-chart-content", "children", allow_duplicate=True)
+        ],
+        [
+            Input("workflow-user-performance-chart-wrapper", "n_clicks"),
+            Input("workflow-chart-modal", "is_open")
+        ],
+        [
+            State("workflow-user-performance-chart", "figure"),
+            State("workflow-chart-modal", "is_open")
+        ],
         prevent_initial_call=True
     )
-    def toggle_user_performance_chart_modal(chart_click, modal_is_open, chart_figure, is_open_state):
+    def toggle_user_performance_chart_modal(wrapper_clicks, modal_is_open, chart_figure, is_open_state):
         triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
-        if triggered_id == "workflow-user-performance-chart" and chart_click and not is_open_state:
+        if triggered_id == "workflow-user-performance-chart-wrapper" and wrapper_clicks and not is_open_state:
             enlarged_chart = create_enlarged_user_performance_chart(chart_figure)
             return True, enlarged_chart
-        return (no_update, no_update)
+        return no_update, no_update

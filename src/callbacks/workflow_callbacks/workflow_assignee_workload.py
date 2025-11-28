@@ -794,49 +794,42 @@ def register_workflow_assignee_workload_callbacks(app):
             return fig, error_insights
             
     @callback(
-        [Output("workflow-assignee-workload-modal", "is_open"),
-        Output("workflow-assignee-workload-modal-chart", "figure")],
-        [Input("workflow-assignee-workload-chart", "clickData"),
-        Input("workflow-assignee-workload-modal-close", "n_clicks")],
-        [State("workflow-assignee-workload-modal", "is_open"),
-        State("workflow-filtered-query-store", "data"),
-        State("workflow-assignee-count-dropdown", "value"),
-        State("workflow-assignee-categories-dropdown", "value")],  # ADDED: Categories state
+        [
+            Output("workflow-assignee-workload-modal", "is_open"),
+            Output("workflow-assignee-workload-modal-chart", "figure")
+        ],
+        [
+            Input("workflow-assignee-workload-chart-wrapper", "n_clicks"),
+            Input("workflow-assignee-workload-modal-close", "n_clicks")
+        ],
+        [
+            State("workflow-assignee-workload-modal", "is_open"),
+            State("workflow-filtered-query-store", "data"),
+            State("workflow-assignee-count-dropdown", "value"),
+            State("workflow-assignee-categories-dropdown", "value")
+        ],
         prevent_initial_call=True
     )
-    def toggle_assignee_workload_modal(click_data, close_clicks, is_open, stored_selections, top_count, selected_categories):
-        """
-        Toggle modal window for enlarged assignee workload view
-        ENHANCED: Support category selection in modal
-        """
-        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-        
-        if triggered_id == "workflow-assignee-workload-chart" and click_data:
+    def toggle_assignee_workload_modal(wrapper_clicks, close_clicks, is_open, stored_selections, top_count, selected_categories):
+        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+
+        if triggered_id == "workflow-assignee-workload-chart-wrapper" and wrapper_clicks and not is_open:
             # Open modal with enlarged chart
             try:
                 if selected_categories is None or len(selected_categories) == 0:
                     selected_categories = ['Closed', 'Active', 'Non-Actionable', 'Total']
-                
-                # Get base data and prepare enlarged chart
                 base_data = get_assignee_workload_base_data()
                 filtered_data = apply_assignee_workload_filters(base_data['work_items'], stored_selections)
                 workload_data, summary_stats = prepare_assignee_workload_data(filtered_data, top_count or 10)
-                
-                # Create enlarged chart with selected categories
                 fig = create_assignee_workload_chart(workload_data, summary_stats, top_count or 10, selected_categories)
-                
-                # Enhanced modal height
                 fig.update_layout(height=600)
-                
                 return True, fig
-                
             except Exception as e:
                 print(f"❌ Error creating modal chart: {e}")
                 return True, create_error_figure("Error loading enlarged chart")
-        
         elif triggered_id == "workflow-assignee-workload-modal-close":
             # Close modal
             return False, go.Figure()
-        
         return is_open, go.Figure()
+        
     

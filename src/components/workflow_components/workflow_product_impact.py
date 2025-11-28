@@ -44,10 +44,17 @@ def get_product_impact_layout():
                     ], width=3)
                 ])
             ], style={'display': 'block', 'marginBottom': '15px'}),
-            dcc.Loading(
-                dcc.Graph(id="workflow-product-impact-chart", style={'height': '400px'}),
-                type="dot"
-            ),
+            html.Div(
+                id="workflow-product-impact-chart-container",
+                children=[
+                    html.Div([
+                        dcc.Loading(
+                            dcc.Graph(id="workflow-product-impact-chart", style={'height': '450px'}),
+                            type="dot"
+                        )
+                    ], id="workflow-product-impact-chart-wrapper", style={'cursor': 'pointer'})
+                ]
+            ),               
             html.Div(id="workflow-product-insights", className="mt-3")
         ])
     ], className="mb-4")

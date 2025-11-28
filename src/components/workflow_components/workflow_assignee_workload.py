@@ -64,18 +64,17 @@ def get_assignee_workload_layout():
                     ], width=5)
                 ])
             ], style={'display': 'block', 'marginBottom': '15px'}),
-
-            # Chart container
-            html.Div([
-                dcc.Loading(
-                    dcc.Graph(
-                        id="workflow-assignee-workload-chart", 
-                        style={'height': '450px', 'cursor': 'pointer'},
-                        config={'displayModeBar': True}
-                    ),
-                    type="dot"
-                )
-            ], id="workflow-assignee-workload-chart-wrapper", style={'cursor': 'pointer'}),
+            html.Div(
+                id="workflow-source-assignee-workload-chart-container",
+                children=[
+                    html.Div([
+                        dcc.Loading(
+                            dcc.Graph(id="workflow-assignee-workload-chart", style={'height': '450px'}),
+                            type="dot"
+                        )
+                    ], id="workflow-assignee-workload-chart-wrapper", style={'cursor': 'pointer'})
+                ]
+            ),               
             
             # Insights container
             html.Div(id="workflow-assignee-insights", className="mt-3")

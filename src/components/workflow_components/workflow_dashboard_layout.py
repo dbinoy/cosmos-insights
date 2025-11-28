@@ -11,7 +11,7 @@ from src.components.workflow_components.workflow_escalated_tickets import get_es
 from src.components.workflow_components.workflow_source_analysis import get_source_analysis_layout
 from src.components.workflow_components.workflow_product_impact import get_product_impact_layout
 from src.components.workflow_components.workflow_user_performance import get_user_performance_layout
-from src.components.workflow_components.workflow_trends_analysis import get_trends_analysis_layout
+from src.components.workflow_components.workflow_trends_analysis import get_trends_case_reasons_issues_layout
 from src.components.workflow_components.workflow_data_table import get_data_table_layout
 
 def create_workflow_dashboard_layout():
@@ -87,7 +87,7 @@ def create_workflow_dashboard_layout():
                 html.Div(get_user_performance_layout(), id="workflow-user-performance-container")
             ], width=6, lg=6),
             dbc.Col([
-                html.Div(get_trends_analysis_layout(), id="workflow-trends-analysis-container")
+                html.Div(get_trends_case_reasons_issues_layout(), id="workflow-trends-analysis-container")
             ], width=6, lg=6)
         ]),
 

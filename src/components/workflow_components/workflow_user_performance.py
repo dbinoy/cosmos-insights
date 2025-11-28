@@ -65,10 +65,17 @@ def get_user_performance_layout():
                     )
                 ], width=4)
             ]),
-            dcc.Loading(
-                dcc.Graph(id="workflow-user-performance-chart", style={'height': '400px'}),
-                type="dot"
-            ),
+            html.Div(
+                id="workflow-user-performance-chart-container",
+                children=[
+                    html.Div([
+                        dcc.Loading(
+                            dcc.Graph(id="workflow-user-performance-chart", style={'height': '450px'}),
+                            type="dot"
+                        )
+                    ], id="workflow-user-performance-chart-wrapper", style={'cursor': 'pointer'})
+                ]
+            ),            
             html.Div(id="workflow-performance-insights", className="mt-3")
         ])
     ], className="mb-4")
