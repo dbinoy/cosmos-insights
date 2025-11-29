@@ -11,16 +11,6 @@ from src.components.training_components.training_data_table import get_data_tabl
 
 def create_training_dashboard_layout():
     return dbc.Container([
-        # Include external JavaScript modules in correct order
-        # html.Script(src="/assets/js/core/cache-manager.js"),
-        # html.Script(src="/assets/js/core/data-manager.js"),
-        # html.Script(src="/assets/js/core/filter-utils.js"),
-        
-        # Training-specific modules (load after core modules)
-        # html.Script(src="/assets/js/training/training-filter-utils.js"),
-        # html.Script(src="/assets/js/training/training-data-manager.js"),
-        # html.Script(src="/assets/js/training/training-dropdown-handlers.js"),
-        # html.Script(src="/assets/js/training/training-summary-utils.js"),
 
         # Data stores
         dcc.Store(id="training-filtered-query-store"),
@@ -28,7 +18,7 @@ def create_training_dashboard_layout():
         dbc.Row([
             dbc.Col([
                 html.H2("Training Dashboard", className="mb-1"),
-                html.P("Comprehensive insights into training engagement, performance, and trends", 
+                html.P("Comprehensive insights into training engagement, instructor performance, and participation trends", 
                       className="text-muted mb-3")
             ], width=8),
             dbc.Col([

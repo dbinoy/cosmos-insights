@@ -141,14 +141,11 @@ def register_workflow_filter_callbacks(app):
             
             options = [{"label": f"All {label_prefix}", "value": "All"}]
             
-            # ✅ Handle empty strings by showing "Unspecified" as label
             for value in sorted(filtered_df[actual_column].dropna().unique()):
                 if pd.notnull(value):
                     str_value = str(value)
-                    # ✅ Special case: if value is empty string, show "Unspecified" as label
                     if str_value == "":
-                        label = "Unspecified"
-                        str_value = "-"  # Use placeholder value for empty string
+                        continue
                     else:
                         label = titleize(str_value)
                         label = label.replace("N/A", "").strip()                    

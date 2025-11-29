@@ -21,7 +21,7 @@ def create_workflow_dashboard_layout():
 
         dbc.Row([
             dbc.Col([
-                html.H2("Workflow Dashboard (Under Construction)", className="mb-1"),
+                html.H2("Workflow Dashboard", className="mb-1"),
                 html.P("Comprehensive insights into ticket management, performance tracking, and workload optimization", 
                       className="text-muted mb-3")
             ], width=8),

@@ -24,20 +24,21 @@ def register_workflow_data_table_callbacks(app):
         """Filter Fact_WorkFlowItems DataFrame based on all supported fields."""
         if work_items.empty:
             return work_items
-
+        print(f"Applying workflow data table filters: {query_selections}")
         # Parse filter values
-        selected_aor = [item.strip("'") for item in query_selections.get('AORs', '').split(',') if item.strip("'")]
-        selected_case_types = [item.strip("'") for item in query_selections.get('CaseTypes', '').split(',') if item.strip("'")]
-        selected_status = [item.strip("'") for item in query_selections.get('Status', '').split(',') if item.strip("'")]
-        selected_priority = [item.strip("'") for item in query_selections.get('Priority', '').split(',') if item.strip("'")]
-        selected_origins = [item.strip("'") for item in query_selections.get('Origins', '').split(',') if item.strip("'")]
-        selected_reasons = [item.strip("'") for item in query_selections.get('Reasons', '').split(',') if item.strip("'")]
-        selected_products = [item.strip("'") for item in query_selections.get('Products', '').split(',') if item.strip("'")]
-        selected_features = [item.strip("'") for item in query_selections.get('Features', '').split(',') if item.strip("'")]
-        selected_modules = [item.strip("'") for item in query_selections.get('Modules', '').split(',') if item.strip("'")]
-        selected_issues = [item.strip("'") for item in query_selections.get('Issues', '').split(',') if item.strip("'")]
+        selected_aor = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('AOR', '').split(', ') if item.strip("'")]
+        selected_case_types = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('CaseTypes', '').split(', ') if item.strip("'")]
+        selected_status = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Status', '').split(', ') if item.strip("'")]
+        selected_priority = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Priority', '').split(', ') if item.strip("'")]
+        selected_origins = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Origins', '').split(', ') if item.strip("'")]
+        selected_reasons = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Reasons', '').split(', ') if item.strip("'")]
+        selected_products = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Products', '').split(', ') if item.strip("'")]
+        selected_features = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Features', '').split(', ') if item.strip("'")]
+        selected_modules = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Modules', '').split(', ') if item.strip("'")]
+        selected_issues = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Issues', '').split(', ') if item.strip("'")]
         start_date = query_selections.get('Day_From')
         end_date = query_selections.get('Day_To')
+        print(f"Selected Filters - AORs: [{selected_aor}], CaseTypes: [{selected_case_types}], Status: [{selected_status}], Priority: [{selected_priority}], Origins: [{selected_origins}], Reasons: [{selected_reasons}], Products: [{selected_products}], Features: [{selected_features}], Modules: [{selected_modules}], Issues: [{selected_issues}], Date Range: [{start_date}] to [{end_date}]")
 
         # Parse dates
         if 'CreatedOn' in work_items.columns:

@@ -57,112 +57,64 @@ def register_workflow_assignee_workload_callbacks(app):
         return run_queries(queries, 'workflow', len(queries))
 
     @monitor_performance("Assignee Workload Filter Application")
-    def apply_assignee_workload_filters(work_items, stored_selections):
+    def apply_assignee_workload_filters(work_items, query_selections):
         """
-        Apply filters to assignee workload data using pandas
-        FIXED: Updated to match the actual stored_selections format
+        Filter assignee workload DataFrame based on all supported fields.
+        Uses the same extraction logic as apply_workflow_data_table_filters.
         """
-        if not stored_selections:
-            stored_selections = {}
-        
-        # Convert to DataFrame and create explicit copy
-        df_work_items = pd.DataFrame(work_items).copy()
-        
-        # print(f"📊 Initial assignee workload data: {len(df_work_items)} tickets")
-        
-        # FIXED: Apply date range filters using correct keys
-        day_from = stored_selections.get('Day_From')
-        day_to = stored_selections.get('Day_To')
-        
-        if day_from:
-            df_work_items = df_work_items[pd.to_datetime(df_work_items['CreatedOn']) >= pd.to_datetime(day_from)]
-            # print(f"📅 After Day_From filter ({day_from}): {len(df_work_items)} tickets")
-        
-        if day_to:
-            df_work_items = df_work_items[pd.to_datetime(df_work_items['CreatedOn']) <= pd.to_datetime(day_to)]
-            # print(f"📅 After Day_To filter ({day_to}): {len(df_work_items)} tickets")
-        
-        # FIXED: Apply categorical filters using correct keys and handling comma-separated values
-        
-        # AOR filter
-        aor_filter = stored_selections.get('AOR', '').strip()
-        if aor_filter:
-            aor_values = [val.strip() for val in aor_filter.split(',') if val.strip()]
-            if aor_values:
-                df_work_items = df_work_items[df_work_items['AorShortName'].isin(aor_values)]
-                # print(f"🏢 After AOR filter ({aor_values}): {len(df_work_items)} tickets")
+        df = pd.DataFrame(work_items)
+        if df.empty:
+            return df
 
-        # Case Types filter
-        case_types_filter = stored_selections.get('CaseTypes', '').strip()
-        if case_types_filter:
-            case_types_values = [val.strip() for val in case_types_filter.split(',') if val.strip()]
-            if case_types_values:
-                df_work_items = df_work_items[df_work_items['WorkItemDefinitionShortCode'].isin(case_types_values)]
-                # print(f"📋 After CaseTypes filter ({case_types_values}): {len(df_work_items)} tickets")
+        # Extract filter values (same logic as apply_workflow_data_table_filters)
+        selected_aor = [item.strip("'") for item in query_selections.get('AOR', '').split(', ') if item.strip("'")]
+        selected_case_types = [item.strip("'") for item in query_selections.get('CaseTypes', '').split(', ') if item.strip("'")]
+        selected_status = [item.strip("'") for item in query_selections.get('Status', '').split(', ') if item.strip("'")]
+        selected_priority = [item.strip("'") for item in query_selections.get('Priority', '').split(', ') if item.strip("'")]
+        selected_origins = [item.strip("'") for item in query_selections.get('Origins', '').split(', ') if item.strip("'")]
+        selected_reasons = [item.strip("'") for item in query_selections.get('Reasons', '').split(', ') if item.strip("'")]
+        selected_products = [item.strip("'") for item in query_selections.get('Products', '').split(', ') if item.strip("'")]
+        selected_features = [item.strip("'") for item in query_selections.get('Features', '').split(', ') if item.strip("'")]
+        selected_modules = [item.strip("'") for item in query_selections.get('Modules', '').split(', ') if item.strip("'")]
+        selected_issues = [item.strip("'") for item in query_selections.get('Issues', '').split(', ') if item.strip("'")]
+        start_date = query_selections.get('Day_From')
+        end_date = query_selections.get('Day_To')
 
-        # Status filter
-        status_filter = stored_selections.get('Status', '').strip()
-        if status_filter:
-            status_values = [val.strip() for val in status_filter.split(',') if val.strip()]
-            if status_values:
-                df_work_items = df_work_items[df_work_items['WorkItemStatus'].isin(status_values)]
-                # print(f"📊 After Status filter ({status_values}): {len(df_work_items)} tickets")
+        # Date filter
+        if 'CreatedOn' in df.columns:
+            df['CreatedOn'] = pd.to_datetime(df['CreatedOn'], errors='coerce')
+            df = df.dropna(subset=['CreatedOn']).copy()
+            if start_date and end_date:
+                try:
+                    start_dt = pd.to_datetime(start_date)
+                    end_dt = pd.to_datetime(end_date)
+                    df = df.loc[(df['CreatedOn'] >= start_dt) & (df['CreatedOn'] <= end_dt)].copy()
+                except Exception as e:
+                    print(f"❌ Error applying date filter: {e}")
 
-        # Priority filter
-        priority_filter = stored_selections.get('Priority', '').strip()
-        if priority_filter:
-            priority_values = [val.strip() for val in priority_filter.split(',') if val.strip()]
-            if priority_values:
-                df_work_items = df_work_items[df_work_items['Priority'].isin(priority_values)]
-                # print(f"⚡ After Priority filter ({priority_values}): {len(df_work_items)} tickets")
+        # Apply other filters
+        if selected_aor and "All" not in selected_aor and 'AorShortName' in df.columns:
+            df = df[df['AorShortName'].isin(selected_aor)].copy()
+        if selected_case_types and "All" not in selected_case_types and 'WorkItemDefinitionShortCode' in df.columns:
+            df = df[df['WorkItemDefinitionShortCode'].isin(selected_case_types)].copy()
+        if selected_status and "All" not in selected_status and 'WorkItemStatus' in df.columns:
+            df = df[df['WorkItemStatus'].isin(selected_status)].copy()
+        if selected_priority and "All" not in selected_priority and 'Priority' in df.columns:
+            df = df[df['Priority'].isin(selected_priority)].copy()
+        if selected_origins and "All" not in selected_origins and 'CaseOrigin' in df.columns:
+            df = df[df['CaseOrigin'].isin(selected_origins)].copy()
+        if selected_reasons and "All" not in selected_reasons and 'CaseReason' in df.columns:
+            df = df[df['CaseReason'].isin(selected_reasons)].copy()
+        if selected_products and "All" not in selected_products and 'Product' in df.columns:
+            df = df[df['Product'].isin(selected_products)].copy()
+        if selected_features and "All" not in selected_features and 'Feature' in df.columns:
+            df = df[df['Feature'].isin(selected_features)].copy()
+        if selected_modules and "All" not in selected_modules and 'Module' in df.columns:
+            df = df[df['Module'].isin(selected_modules)].copy()
+        if selected_issues and "All" not in selected_issues and 'Issue' in df.columns:
+            df = df[df['Issue'].isin(selected_issues)].copy()
 
-        # Origins filter (CaseOrigin)
-        origins_filter = stored_selections.get('Origins', '').strip()
-        if origins_filter:
-            origins_values = [val.strip() for val in origins_filter.split(',') if val.strip()]
-            if origins_values:
-                df_work_items = df_work_items[df_work_items['CaseOrigin'].isin(origins_values)]
-                # print(f"🌐 After Origins filter ({origins_values}): {len(df_work_items)} tickets")
-
-        # Products filter
-        products_filter = stored_selections.get('Products', '').strip()
-        if products_filter:
-            products_values = [val.strip() for val in products_filter.split(',') if val.strip()]
-            if products_values:
-                df_work_items = df_work_items[df_work_items['Product'].isin(products_values)]
-                # print(f"📦 After Products filter ({products_values}): {len(df_work_items)} tickets")
-
-        # Features filter
-        features_filter = stored_selections.get('Features', '').strip()
-        if features_filter:
-            features_values = [val.strip() for val in features_filter.split(',') if val.strip()]
-            if features_values:
-                df_work_items = df_work_items[df_work_items['Feature'].isin(features_values)]
-                # print(f"🔧 After Features filter ({features_values}): {len(df_work_items)} tickets")
-
-        # Modules filter
-        modules_filter = stored_selections.get('Modules', '').strip()
-        if modules_filter:
-            modules_values = [val.strip() for val in modules_filter.split(',') if val.strip()]
-            if modules_values:
-                df_work_items = df_work_items[df_work_items['Module'].isin(modules_values)]
-                # print(f"🧩 After Modules filter ({modules_values}): {len(df_work_items)} tickets")
-
-        # Issues filter
-        issues_filter = stored_selections.get('Issues', '').strip()
-        if issues_filter:
-            issues_values = [val.strip() for val in issues_filter.split(',') if val.strip()]
-            if issues_values:
-                df_work_items = df_work_items[df_work_items['Issue'].isin(issues_values)]
-                # print(f"🐛 After Issues filter ({issues_values}): {len(df_work_items)} tickets")
-
-        # Note: CaseReason (Reasons) is not available in the work_items query, so skipping it
-        reasons_filter = stored_selections.get('Reasons', '').strip()
-        # if reasons_filter:
-        #     print(f"⚠️ Reasons filter requested ({reasons_filter}) but CaseReason not available in work_items data")
-        
-        # print(f"📊 Final filtered assignee workload data: {len(df_work_items)} tickets")
-        return df_work_items
+        return df
 
     @monitor_performance("Assignee Workload Data Preparation")
     def prepare_assignee_workload_data(filtered_data, top_count=10):
