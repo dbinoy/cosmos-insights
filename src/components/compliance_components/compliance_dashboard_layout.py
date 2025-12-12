@@ -22,16 +22,16 @@ def create_compliance_dashboard_layout():
         dbc.Row([
             dbc.Col([
                 html.H2("Compliance Dashboard (Under Construction)", className="mb-1"),
-                html.P("Comprehensive insights into compliance violations, case management, and risk assessment across the organization", 
+                html.P("Comprehensive insights into compliance reporting, investigations of violations and case management", 
                       className="text-muted mb-3")
-            ], width=8),
+            ], width=9),
             dbc.Col([
                 dbc.Button("Clear All Filters", 
                           id="compliance-clear-filters-btn", 
                           color="secondary", 
                           outline=True, 
                           className="mb-2")
-            ], width=4, className="text-end")
+            ], width=3, className="text-end")
         ]),
 
         # Filters Section

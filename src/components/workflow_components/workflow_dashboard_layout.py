@@ -24,14 +24,14 @@ def create_workflow_dashboard_layout():
                 html.H2("Workflow Dashboard", className="mb-1"),
                 html.P("Comprehensive insights into ticket management, performance tracking, and workload optimization", 
                       className="text-muted mb-3")
-            ], width=8),
+            ], width=9),
             dbc.Col([
                 dbc.Button("Clear All Filters", 
                           id="workflow-clear-filters-btn", 
                           color="secondary", 
                           outline=True, 
                           className="mb-2")
-            ], width=4, className="text-end")
+            ], width=3, className="text-end")
         ]),
 
         # Filters Section

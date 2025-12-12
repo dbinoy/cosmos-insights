@@ -20,14 +20,14 @@ def create_training_dashboard_layout():
                 html.H2("Training Dashboard", className="mb-1"),
                 html.P("Comprehensive insights into training engagement, instructor performance, and participation trends", 
                       className="text-muted mb-3")
-            ], width=8),
+            ], width=9),
             dbc.Col([
                 dbc.Button("Clear All Filters", 
                           id="training-clear-filters-btn", 
                           color="secondary", 
                           outline=True, 
                           className="mb-2")
-            ], width=4, className="text-end")
+            ], width=3, className="text-end")
         ]),
         # Filters Section
         html.Div(get_filters_layout(), id="training-filters-container"),
