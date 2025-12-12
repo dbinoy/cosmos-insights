@@ -75,35 +75,35 @@ def register_compliance_filter_callbacks(app):
         
         if selected_disposition is not None and len(selected_disposition) > 0 and "All" not in selected_disposition:
             filtered_df = filtered_df[filtered_df["Disposition"].isin(selected_disposition)]
-            print(f"Filtered by Disposition: {selected_disposition}, Remaining Rows: {len(filtered_df)}")
+            # print(f"Filtered by Disposition: {selected_disposition}, Remaining Rows: {len(filtered_df)}")
         if selected_assigned_user is not None and len(selected_assigned_user) > 0 and "All" not in selected_assigned_user:
             filtered_df = filtered_df[filtered_df["AssignedUser"].isin(selected_assigned_user)]
-            print(f"Filtered by AssignedUser: {selected_assigned_user}, Remaining Rows: {len(filtered_df)}")
+            # print(f"Filtered by AssignedUser: {selected_assigned_user}, Remaining Rows: {len(filtered_df)}")
         if selected_violation_name is not None and len(selected_violation_name) > 0 and "All" not in selected_violation_name:
             # Handle list column - check if any values in the list match selected values
             filtered_df = filtered_df[filtered_df["ViolationName"].apply(lambda x: any(item in selected_violation_name for item in x))]
-            print(f"Filtered by ViolationName: {selected_violation_name}, Remaining Rows: {len(filtered_df)}")
+            # print(f"Filtered by ViolationName: {selected_violation_name}, Remaining Rows: {len(filtered_df)}")
         if selected_rule_number is not None and len(selected_rule_number) > 0 and "All" not in selected_rule_number:
             # Handle list column - check if any values in the list match selected values
             filtered_df = filtered_df[filtered_df["RuleNumber"].apply(lambda x: any(item in selected_rule_number for item in x))]
-            print(f"Filtered by RuleNumber: {selected_rule_number}, Remaining Rows: {len(filtered_df)}")
+            # print(f"Filtered by RuleNumber: {selected_rule_number}, Remaining Rows: {len(filtered_df)}")
         if selected_rule_title is not None and len(selected_rule_title) > 0 and "All" not in selected_rule_title:
             # Handle list column - check if any values in the list match selected values
             filtered_df = filtered_df[filtered_df["RuleTitle"].apply(lambda x: any(item in selected_rule_title for item in x))]
-            print(f"Filtered by RuleTitle: {selected_rule_title}, Remaining Rows: {len(filtered_df)}")
+            # print(f"Filtered by RuleTitle: {selected_rule_title}, Remaining Rows: {len(filtered_df)}")
         if selected_citation_fee is not None and len(selected_citation_fee) > 0 and "All" not in selected_citation_fee:
             # Handle list column - check if any values in the list match selected values
             filtered_df = filtered_df[filtered_df["CitationFee"].apply(lambda x: any(item in selected_citation_fee for item in x))]
-            print(f"Filtered by CitationFee: {selected_citation_fee}, Remaining Rows: {len(filtered_df)}")
+            # print(f"Filtered by CitationFee: {selected_citation_fee}, Remaining Rows: {len(filtered_df)}")
         if selected_fine_type is not None and len(selected_fine_type) > 0 and "All" not in selected_fine_type:
             # Handle list column - check if any values in the list match selected values
             filtered_df = filtered_df[filtered_df["FineType"].apply(lambda x: any(item in selected_fine_type for item in x))]
-            print(f"Filtered by FineType: {selected_fine_type}, Remaining Rows: {len(filtered_df)}")
+            # print(f"Filtered by FineType: {selected_fine_type}, Remaining Rows: {len(filtered_df)}")
         if selected_num_reports is not None and len(selected_num_reports) > 0 and "All" not in selected_num_reports:
             # Convert selected values to integers for comparison
             selected_num_reports_int = [int(x) for x in selected_num_reports]
             filtered_df = filtered_df[filtered_df["NumReportIds"].isin(selected_num_reports_int)]
-            print(f"Filtered by NumReportIds: {selected_num_reports}, Remaining Rows: {len(filtered_df)}")
+            # print(f"Filtered by NumReportIds: {selected_num_reports}, Remaining Rows: {len(filtered_df)}")
 
         return filtered_df
 
@@ -121,7 +121,8 @@ def register_compliance_filter_callbacks(app):
         }
         
         actual_column = column_map.get(column_name, column_name)
-        label_prefix = pluralize(titleize(column_name.replace("Num", "Number of ").replace("Ids", "").replace("Type", "")))
+        label_prefix = pluralize(titleize(column_name.replace("NumReport", "Report count").replace("Ids", "").replace("Type", "")))
+        # label_prefix = column_name.replace("Num", "Number of ").replace("Ids", "").replace("Type", "")
         
         options = [{"label": f"All {label_prefix}", "value": "All"}]
         
@@ -146,10 +147,11 @@ def register_compliance_filter_callbacks(app):
                         except:
                             label = str_value
                     elif column_name == "RuleTitle":
-                        # Format rule titles
-                        label = titleize(str_value if len(str_value) <= 80 else str_value[:77] + "...")
-                    else:
+                        label = str_value if len(str_value) <= 80 else str_value[:77] + "..."
+                    elif column_name == "FineType":
                         label = titleize(str_value)
+                    else:
+                        label = str_value
                     
                     options.append({"label": label, "value": str_value})
         else:
@@ -177,20 +179,28 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-date-range-picker", "end_date_placeholder_text"),
          Output("compliance-disposition-dropdown", "options"),
          Output("compliance-disposition-dropdown", "placeholder"),
+         Output("compliance-disposition-spinner", "style"),
          Output("compliance-assigned-user-dropdown", "options"),
          Output("compliance-assigned-user-dropdown", "placeholder"),
+         Output("compliance-assigned-user-spinner", "style"),
          Output("compliance-violation-name-dropdown", "options"),
          Output("compliance-violation-name-dropdown", "placeholder"),
+         Output("compliance-violation-name-spinner", "style"),
          Output("compliance-rule-number-dropdown", "options"),
          Output("compliance-rule-number-dropdown", "placeholder"),
+         Output("compliance-rule-number-spinner", "style"),
          Output("compliance-rule-title-dropdown", "options"),
          Output("compliance-rule-title-dropdown", "placeholder"),
+         Output("compliance-rule-title-spinner", "style"),
          Output("compliance-citation-fee-dropdown", "options"),
          Output("compliance-citation-fee-dropdown", "placeholder"),
+         Output("compliance-citation-fee-spinner", "style"),
          Output("compliance-fine-type-dropdown", "options"),
          Output("compliance-fine-type-dropdown", "placeholder"),
+         Output("compliance-fine-type-spinner", "style"),
          Output("compliance-num-reports-dropdown", "options"),
-         Output("compliance-num-reports-dropdown", "placeholder")],     
+         Output("compliance-num-reports-dropdown", "placeholder"),
+         Output("compliance-num-reports-spinner", "style")],     
         Input("compliance-filtered-query-store", "id"), 
         prevent_initial_call=False
     )
@@ -218,14 +228,14 @@ def register_compliance_filter_callbacks(app):
             
             return (
                 str(start_placeholder), str(end_placeholder), 
-                disposition_options, "Select Disposition...",
-                assigned_user_options, "Select Assigned User...",
-                violation_name_options, "Select Violation Names...",
-                rule_number_options, "Select Rule Numbers...",
-                rule_title_options, "Select Rule Title...",
-                citation_fee_options, "Select Citation Fee...",
-                fine_type_options, "Fine...",
-                num_reports_options, "Select Number of Reports..."
+                disposition_options, "Select Disposition...", {'display': 'none'},
+                assigned_user_options, "Select Assigned User...", {'display': 'none'},
+                violation_name_options, "Select Violation Names...", {'display': 'none'},
+                rule_number_options, "Select Rule Numbers...", {'display': 'none'},
+                rule_title_options, "Search Rule Title...", {'display': 'none'},
+                citation_fee_options, "Select Citation Fee...", {'display': 'none'},
+                fine_type_options, "Select Fine Type...", {'display': 'none'},
+                num_reports_options, "Select Number of Reports...", {'display': 'none'}
             )
             
         except Exception as e:
@@ -234,14 +244,14 @@ def register_compliance_filter_callbacks(app):
             traceback.print_exc()
             return (
                 str(start_placeholder), str(end_placeholder),
-                [], "Error loading Disposition",
-                [], "Error loading Assigned Users",
-                [], "Error loading Violation Names",
-                [], "Error loading Rule Numbers",
-                [], "Error loading Rule Titles",
-                [], "Error loading Citation Fees",
-                [], "Error loading Fine Types",
-                [], "Error loading Number of Reports"
+                [], "Error loading Disposition", {"visibility": "hidden"},
+                [], "Error loading Assigned Users", {"visibility": "hidden"},
+                [], "Error loading Violation Names", {"visibility": "hidden"},
+                [], "Error loading Rule Numbers", {"visibility": "hidden"},
+                [], "Error loading Rule Titles", {"visibility": "hidden"},
+                [], "Error loading Citation Fees", {"visibility": "hidden"},
+                [], "Error loading Fine Types", {"visibility": "hidden"},
+                [], "Error loading Number of Reports", {"visibility": "hidden"}
             )
 
     # ✅ Disposition dropdown change - updates all other dropdowns
