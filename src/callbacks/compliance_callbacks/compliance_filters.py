@@ -121,7 +121,7 @@ def register_compliance_filter_callbacks(app):
         }
         
         actual_column = column_map.get(column_name, column_name)
-        label_prefix = pluralize(titleize(column_name.replace("NumReport", "Report count").replace("Ids", "").replace("Type", "")))
+        label_prefix = pluralize(titleize(column_name.replace("NumReport", "Report count").replace("Assigned", "").replace("User", "Agent").replace("Ids", "").replace("Type", "")))
         # label_prefix = column_name.replace("Num", "Number of ").replace("Ids", "").replace("Type", "")
         
         options = [{"label": f"All {label_prefix}", "value": "All"}]
@@ -146,8 +146,10 @@ def register_compliance_filter_callbacks(app):
                                 label = f"${fee_value:,.2f}"
                         except:
                             label = str_value
+                    elif column_name == "RuleNumber":
+                        label = f"Rule - {str_value}" if str_value[0].isdigit() else str_value
                     elif column_name == "RuleTitle":
-                        label = str_value if len(str_value) <= 80 else str_value[:77] + "..."
+                        label = str_value if len(str_value) <= 100 else str_value[:97] + "..."
                     elif column_name == "FineType":
                         label = titleize(str_value)
                     else:
@@ -180,9 +182,9 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-disposition-dropdown", "options"),
          Output("compliance-disposition-dropdown", "placeholder"),
          Output("compliance-disposition-spinner", "style"),
-         Output("compliance-assigned-user-dropdown", "options"),
-         Output("compliance-assigned-user-dropdown", "placeholder"),
-         Output("compliance-assigned-user-spinner", "style"),
+         Output("compliance-assigned-agent-dropdown", "options"),
+         Output("compliance-assigned-agent-dropdown", "placeholder"),
+         Output("compliance-assigned-agent-spinner", "style"),
          Output("compliance-violation-name-dropdown", "options"),
          Output("compliance-violation-name-dropdown", "placeholder"),
          Output("compliance-violation-name-spinner", "style"),
@@ -229,7 +231,7 @@ def register_compliance_filter_callbacks(app):
             return (
                 str(start_placeholder), str(end_placeholder), 
                 disposition_options, "Select Disposition...", {'display': 'none'},
-                assigned_user_options, "Select Assigned User...", {'display': 'none'},
+                assigned_user_options, "Select Agent...", {'display': 'none'},
                 violation_name_options, "Select Violation Names...", {'display': 'none'},
                 rule_number_options, "Select Rule Numbers...", {'display': 'none'},
                 rule_title_options, "Search Rule Title...", {'display': 'none'},
@@ -245,7 +247,7 @@ def register_compliance_filter_callbacks(app):
             return (
                 str(start_placeholder), str(end_placeholder),
                 [], "Error loading Disposition", {"visibility": "hidden"},
-                [], "Error loading Assigned Users", {"visibility": "hidden"},
+                [], "Error loading Assigned Agents", {"visibility": "hidden"},
                 [], "Error loading Violation Names", {"visibility": "hidden"},
                 [], "Error loading Rule Numbers", {"visibility": "hidden"},
                 [], "Error loading Rule Titles", {"visibility": "hidden"},
@@ -256,7 +258,7 @@ def register_compliance_filter_callbacks(app):
 
     # ✅ Disposition dropdown change - updates all other dropdowns
     @callback(
-        [Output("compliance-assigned-user-dropdown", "options", allow_duplicate=True),
+        [Output("compliance-assigned-agent-dropdown", "options", allow_duplicate=True),
          Output("compliance-violation-name-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-number-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-title-dropdown", "options", allow_duplicate=True),
@@ -264,7 +266,7 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-fine-type-dropdown", "options", allow_duplicate=True),
          Output("compliance-num-reports-dropdown", "options", allow_duplicate=True)],
         Input("compliance-disposition-dropdown", "value"),
-        [State("compliance-assigned-user-dropdown", "value"),
+        [State("compliance-assigned-agent-dropdown", "value"),
          State("compliance-violation-name-dropdown", "value"),
          State("compliance-rule-number-dropdown", "value"),
          State("compliance-rule-title-dropdown", "value"),
@@ -312,7 +314,7 @@ def register_compliance_filter_callbacks(app):
             print(f"❌ Error updating filters on Disposition change: {e}")
             return ([], [], [], [], [], [], [])
 
-    # ✅ Assigned User dropdown change - updates all other dropdowns
+    # ✅ Assigned Agent dropdown change - updates all other dropdowns
     @callback(
         [Output("compliance-disposition-dropdown", "options", allow_duplicate=True),
          Output("compliance-violation-name-dropdown", "options", allow_duplicate=True),
@@ -321,7 +323,7 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-citation-fee-dropdown", "options", allow_duplicate=True),
          Output("compliance-fine-type-dropdown", "options", allow_duplicate=True),
          Output("compliance-num-reports-dropdown", "options", allow_duplicate=True)],
-        Input("compliance-assigned-user-dropdown", "value"),
+        Input("compliance-assigned-agent-dropdown", "value"),
         [State("compliance-disposition-dropdown", "value"),
          State("compliance-violation-name-dropdown", "value"),
          State("compliance-rule-number-dropdown", "value"),
@@ -331,11 +333,11 @@ def register_compliance_filter_callbacks(app):
          State("compliance-num-reports-dropdown", "value")],
         prevent_initial_call=True
     )
-    @monitor_performance("Assigned User Filter Change - Update All Others")
+    @monitor_performance("Assigned Agent Filter Change - Update All Others")
     def update_filters_on_assigned_user_change(selected_assigned_user, selected_disposition, selected_violation_name,
                                               selected_rule_number, selected_rule_title, selected_citation_fee,
                                               selected_fine_type, selected_num_reports):
-        """When Assigned User selection changes, update all other dropdown options"""
+        """When Assigned Agent selection changes, update all other dropdown options"""
         try:
             df_attributes = get_compliance_attributes_data()
             
@@ -367,13 +369,13 @@ def register_compliance_filter_callbacks(app):
             )
             
         except Exception as e:
-            print(f"❌ Error updating filters on Assigned User change: {e}")
+            print(f"❌ Error updating filters on Assigned Agent change: {e}")
             return ([], [], [], [], [], [], [])
 
     # ✅ Violation Name dropdown change - updates all other dropdowns
     @callback(
         [Output("compliance-disposition-dropdown", "options", allow_duplicate=True),
-         Output("compliance-assigned-user-dropdown", "options", allow_duplicate=True),
+         Output("compliance-assigned-agent-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-number-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-title-dropdown", "options", allow_duplicate=True),
          Output("compliance-citation-fee-dropdown", "options", allow_duplicate=True),
@@ -381,7 +383,7 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-num-reports-dropdown", "options", allow_duplicate=True)],
         Input("compliance-violation-name-dropdown", "value"),
         [State("compliance-disposition-dropdown", "value"),
-         State("compliance-assigned-user-dropdown", "value"),
+         State("compliance-assigned-agent-dropdown", "value"),
          State("compliance-rule-number-dropdown", "value"),
          State("compliance-rule-title-dropdown", "value"),
          State("compliance-citation-fee-dropdown", "value"),
@@ -431,7 +433,7 @@ def register_compliance_filter_callbacks(app):
     # ✅ Rule Number dropdown change - updates all other dropdowns
     @callback(
         [Output("compliance-disposition-dropdown", "options", allow_duplicate=True),
-         Output("compliance-assigned-user-dropdown", "options", allow_duplicate=True),
+         Output("compliance-assigned-agent-dropdown", "options", allow_duplicate=True),
          Output("compliance-violation-name-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-title-dropdown", "options", allow_duplicate=True),
          Output("compliance-citation-fee-dropdown", "options", allow_duplicate=True),
@@ -439,7 +441,7 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-num-reports-dropdown", "options", allow_duplicate=True)],
         Input("compliance-rule-number-dropdown", "value"),
         [State("compliance-disposition-dropdown", "value"),
-         State("compliance-assigned-user-dropdown", "value"),
+         State("compliance-assigned-agent-dropdown", "value"),
          State("compliance-violation-name-dropdown", "value"),
          State("compliance-rule-title-dropdown", "value"),
          State("compliance-citation-fee-dropdown", "value"),
@@ -489,7 +491,7 @@ def register_compliance_filter_callbacks(app):
     # ✅ Rule Title dropdown change - updates all other dropdowns
     @callback(
         [Output("compliance-disposition-dropdown", "options", allow_duplicate=True),
-         Output("compliance-assigned-user-dropdown", "options", allow_duplicate=True),
+         Output("compliance-assigned-agent-dropdown", "options", allow_duplicate=True),
          Output("compliance-violation-name-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-number-dropdown", "options", allow_duplicate=True),
          Output("compliance-citation-fee-dropdown", "options", allow_duplicate=True),
@@ -497,7 +499,7 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-num-reports-dropdown", "options", allow_duplicate=True)],
         Input("compliance-rule-title-dropdown", "value"),
         [State("compliance-disposition-dropdown", "value"),
-         State("compliance-assigned-user-dropdown", "value"),
+         State("compliance-assigned-agent-dropdown", "value"),
          State("compliance-violation-name-dropdown", "value"),
          State("compliance-rule-number-dropdown", "value"),
          State("compliance-citation-fee-dropdown", "value"),
@@ -547,7 +549,7 @@ def register_compliance_filter_callbacks(app):
     # ✅ Citation Fee dropdown change - updates all other dropdowns
     @callback(
         [Output("compliance-disposition-dropdown", "options", allow_duplicate=True),
-         Output("compliance-assigned-user-dropdown", "options", allow_duplicate=True),
+         Output("compliance-assigned-agent-dropdown", "options", allow_duplicate=True),
          Output("compliance-violation-name-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-number-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-title-dropdown", "options", allow_duplicate=True),
@@ -555,7 +557,7 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-num-reports-dropdown", "options", allow_duplicate=True)],
         Input("compliance-citation-fee-dropdown", "value"),
         [State("compliance-disposition-dropdown", "value"),
-         State("compliance-assigned-user-dropdown", "value"),
+         State("compliance-assigned-agent-dropdown", "value"),
          State("compliance-violation-name-dropdown", "value"),
          State("compliance-rule-number-dropdown", "value"),
          State("compliance-rule-title-dropdown", "value"),
@@ -605,7 +607,7 @@ def register_compliance_filter_callbacks(app):
     # ✅ Fine Type dropdown change - updates all other dropdowns
     @callback(
         [Output("compliance-disposition-dropdown", "options", allow_duplicate=True),
-         Output("compliance-assigned-user-dropdown", "options", allow_duplicate=True),
+         Output("compliance-assigned-agent-dropdown", "options", allow_duplicate=True),
          Output("compliance-violation-name-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-number-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-title-dropdown", "options", allow_duplicate=True),
@@ -613,7 +615,7 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-num-reports-dropdown", "options", allow_duplicate=True)],
         Input("compliance-fine-type-dropdown", "value"),
         [State("compliance-disposition-dropdown", "value"),
-         State("compliance-assigned-user-dropdown", "value"),
+         State("compliance-assigned-agent-dropdown", "value"),
          State("compliance-violation-name-dropdown", "value"),
          State("compliance-rule-number-dropdown", "value"),
          State("compliance-rule-title-dropdown", "value"),
@@ -663,7 +665,7 @@ def register_compliance_filter_callbacks(app):
     # ✅ Number of Reports dropdown change - updates all other dropdowns
     @callback(
         [Output("compliance-disposition-dropdown", "options", allow_duplicate=True),
-         Output("compliance-assigned-user-dropdown", "options", allow_duplicate=True),
+         Output("compliance-assigned-agent-dropdown", "options", allow_duplicate=True),
          Output("compliance-violation-name-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-number-dropdown", "options", allow_duplicate=True),
          Output("compliance-rule-title-dropdown", "options", allow_duplicate=True),
@@ -671,7 +673,7 @@ def register_compliance_filter_callbacks(app):
          Output("compliance-fine-type-dropdown", "options", allow_duplicate=True)],
         Input("compliance-num-reports-dropdown", "value"),
         [State("compliance-disposition-dropdown", "value"),
-         State("compliance-assigned-user-dropdown", "value"),
+         State("compliance-assigned-agent-dropdown", "value"),
          State("compliance-violation-name-dropdown", "value"),
          State("compliance-rule-number-dropdown", "value"),
          State("compliance-rule-title-dropdown", "value"),
@@ -723,7 +725,7 @@ def register_compliance_filter_callbacks(app):
         [Output("compliance-date-range-picker", "start_date", allow_duplicate=True),
          Output("compliance-date-range-picker", "end_date", allow_duplicate=True),
          Output("compliance-disposition-dropdown", "value", allow_duplicate=True),
-         Output("compliance-assigned-user-dropdown", "value", allow_duplicate=True),
+         Output("compliance-assigned-agent-dropdown", "value", allow_duplicate=True),
          Output("compliance-violation-name-dropdown", "value", allow_duplicate=True),
          Output("compliance-rule-number-dropdown", "value", allow_duplicate=True),
          Output("compliance-rule-title-dropdown", "value", allow_duplicate=True),
@@ -750,7 +752,7 @@ def register_compliance_filter_callbacks(app):
         [Input("compliance-date-range-picker", "start_date"),
          Input("compliance-date-range-picker", "end_date"),  
          Input("compliance-disposition-dropdown", "value"),
-         Input("compliance-assigned-user-dropdown", "value"),
+         Input("compliance-assigned-agent-dropdown", "value"),
          Input("compliance-violation-name-dropdown", "value"),
          Input("compliance-rule-number-dropdown", "value"),
          Input("compliance-rule-title-dropdown", "value"),

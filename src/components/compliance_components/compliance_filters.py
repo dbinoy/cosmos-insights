@@ -39,49 +39,28 @@ def get_filters_layout():
                             spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
                         )
                     ], className="d-grid gap-1")
-                ], width=2),
+                ], width=4),
                 
                 # Assigned User Filter
                 dbc.Col([
                     html.Div([
-                        html.Label("Assigned User", className="form-label"),
+                        html.Label("Assigned Agent", className="form-label"),
                         dcc.Dropdown(
-                            id="compliance-assigned-user-dropdown",
+                            id="compliance-assigned-agent-dropdown",
                             options=[],
-                            placeholder="Loading Assigned Users...",
+                            placeholder="Loading Assigned Agents...",
                             multi=True,
                             disabled=False,
                             style={'width': '100%'}
                         ),
                         dbc.Spinner(
-                            id="compliance-assigned-user-spinner",
+                            id="compliance-assigned-agent-spinner",
                             size="sm",
                             color="primary",
                             spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
                         )
                     ], className="d-grid gap-1")
-                ], width=3),
-                
-                # Violation Name Filter
-                dbc.Col([
-                    html.Div([
-                        html.Label("Violation Names", className="form-label"),
-                        dcc.Dropdown(
-                            id="compliance-violation-name-dropdown",
-                            options=[],
-                            placeholder="Loading Violation Names...",
-                            multi=True,
-                            disabled=False,
-                            style={'width': '100%'}
-                        ),
-                        dbc.Spinner(
-                            id="compliance-violation-name-spinner",
-                            size="sm",
-                            color="primary",
-                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
-                        )
-                    ], className="d-grid gap-1")
-                ], width=3)
+                ], width=4)
             ], className="mb-2"),
             
             # Second row of filters
@@ -105,7 +84,7 @@ def get_filters_layout():
                             spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
                         )
                     ], className="d-grid gap-1")
-                ], width=2),
+                ], width=4),
                 
                 # Rule Title Filter (searchable, next to Rule Numbers)
                 dbc.Col([
@@ -127,8 +106,33 @@ def get_filters_layout():
                             spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
                         )
                     ], className="d-grid gap-1")
-                ], width=5),
+                ], width=8)
                 
+            ], className="mb-2"),
+
+            # Third row - Clear Filters Button
+            dbc.Row([
+                # Violation Name Filter
+                dbc.Col([
+                    html.Div([
+                        html.Label("Violation Names", className="form-label"),
+                        dcc.Dropdown(
+                            id="compliance-violation-name-dropdown",
+                            options=[],
+                            placeholder="Loading Violation Names...",
+                            multi=True,
+                            disabled=False,
+                            style={'width': '100%'}
+                        ),
+                        dbc.Spinner(
+                            id="compliance-violation-name-spinner",
+                            size="sm",
+                            color="primary",
+                            spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
+                        )
+                    ], className="d-grid gap-1")
+                ], width=4),
+
                 # Fine Type Filter
                 dbc.Col([
                     html.Div([
@@ -148,7 +152,7 @@ def get_filters_layout():
                             spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
                         )
                     ], className="d-grid gap-1")
-                ], width=1),
+                ], width=2),
                 
                 # Citation Fee Filter
                 dbc.Col([
@@ -169,7 +173,7 @@ def get_filters_layout():
                             spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
                         )
                     ], className="d-grid gap-1")
-                ], width=2),
+                ], width=3),
                 
                 # Associated Reports Filter
                 dbc.Col([
@@ -190,8 +194,8 @@ def get_filters_layout():
                             spinner_style={"position": "relative", "top": "-30px", "right": "-30px"}
                         )
                     ], className="d-grid gap-1")
-                ], width=2)
-            ], className="mb-2")
+                ], width=3)
+            ])
         ])
     ], className="mb-4")
     return filters_layout
