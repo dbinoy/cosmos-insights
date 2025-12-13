@@ -28,7 +28,7 @@ def monitor_performance(func_name="Unknown"):
 # Global cache for processed compliance data
 _compliance_data_cache = {}
 _cache_timestamp = None
-_cache_duration_minutes = 60  # Cache for 15 minutes
+_cache_duration_minutes = 60  # Cache for 60 minutes
 
 def register_compliance_summary_cards_callbacks(app):
     """Register compliance summary cards callbacks"""
@@ -46,10 +46,10 @@ def register_compliance_summary_cards_callbacks(app):
             if (_cache_timestamp and 
                 _compliance_data_cache and 
                 (current_time - _cache_timestamp).seconds < _cache_duration_minutes * 60):
-                print(f"🎯 Using cached processed compliance data (age: {(current_time - _cache_timestamp).seconds}s)")
+                # print(f"🎯 Using cached processed compliance data (age: {(current_time - _cache_timestamp).seconds}s)")
                 return _compliance_data_cache['merged_df']
             
-            print("📊 Processing fresh compliance case data...")
+            # print("📊 Processing fresh compliance case data...")
             
             # Fetch all required tables (these queries are still cached by run_queries)
             queries = {
@@ -130,7 +130,7 @@ def register_compliance_summary_cards_callbacks(app):
             _compliance_data_cache['merged_df'] = merged_df
             _cache_timestamp = current_time
             
-            print(f"✅ Processed and cached {len(merged_df)} compliance cases")
+            # print(f"✅ Processed and cached {len(merged_df)} compliance cases")
             return merged_df
             
         except Exception as e:
@@ -143,7 +143,7 @@ def register_compliance_summary_cards_callbacks(app):
         _compliance_data_cache = {}
         _cache_timestamp = None
         get_compliance_case_data.cache_clear()
-        print("🗑️ Compliance data cache invalidated")
+        # print("🗑️ Compliance data cache invalidated")
 
     def apply_date_filters(df, date_from, date_to):
         """Apply date range filters to the dataframe"""
@@ -224,10 +224,10 @@ def register_compliance_summary_cards_callbacks(app):
             return {
                 'total_cases': 0,
                 'open_cases': 0,
-                'active_investigations': 0,
                 'avg_resolution_days': 0,
                 'total_citations': 0,
-                'high_risk_agents': 0
+                'high_risk_members': 0,
+                'top_agent': 'N/A'
             }
         
         # Total Cases
@@ -235,16 +235,6 @@ def register_compliance_summary_cards_callbacks(app):
         
         # Open Cases (Status != 'Closed')
         open_cases = len(df[df['Status'] != 'Closed']) if 'Status' in df.columns else 0
-        
-        # Active Investigations (cases with Disposition containing 'Investigation' or status indicating investigation)
-        active_investigations = 0
-        if 'Disposition' in df.columns:
-            # Look for investigation-related dispositions
-            investigation_keywords = ['Investigation', 'Assigned', 'Unassigned']
-            active_investigations = len(df[
-                (df['Disposition'].isin(investigation_keywords)) & 
-                (df['Status'] != 'Closed')
-            ])
         
         # Average Resolution Time (for closed cases)
         avg_resolution_days = 0
@@ -259,39 +249,48 @@ def register_compliance_summary_cards_callbacks(app):
                 closed_cases['resolution_days'] = (closed_cases['ClosedOn'] - closed_cases['CreatedOn']).dt.days
                 avg_resolution_days = closed_cases['resolution_days'].mean()
         
-        # Total Citations (count cases with citation-related violations)
+        # Total Citations (cases containing "Citation" in ViolationName)
         total_citations = 0
         if 'ViolationName' in df.columns:
-            citation_keywords = ['Citation', 'Warning', 'Fine']
             citation_cases = df[df['ViolationName'].apply(
-                lambda x: any(any(keyword in str(item) for keyword in citation_keywords) for item in x) 
-                if isinstance(x, list) else False
+                lambda x: any("Citation" in str(item) for item in x) 
+                if isinstance(x, list) and x else False
             )]
             total_citations = len(citation_cases)
         
-        # High-Risk Agents (agents with 3+ violations in the period)
-        high_risk_agents = 0
+        # High-Risk Members (members with 10+ cases)
+        high_risk_members = 0
         if 'MemberName' in df.columns:
-            agent_violation_counts = df.groupby('MemberName').size()
-            high_risk_agents = len(agent_violation_counts[agent_violation_counts >= 3])
+            member_case_counts = df.groupby('MemberName').size()
+            high_risk_members = len(member_case_counts[member_case_counts > 10])
+        
+        # Top Agent (agent with highest case load)
+        top_agent = 'N/A'
+        if 'AssignedUser' in df.columns:
+            agent_case_counts = df.groupby('AssignedUser').size()
+            if not agent_case_counts.empty:
+                top_agent_name = agent_case_counts.idxmax()
+                top_agent_count = agent_case_counts.max()
+                # Format as "Name (count)"
+                top_agent = f"{top_agent_name} ({top_agent_count})"
         
         return {
             'total_cases': total_cases,
             'open_cases': open_cases,
-            'active_investigations': active_investigations,
             'avg_resolution_days': avg_resolution_days,
             'total_citations': total_citations,
-            'high_risk_agents': high_risk_agents
+            'high_risk_members': high_risk_members,
+            'top_agent': top_agent
         }
        
     # Show spinners when filters change
     @app.callback(
         [Output("compliance-total-cases-spinner", "style", allow_duplicate=True),
          Output("compliance-open-cases-spinner", "style", allow_duplicate=True),
-         Output("compliance-active-investigations-spinner", "style", allow_duplicate=True),
          Output("compliance-avg-resolution-spinner", "style", allow_duplicate=True),
          Output("compliance-total-citations-spinner", "style", allow_duplicate=True),
-         Output("compliance-high-risk-agents-spinner", "style", allow_duplicate=True)],
+         Output("compliance-high-risk-members-spinner", "style", allow_duplicate=True),
+         Output("compliance-top-agent-spinner", "style", allow_duplicate=True)],
         [Input("compliance-filtered-query-store", "data")],
         prevent_initial_call=True
     )
@@ -303,16 +302,16 @@ def register_compliance_summary_cards_callbacks(app):
     @callback(
         [Output("compliance-total-cases-value", "children"),
          Output("compliance-open-cases-value", "children"),
-         Output("compliance-active-investigations-value", "children"),
          Output("compliance-avg-resolution-value", "children"),
          Output("compliance-total-citations-value", "children"),
-         Output("compliance-high-risk-agents-value", "children"),
+         Output("compliance-high-risk-members-value", "children"),
+         Output("compliance-top-agent-value", "children"),
          Output("compliance-total-cases-spinner", "style"),
          Output("compliance-open-cases-spinner", "style"),
-         Output("compliance-active-investigations-spinner", "style"),
          Output("compliance-avg-resolution-spinner", "style"),
          Output("compliance-total-citations-spinner", "style"),
-         Output("compliance-high-risk-agents-spinner", "style")],
+         Output("compliance-high-risk-members-spinner", "style"),
+         Output("compliance-top-agent-spinner", "style")],
         Input("compliance-filtered-query-store", "data"),
         prevent_initial_call=False
     )
@@ -321,7 +320,6 @@ def register_compliance_summary_cards_callbacks(app):
         """Update all compliance summary cards based on current filter selections"""
         
         # Default values and hidden spinner style
-        default_values = ["0", "+0%", "0", "+0%", "0", "+0%", "0d", "+0%", "0", "+0%", "0", "+0%"]
         hidden_spinner = {"position": "absolute", "top": "10px", "right": "10px", "visibility": "hidden"}
         
         try:
@@ -336,12 +334,7 @@ def register_compliance_summary_cards_callbacks(app):
             df = get_compliance_case_data()
             
             if df.empty:
-                return default_values + [hidden_spinner] * 6
-            
-            # Apply date filters first (for full dataset comparison)
-            full_df = apply_date_filters(df, 
-                                       pd.to_datetime(date_from) - timedelta(days=730),  # Get 2x period for comparison
-                                       pd.to_datetime(date_to))
+                return ("0", "0", "0d", "0", "0", "N/A") + tuple([hidden_spinner] * 6)
             
             # Apply compliance filters to current period
             current_df = apply_date_filters(df, date_from, date_to)
@@ -350,37 +343,25 @@ def register_compliance_summary_cards_callbacks(app):
             # Calculate current metrics
             current_metrics = calculate_summary_metrics(current_df)
             
-            
-            # Format values
-            def format_number(num):
-                if isinstance(num, (int, float)):
-                    if num >= 1000000:
-                        return f"{num/1000000:.1f}M"
-                    elif num >= 1000:
-                        return f"{num/1000:.1f}K"
-                    else:
-                        return f"{int(num):,}" if num == int(num) else f"{num:.1f}"
-                return str(num)
-            
             return (
                 # Total Cases
-                format_number(current_metrics['total_cases']),
+                f"{current_metrics['total_cases']:,}",
                 
                 # Open Cases  
-                format_number(current_metrics['open_cases']),
-                
-                # Active Investigations
-                format_number(current_metrics['active_investigations']),
+                f"{current_metrics['open_cases']:,}",
                 
                 # Average Resolution Time
                 f"{current_metrics['avg_resolution_days']:.1f}d" if current_metrics['avg_resolution_days'] > 0 else "N/A",
                 
                 # Total Citations
-                format_number(current_metrics['total_citations']),
+                f"{current_metrics['total_citations']:,}",
                 
-                # High-Risk Agents
-                format_number(current_metrics['high_risk_agents']),
+                # High-Risk Members
+                f"{current_metrics['high_risk_members']:,}",
                 
+                # Top Agent
+                current_metrics['top_agent'],
+
                 # Hide all spinners after successful update
             ) + tuple([hidden_spinner] * 6)
             
@@ -388,8 +369,8 @@ def register_compliance_summary_cards_callbacks(app):
             print(f"❌ Error updating compliance summary cards: {e}")
             import traceback
             traceback.print_exc()
-            return (["Error"] * 12) + [hidden_spinner] * 6
+            return (["Error"] * 6) + [hidden_spinner] * 6
     
     # Expose cache invalidation function for manual cache clearing if needed
     app.compliance_cache_invalidate = invalidate_compliance_cache    
-    print("✅ Compliance summary cards callbacks registered with spinners")
+    # print("✅ Compliance summary cards callbacks registered")

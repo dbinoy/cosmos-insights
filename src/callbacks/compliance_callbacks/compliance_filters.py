@@ -780,4 +780,4 @@ def register_compliance_filter_callbacks(app):
         
         return selections
 
-    print("✅ Compliance filter callbacks registered (no precedence - all filters equal)")
+    # print("✅ Compliance filter callbacks registered (no precedence - all filters equal)")

@@ -39,24 +39,6 @@ def get_summary_cards_layout():
             ], className="h-100 shadow-sm border-0")
         ], width=12, lg=2, className="mb-3"),
         
-        # Active Investigations Card
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H4("0", id="compliance-active-investigations-value", className="card-title text-danger mb-0"),
-                    html.P("Active Investigations", className="card-text text-muted mb-0"),
-                    html.Small("Requiring attention", className="text-muted"),
-                    html.Small(id="compliance-active-investigations-change", className="text-danger"),
-                    dbc.Spinner(
-                        id="compliance-active-investigations-spinner",
-                        size="sm",
-                        color="warning",
-                        spinner_style={"position": "absolute", "top": "10px", "right": "10px"}
-                    )
-                ], style={"position": "relative"})
-            ], className="h-100 shadow-sm border-0")
-        ], width=12, lg=2, className="mb-3"),
-        
         # Average Resolution Time Card
         dbc.Col([
             dbc.Card([
@@ -81,7 +63,7 @@ def get_summary_cards_layout():
                 dbc.CardBody([
                     html.H4("0", id="compliance-total-citations-value", className="card-title text-info mb-0"),
                     html.P("Total Citations", className="card-text text-muted mb-0"),
-                    html.Small("Recently resolved", className="text-muted"),
+                    html.Small("Cases with citations", className="text-muted"),
                     html.Small(id="compliance-total-citations-change", className="text-info"),
                     dbc.Spinner(
                         id="compliance-total-citations-spinner",
@@ -93,16 +75,34 @@ def get_summary_cards_layout():
             ], className="h-100 shadow-sm border-0")
         ], width=12, lg=2, className="mb-3"),
         
-        # High-Risk Agents Card
+        # High-Risk Members Card
         dbc.Col([
             dbc.Card([
                 dbc.CardBody([
-                    html.H4("0", id="compliance-high-risk-agents-value", className="card-title text-secondary mb-0"),
-                    html.P("High-Risk Agents", className="card-text text-muted mb-0"),
-                    html.Small("Working on tickets", className="text-muted"),
-                    html.Small(id="compliance-high-risk-agents-change", className="text-secondary"),
+                    html.H4("0", id="compliance-high-risk-members-value", className="card-title text-danger mb-0"),
+                    html.P("High-Risk Members", className="card-text text-muted mb-0"),
+                    html.Small("10+ cases", className="text-muted"),
+                    html.Small(id="compliance-high-risk-members-change", className="text-danger"),
                     dbc.Spinner(
-                        id="compliance-high-risk-agents-spinner",
+                        id="compliance-high-risk-members-spinner",
+                        size="sm",
+                        color="warning",
+                        spinner_style={"position": "absolute", "top": "10px", "right": "10px"}
+                    )
+                ], style={"position": "relative"})
+            ], className="h-100 shadow-sm border-0")
+        ], width=12, lg=2, className="mb-3"),
+        
+        # Top Agent Card
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H4("N/A", id="compliance-top-agent-value", className="card-title text-secondary mb-0"),
+                    html.P("Top Agent", className="card-text text-muted mb-0"),
+                    html.Small("Highest case load", className="text-muted"),
+                    html.Small(id="compliance-top-agent-change", className="text-secondary"),
+                    dbc.Spinner(
+                        id="compliance-top-agent-spinner",
                         size="sm",
                         color="warning",
                         spinner_style={"position": "absolute", "top": "10px", "right": "10px"}
