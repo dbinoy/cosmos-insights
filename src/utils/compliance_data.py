@@ -24,10 +24,10 @@ def get_compliance_base_data():
         if (_cache_timestamp and 
             _compliance_data_cache and 
             (current_time - _cache_timestamp).seconds < _cache_duration_minutes * 60):
-            print(f"🎯 Using cached processed compliance data (age: {(current_time - _cache_timestamp).seconds}s)")
+            # print(f"🎯 Using cached processed compliance data (age: {(current_time - _cache_timestamp).seconds}s)")
             return _compliance_data_cache['merged_df']
         
-        print("📊 Processing fresh compliance case data...")
+        # print("📊 Processing fresh compliance case data...")
         
         # Fetch all required tables (these queries are still cached by run_queries)
         queries = {
@@ -108,7 +108,7 @@ def get_compliance_base_data():
         _compliance_data_cache['merged_df'] = merged_df
         _cache_timestamp = current_time
         
-        print(f"✅ Processed and cached {len(merged_df)} compliance cases")
+        # print(f"✅ Processed and cached {len(merged_df)} compliance cases")
         return merged_df
         
     except Exception as e:
@@ -121,7 +121,7 @@ def invalidate_compliance_cache():
     _compliance_data_cache = {}
     _cache_timestamp = None
     get_compliance_base_data.cache_clear()
-    print("🗑️ Compliance data cache invalidated")
+    # print("🗑️ Compliance data cache invalidated")
 
 @monitor_performance("Compliance Filter Application")
 def apply_compliance_filters(df, filter_selections):

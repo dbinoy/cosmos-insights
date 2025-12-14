@@ -17,29 +17,109 @@ def register_compliance_violation_status_callbacks(app):
         if df.empty:
             return pd.DataFrame(), {}
         
-        if view_state == "status":
-            # Group by Status
-            status_counts = df['Status'].value_counts().reset_index()
-            status_counts.columns = ['Category', 'Count']
-            
-        elif view_state == "disposition":
-            # Group by Disposition
+        if view_state == "disposition":
+            # Group by Disposition (case status)
             status_counts = df['Disposition'].value_counts().reset_index()
             status_counts.columns = ['Category', 'Count']
             
-        elif view_state == "combined":
-            # Group by Status and Disposition combination
-            combined_counts = df.groupby(['Status', 'Disposition']).size().reset_index(name='Count')
-            combined_counts['Category'] = combined_counts['Status'] + ' - ' + combined_counts['Disposition']
-            status_counts = combined_counts[['Category', 'Count']].sort_values('Count', ascending=False)
+        elif view_state == "violation":
+            # Group by first ViolationName in list
+            def get_first_violation(violation_list):
+                if isinstance(violation_list, list) and len(violation_list) > 0:
+                    return violation_list[0] if violation_list[0] is not None else "No Violation"
+                return "No Violation"
+            
+            df['FirstViolation'] = df['ViolationName'].apply(get_first_violation)
+            status_counts = df['FirstViolation'].value_counts().reset_index()
+            status_counts.columns = ['Category', 'Count']
+            
+        elif view_state == "violation_grouped":
+            # Group violations into logical categories
+            def categorize_violation(violation_list):
+                if isinstance(violation_list, list) and len(violation_list) > 0:
+                    violation = violation_list[0] if violation_list[0] is not None else "No Violation"
+                else:
+                    violation = "No Violation"
+                
+                # Logical groupings based on your analysis
+                if violation in ['Citation', 'Combined Citation', 'Citation: Unresolved']:
+                    return 'Active Citations'
+                elif violation in ['Citation - Dismissed by review panel', 'Corrected', 'Corrected Prior to Review']:
+                    return 'Citation Outcomes'
+                elif violation in ['Disciplinary Complaint', 'Disciplinary Complaint Dismissed', 'Disciplinary Complaint Upheld']:
+                    return 'Disciplinary Actions'
+                elif violation in ['Investigation Created', 'Escalated', 'Warning']:
+                    return 'Investigations'
+                elif violation in ['Call', 'Chat', 'Left Voicemail']:
+                    return 'Communication'
+                elif violation in ['AOR/MLS Referral', 'Transferred to OM/DB', 'Modification', 'Violation Override']:
+                    return 'Administrative'
+                elif violation in ['No Violation', 'Unable to Verify', 'Duplicate', 'Aged Report', 'Withdrawn']:
+                    return 'Resolution/Closure'
+                elif violation in ['Null', None, '']:
+                    return 'Data Issues'
+                else:
+                    return 'Other'
+            
+            df['ViolationCategory'] = df['ViolationName'].apply(categorize_violation)
+            status_counts = df['ViolationCategory'].value_counts().reset_index()
+            status_counts.columns = ['Category', 'Count']
+            
+        elif view_state == "rules":
+            # Group by first RuleNumber in list
+            def get_first_rule(rule_list):
+                if isinstance(rule_list, list) and len(rule_list) > 0:
+                    return rule_list[0] if rule_list[0] is not None else "No Rule"
+                return "No Rule"
+            
+            df['FirstRule'] = df['RuleNumber'].apply(get_first_rule)
+            status_counts = df['FirstRule'].value_counts().reset_index()
+            status_counts.columns = ['Category', 'Count']
+            
+        elif view_state == "citation_fees":
+            # Group by first CitationFee (no bucketization as requested)
+            def get_first_fee(fee_list):
+                if isinstance(fee_list, list) and len(fee_list) > 0:
+                    fee = fee_list[0] if fee_list[0] is not None else "No Fee"
+                    # Format fee values for display
+                    if str(fee).replace('.', '').replace('0', '').strip():
+                        return f"${fee}" if not str(fee).startswith('$') else fee
+                    else:
+                        return "No Fee"
+                return "No Fee"
+            
+            df['FirstFee'] = df['CitationFee'].apply(get_first_fee)
+            status_counts = df['FirstFee'].value_counts().reset_index()
+            status_counts.columns = ['Category', 'Count']
+            
+        elif view_state == "report_count":
+            # Group by number of associated reports
+            def categorize_report_count(count):
+                if pd.isna(count) or count == 0:
+                    return "No Reports"
+                elif count == 1:
+                    return "Single Report"
+                elif count <= 3:
+                    return "2-3 Reports"
+                elif count <= 5:
+                    return "4-5 Reports"
+                else:
+                    return "6+ Reports"
+            
+            df['ReportCountCategory'] = df['NumReportIds'].apply(categorize_report_count)
+            status_counts = df['ReportCountCategory'].value_counts().reset_index()
+            status_counts.columns = ['Category', 'Count']
         
         # Calculate summary stats
         summary_stats = {
             'total_cases': len(df),
-            'open_cases': len(df[df['Status'] != 'Closed']) if 'Status' in df.columns else 0,
-            'closed_cases': len(df[df['Status'] == 'Closed']) if 'Status' in df.columns else 0,
+            'open_cases': len(df[df['Disposition'] != 'Closed']) if 'Disposition' in df.columns else 0,
+            'closed_cases': len(df[df['Disposition'] == 'Closed']) if 'Disposition' in df.columns else 0,
             'unique_categories': len(status_counts)
         }
+        
+        # Sort by count descending
+        status_counts = status_counts.sort_values('Count', ascending=False).reset_index(drop=True)
         
         return status_counts, summary_stats
     
@@ -50,45 +130,84 @@ def register_compliance_violation_status_callbacks(app):
         if status_counts.empty:
             fig = go.Figure()
             fig.add_annotation(
-                text="No violation status data available",
+                text="No violation data available",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
                 showarrow=False,
                 font=dict(size=14, color="gray")
             )
             fig.update_layout(
-                title={'text': f"Violation {view_state.title()} Overview - No Data", 'x': 0.5, 'xanchor': 'center'},
+                title={'text': f"Violation Analysis - No Data", 'x': 0.5, 'xanchor': 'center'},
                 height=400
             )
             return fig
         
-        # Color scheme based on view
-        if view_state == "status":
+        # Color schemes based on view
+        if view_state == "disposition":
             color_map = {
-                'Open': '#e74c3c',      # Red for open
-                'Closed': '#27ae60',    # Green for closed
-                'In Progress': '#f39c12', # Orange for in progress
-                'On Hold': '#95a5a6',   # Gray for on hold
+                'Open': '#e74c3c', 'Closed': '#27ae60', 'In Progress': '#f39c12', 
+                'On Hold': '#95a5a6', 'Pending': '#3498db'
             }
-            colors = [color_map.get(cat, '#3498db') for cat in status_counts['Category']]
+            colors = [color_map.get(cat, '#7f8c8d') for cat in status_counts['Category']]
+        elif view_state == "violation_grouped":
+            color_map = {
+                'Active Citations': '#e74c3c',      # Red - urgent
+                'Citation Outcomes': '#f39c12',     # Orange - outcomes
+                'Disciplinary Actions': '#8e44ad',  # Purple - serious
+                'Investigations': '#3498db',        # Blue - active work
+                'Communication': '#2ecc71',         # Green - routine
+                'Administrative': '#95a5a6',        # Gray - procedural
+                'Resolution/Closure': '#27ae60',    # Dark green - resolved
+                'Data Issues': '#e67e22'            # Dark orange - needs attention
+            }
+            colors = [color_map.get(cat, '#7f8c8d') for cat in status_counts['Category']]
+        elif view_state == "report_count":
+            color_map = {
+                'No Reports': '#95a5a6',      # Gray
+                'Single Report': '#3498db',   # Blue
+                '2-3 Reports': '#f39c12',     # Orange
+                '4-5 Reports': '#e67e22',     # Dark orange
+                '6+ Reports': '#e74c3c'       # Red - complex cases
+            }
+            colors = [color_map.get(cat, '#7f8c8d') for cat in status_counts['Category']]
         else:
-            # Use a color sequence for disposition and combined views
+            # Use qualitative color palette for other views
             colors = px.colors.qualitative.Set3[:len(status_counts)]
         
-        # Create pie chart
+        # Create donut chart
         fig = go.Figure(data=[go.Pie(
             labels=status_counts['Category'],
             values=status_counts['Count'],
-            hole=0.3,
-            textinfo='label+percent+value',
-            textposition='outside',
+            hole=0.4,
+            textinfo='percent',
+            textposition='inside',
             marker=dict(colors=colors, line=dict(color='white', width=2)),
-            hovertemplate="<b>%{label}</b><br>Cases: %{value}<br>Percent: %{percent}<extra></extra>"
+            hovertemplate="<b>%{label}</b><br>Cases: %{value}<br>Percent: %{percent}<extra></extra>",
+            sort=False  # Keep our sorted order
         )])
+        
+        # Add center text
+        center_text = f"<b>{summary_stats['total_cases']:,}</b><br>Total Cases<br><span style='font-size:12px'>{summary_stats['unique_categories']} Categories</span>"
+        fig.add_annotation(
+            text=center_text,
+            x=0.5, y=0.5,
+            font_size=14,
+            showarrow=False
+        )
+        
+        # Chart titles
+        view_titles = {
+            'disposition': 'Cases by Disposition',
+            'violation': 'Cases by Violation Type',
+            'violation_grouped': 'Cases by Violation Category',
+            'rules': 'Cases by Rule Number',
+            'citation_fees': 'Cases by Citation Fee',
+            'report_count': 'Cases by Report Count'
+        }
         
         fig.update_layout(
             title={
-                'text': f"Violation {view_state.title()} Overview ({summary_stats['total_cases']:,} Total Cases)", 
+                'text': f"{view_titles.get(view_state, 'Violation Analysis')} ({summary_stats['total_cases']:,} Total Cases)", 
                 'x': 0.5, 
                 'xanchor': 'center',
                 'font': {'size': 16, 'color': '#2c3e50'}
@@ -97,20 +216,127 @@ def register_compliance_violation_status_callbacks(app):
             margin={'l': 50, 'r': 50, 't': 80, 'b': 50},
             plot_bgcolor='white',
             paper_bgcolor='white',
-            showlegend=True,
-            legend=dict(
-                orientation="v",
-                yanchor="middle",
-                y=0.5,
-                xanchor="left",
-                x=1.05
-            )
+            showlegend=False  # Disable legend for cleaner look
         )
         
         return fig
     
+    def create_violation_details_table(status_counts, view_state, df):
+        """Create detailed breakdown table for modal display"""
+        if status_counts.empty:
+            return html.Div("No violation data available", className="text-center text-muted p-4")
+        
+        try:
+            # Enhanced data for table
+            table_data = status_counts.copy()
+            
+            # Add percentage calculation
+            total_cases = table_data['Count'].sum()
+            table_data['Percentage'] = (table_data['Count'] / total_cases * 100).round(1)
+            
+            # Add additional metrics based on view
+            if view_state == "violation" and not df.empty:
+                # Add case details for individual violations
+                violation_details = []
+                for _, row in table_data.iterrows():
+                    violation = row['Category']
+                    # Get cases with this violation as first violation
+                    df_temp = df.copy()
+                    df_temp['FirstViolation'] = df_temp['ViolationName'].apply(
+                        lambda x: x[0] if isinstance(x, list) and len(x) > 0 and x[0] is not None else "No Violation"
+                    )
+                    matching_cases = df_temp[df_temp['FirstViolation'] == violation]
+                    
+                    # Calculate metrics
+                    open_count = len(matching_cases[matching_cases['Disposition'] != 'Closed'])
+                    avg_reports = matching_cases['NumReportIds'].mean() if 'NumReportIds' in matching_cases.columns else 0
+                    
+                    violation_details.append({
+                        'OpenCases': open_count,
+                        'AvgReports': avg_reports
+                    })
+                
+                details_df = pd.DataFrame(violation_details)
+                for col in details_df.columns:
+                    table_data[col] = details_df[col].values
+            
+            # Create table rows with enhanced styling
+            table_rows = []
+            for i, row in table_data.iterrows():
+                # Determine row styling
+                row_class = "table-warning" if i < 3 else ""
+                
+                # Create row cells
+                cells = [
+                    html.Td([
+                        html.Span("🔸", style={'color': '#3498db', 'marginRight': '8px'}),
+                        html.Span(row['Category'], style={'fontWeight': 'bold' if i < 5 else 'normal'})
+                    ]),
+                    html.Td(f"{row['Count']:,}", className="text-end fw-bold"),
+                    html.Td(f"{row['Percentage']:.1f}%", className="text-end")
+                ]
+                
+                # Add view-specific columns
+                if 'OpenCases' in row:
+                    cells.append(html.Td(f"{row['OpenCases']:,}", className="text-end"))
+                if 'AvgReports' in row:
+                    cells.append(html.Td(f"{row['AvgReports']:.1f}", className="text-end"))
+                
+                table_rows.append(html.Tr(cells, className=row_class))
+            
+            # Create headers
+            headers = [
+                html.Th("Category", style={'width': '40%'}),
+                html.Th("Cases", className="text-end", style={'width': '20%'}),
+                html.Th("Percentage", className="text-end", style={'width': '15%'})
+            ]
+            
+            if 'OpenCases' in table_data.columns:
+                headers.append(html.Th("Open Cases", className="text-end", style={'width': '15%'}))
+            if 'AvgReports' in table_data.columns:
+                headers.append(html.Th("Avg Reports", className="text-end", style={'width': '10%'}))
+            
+            # View-specific titles
+            view_names = {
+                'disposition': 'Disposition',
+                'violation': 'Violation Type',
+                'violation_grouped': 'Violation Category',
+                'rules': 'Rule Number',
+                'citation_fees': 'Citation Fee',
+                'report_count': 'Report Count'
+            }
+            
+            return html.Div([
+                html.H4(f"Complete {view_names.get(view_state, 'Violation')} Breakdown", className="mb-3 text-primary"),
+                html.P([
+                    html.Span([
+                        html.I(className="fas fa-gavel me-2"),
+                        f"Total: {total_cases:,} cases across {len(table_data)} categories"
+                    ], className="me-4"),
+                    html.Span([
+                        html.I(className="fas fa-chart-pie me-2"),
+                        f"Top 3 categories account for {table_data.head(3)['Percentage'].sum():.1f}% of cases"
+                    ])
+                ], className="text-muted mb-4"),
+                
+                html.Table([
+                    html.Thead([
+                        html.Tr(headers, style={'backgroundColor': '#f8f9fa', 'fontWeight': 'bold'})
+                    ]),
+                    html.Tbody(table_rows)
+                ], className="table table-hover table-striped"),
+                
+            ], className="p-3")
+            
+        except Exception as e:
+            print(f"❌ Error creating violation details table: {e}")
+            return html.Div([
+                html.H4("Error Creating Breakdown", className="text-danger mb-3"),
+                html.P(f"Unable to generate detailed breakdown: {str(e)}", className="text-muted")
+            ], className="text-center p-4")
+    
     @monitor_performance("Violation Status Insights Generation")
-    def generate_violation_status_insights(status_counts, summary_stats, view_state):
+    def generate_violation_status_insights(status_counts, summary_stats, view_state, df):
         """Generate insights for violation status overview"""
         
         if status_counts.empty:
@@ -126,8 +352,8 @@ def register_compliance_violation_status_callbacks(app):
             ], className="mb-2")
         )
         
-        if view_state == "status":
-            # Status-specific insights
+        # View-specific insights
+        if view_state == "disposition":
             if summary_stats['open_cases'] > 0:
                 open_pct = (summary_stats['open_cases'] / summary_stats['total_cases']) * 100
                 insights.append(
@@ -136,17 +362,33 @@ def register_compliance_violation_status_callbacks(app):
                         html.Span(f"**Open Cases**: {summary_stats['open_cases']:,} ({open_pct:.1f}%) require attention", style={'fontSize': '13px'})
                     ], className="mb-2")
                 )
-            
-            if summary_stats['closed_cases'] > 0:
-                closed_pct = (summary_stats['closed_cases'] / summary_stats['total_cases']) * 100
+                
+        elif view_state == "violation_grouped":
+            # Focus on high-severity categories
+            high_severity = status_counts[status_counts['Category'].isin(['Active Citations', 'Disciplinary Actions'])]
+            if not high_severity.empty:
+                severity_count = high_severity['Count'].sum()
+                severity_pct = (severity_count / summary_stats['total_cases']) * 100
                 insights.append(
                     html.Div([
-                        html.Span("✅ ", style={'fontSize': '16px'}),
-                        html.Span(f"**Closed Cases**: {summary_stats['closed_cases']:,} ({closed_pct:.1f}%) have been resolved", style={'fontSize': '13px'})
+                        html.Span("⚠️ ", style={'fontSize': '16px'}),
+                        html.Span(f"**High Severity**: {severity_count:,} cases ({severity_pct:.1f}%) involve citations or disciplinary actions", style={'fontSize': '13px'})
                     ], className="mb-2")
                 )
         
-        # Top categories
+        elif view_state == "report_count" and not df.empty:
+            # Complex cases insight
+            complex_cases = len(df[df['NumReportIds'] >= 4]) if 'NumReportIds' in df.columns else 0
+            if complex_cases > 0:
+                complex_pct = (complex_cases / summary_stats['total_cases']) * 100
+                insights.append(
+                    html.Div([
+                        html.Span("🔍 ", style={'fontSize': '16px'}),
+                        html.Span(f"**Complex Cases**: {complex_cases:,} cases ({complex_pct:.1f}%) have 4+ associated reports", style={'fontSize': '13px'})
+                    ], className="mb-2")
+                )
+        
+        # Top category insight
         top_category = status_counts.iloc[0] if len(status_counts) > 0 else None
         if top_category is not None:
             top_pct = (top_category['Count'] / summary_stats['total_cases']) * 100
@@ -157,44 +399,85 @@ def register_compliance_violation_status_callbacks(app):
                 ], className="mb-2")
             )
         
-        # Distribution insights
-        if len(status_counts) > 1:
-            insights.append(
-                html.Div([
-                    html.Span("📈 ", style={'fontSize': '16px'}),
-                    html.Span(f"**Distribution**: Cases are spread across {len(status_counts)} different {view_state} categories", style={'fontSize': '13px'})
-                ], className="mb-2")
-            )
-        
         return html.Div(insights, className="insights-container")
     
     # View state toggle callbacks
     @callback(
         [Output("compliance-violation-status-view-state", "data"),
-         Output("violation-status-view-btn", "active"),
          Output("violation-disposition-view-btn", "active"),
-         Output("violation-combined-view-btn", "active")],
-        [Input("violation-status-view-btn", "n_clicks"),
-         Input("violation-disposition-view-btn", "n_clicks"),
-         Input("violation-combined-view-btn", "n_clicks")],
+         Output("violation-types-view-btn", "active"),
+         Output("violation-categories-view-btn", "active"),
+         Output("violation-rules-view-btn", "active"),
+         Output("violation-fees-view-btn", "active"),
+         Output("violation-reports-view-btn", "active")],
+        [Input("violation-disposition-view-btn", "n_clicks"),
+         Input("violation-types-view-btn", "n_clicks"),
+         Input("violation-categories-view-btn", "n_clicks"),
+         Input("violation-rules-view-btn", "n_clicks"),
+         Input("violation-fees-view-btn", "n_clicks"),
+         Input("violation-reports-view-btn", "n_clicks")],
         prevent_initial_call=True
     )
-    def toggle_violation_status_view(status_clicks, disposition_clicks, combined_clicks):
-        """Toggle between different violation status views"""
+    def toggle_violation_status_view(disp_clicks, types_clicks, cats_clicks, rules_clicks, fees_clicks, reports_clicks):
+        """Toggle between different violation analysis views"""
         triggered = ctx.triggered
         if not triggered:
-            return "status", True, False, False
+            return "disposition", True, False, False, False, False, False
             
         triggered_id = triggered[0]['prop_id'].split('.')[0]
         
-        if triggered_id == "violation-status-view-btn":
-            return "status", True, False, False
-        elif triggered_id == "violation-disposition-view-btn":
-            return "disposition", False, True, False
-        elif triggered_id == "violation-combined-view-btn":
-            return "combined", False, False, True
+        if triggered_id == "violation-disposition-view-btn":
+            return "disposition", True, False, False, False, False, False
+        elif triggered_id == "violation-types-view-btn":
+            return "violation", False, True, False, False, False, False
+        elif triggered_id == "violation-categories-view-btn":
+            return "violation_grouped", False, False, True, False, False, False
+        elif triggered_id == "violation-rules-view-btn":
+            return "rules", False, False, False, True, False, False
+        elif triggered_id == "violation-fees-view-btn":
+            return "citation_fees", False, False, False, False, True, False
+        elif triggered_id == "violation-reports-view-btn":
+            return "report_count", False, False, False, False, False, True
         
-        return "status", True, False, False
+        return "disposition", True, False, False, False, False, False
+    
+    # Details modal callback
+    @callback(
+        [Output("compliance-violation-details-modal", "is_open"),
+         Output("compliance-violation-details-content", "children")],
+        [Input("compliance-violation-details-btn", "n_clicks")],
+        [State("compliance-violation-details-modal", "is_open"),
+         State("compliance-filtered-query-store", "data"),
+         State("compliance-violation-status-view-state", "data")],
+        prevent_initial_call=True
+    )
+    @monitor_performance("Violation Details Modal Toggle")
+    def toggle_violation_details_modal(details_btn_clicks, is_open, filter_selections, view_state):
+        """Handle opening of violation details modal with complete breakdown table"""
+        if details_btn_clicks:
+            if not is_open:
+                try:
+                    # Get fresh data
+                    base_data = get_compliance_base_data()
+                    filtered_data = apply_compliance_filters(base_data, filter_selections or {})
+                    status_counts, summary_stats = prepare_violation_status_data(filtered_data, view_state)
+                    
+                    # Create detailed table
+                    detailed_table = create_violation_details_table(status_counts, view_state, filtered_data)
+                    
+                    return True, detailed_table
+                    
+                except Exception as e:
+                    print(f"❌ Error generating violation details: {e}")
+                    error_content = html.Div([
+                        html.H4("Error Loading Details", className="text-danger mb-3"),
+                        html.P(f"Unable to load detailed breakdown: {str(e)}", className="text-muted")
+                    ], className="text-center p-4")
+                    return True, error_content
+            else:
+                return False, no_update
+        
+        return no_update, no_update
     
     # Main chart and insights callback
     @callback(
@@ -219,14 +502,14 @@ def register_compliance_violation_status_callbacks(app):
             if base_data.empty:
                 fig = go.Figure()
                 fig.add_annotation(
-                    text="No violation status data available",
+                    text="No violation data available",
                     xref="paper", yref="paper",
                     x=0.5, y=0.5, xanchor='center', yanchor='middle',
                     showarrow=False,
                     font=dict(size=14, color="red")
                 )
                 fig.update_layout(
-                    title={'text': "Violation Status Overview - No Data", 'x': 0.5, 'xanchor': 'center'},
+                    title={'text': "Violation Analysis - No Data", 'x': 0.5, 'xanchor': 'center'},
                     height=400
                 )
                 return fig, html.Div("No data available for analysis.", className="text-muted")
@@ -241,7 +524,7 @@ def register_compliance_violation_status_callbacks(app):
             fig = create_violation_status_chart(status_counts, summary_stats, view_state)
             
             # Generate insights
-            insights = generate_violation_status_insights(status_counts, summary_stats, view_state)
+            insights = generate_violation_status_insights(status_counts, summary_stats, view_state, filtered_data)
             
             return fig, insights
             
@@ -252,19 +535,19 @@ def register_compliance_violation_status_callbacks(app):
             
             fig = go.Figure()
             fig.add_annotation(
-                text=f"Error loading violation status data: {str(e)}",
+                text=f"Error loading violation data: {str(e)}",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, xanchor='center', yanchor='middle',
                 showarrow=False,
                 font=dict(size=14, color="red")
             )
             fig.update_layout(
-                title={'text': "Violation Status Overview - Error", 'x': 0.5, 'xanchor': 'center'},
+                title={'text': "Violation Analysis - Error", 'x': 0.5, 'xanchor': 'center'},
                 height=400
             )
             
             error_insights = html.Div([
-                html.Div([html.Span("❌ **Error**: Unable to load violation status data", style={'fontSize': '13px'})], className="mb-2"),
+                html.Div([html.Span("❌ **Error**: Unable to load violation data", style={'fontSize': '13px'})], className="mb-2"),
                 html.Div([html.Span("🔧 **Issue**: Data processing error occurred", style={'fontSize': '13px'})], className="mb-2"),
                 html.Div([html.Span("🔄 **Action**: Try refreshing or adjusting filters", style={'fontSize': '13px'})], className="mb-2")
             ], className="insights-container")

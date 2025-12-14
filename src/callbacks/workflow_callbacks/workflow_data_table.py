@@ -38,7 +38,7 @@ def register_workflow_data_table_callbacks(app):
         selected_issues = [item.strip("'") if item != "'-'" else "" for item in query_selections.get('Issues', '').split(', ') if item.strip("'")]
         start_date = query_selections.get('Day_From')
         end_date = query_selections.get('Day_To')
-        print(f"Selected Filters - AORs: [{selected_aor}], CaseTypes: [{selected_case_types}], Status: [{selected_status}], Priority: [{selected_priority}], Origins: [{selected_origins}], Reasons: [{selected_reasons}], Products: [{selected_products}], Features: [{selected_features}], Modules: [{selected_modules}], Issues: [{selected_issues}], Date Range: [{start_date}] to [{end_date}]")
+        # print(f"Selected Filters - AORs: [{selected_aor}], CaseTypes: [{selected_case_types}], Status: [{selected_status}], Priority: [{selected_priority}], Origins: [{selected_origins}], Reasons: [{selected_reasons}], Products: [{selected_products}], Features: [{selected_features}], Modules: [{selected_modules}], Issues: [{selected_issues}], Date Range: [{start_date}] to [{end_date}]")
 
         # Parse dates
         if 'CreatedOn' in work_items.columns:
