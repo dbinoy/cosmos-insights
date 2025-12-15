@@ -94,21 +94,43 @@ def register_compliance_violation_status_callbacks(app):
             
         elif view_state == "report_count":
             # Group by number of associated reports
-            def categorize_report_count(count):
+            # def categorize_report_count(count):
+            #     if pd.isna(count) or count == 0:
+            #         return "No Reports"
+            #     elif count == 1:
+            #         return "Single Report"
+            #     elif count <= 3:
+            #         return "2-3 Reports"
+            #     elif count <= 5:
+            #         return "4-5 Reports"
+            #     else:
+            #         return "6+ Reports"
+            
+            # df['ReportCountCategory'] = df['NumReportIds'].apply(categorize_report_count)
+            # status_counts = df['ReportCountCategory'].value_counts().reset_index()
+            # status_counts.columns = ['Category', 'Count']
+            def get_report_count_label(count):
                 if pd.isna(count) or count == 0:
                     return "No Reports"
-                elif count == 1:
-                    return "Single Report"
-                elif count <= 3:
-                    return "2-3 Reports"
-                elif count <= 5:
-                    return "4-5 Reports"
+                elif count >= 10:
+                    return "10+ Reports"
                 else:
-                    return "6+ Reports"
+                    return f"{int(count)} Report{'s' if count != 1 else ''}"
             
-            df['ReportCountCategory'] = df['NumReportIds'].apply(categorize_report_count)
-            status_counts = df['ReportCountCategory'].value_counts().reset_index()
+            df['ReportCountLabel'] = df['NumReportIds'].apply(get_report_count_label)
+            status_counts = df['ReportCountLabel'].value_counts().reset_index()
             status_counts.columns = ['Category', 'Count']
+            
+            # Sort by actual report count for logical ordering
+            def extract_report_number(label):
+                if label == "No Reports":
+                    return '00'
+                else:
+                    # Extract the number from labels like "1 Report", "2 Reports", etc.
+                    return str(int(label.split(' ')[0].replace('+', ''))).zfill(2)
+            
+            status_counts['SortKey'] = status_counts['Category'].apply(extract_report_number)
+            status_counts = status_counts.sort_values('SortKey').drop('SortKey', axis=1).reset_index(drop=True)            
         
         # Calculate summary stats
         summary_stats = {
@@ -162,14 +184,28 @@ def register_compliance_violation_status_callbacks(app):
             }
             colors = [color_map.get(cat, '#7f8c8d') for cat in status_counts['Category']]
         elif view_state == "report_count":
+            # color_map = {
+            #     'No Reports': '#95a5a6',      # Gray
+            #     'Single Report': '#3498db',   # Blue
+            #     '2-3 Reports': '#f39c12',     # Orange
+            #     '4-5 Reports': '#e67e22',     # Dark orange
+            #     '6+ Reports': '#e74c3c'       # Red - complex cases
+            # }
+            # colors = [color_map.get(cat, '#7f8c8d') for cat in status_counts['Category']]
             color_map = {
-                'No Reports': '#95a5a6',      # Gray
-                'Single Report': '#3498db',   # Blue
-                '2-3 Reports': '#f39c12',     # Orange
-                '4-5 Reports': '#e67e22',     # Dark orange
-                '6+ Reports': '#e74c3c'       # Red - complex cases
+                'No Reports': '#95a5a6',      # Gray - no activity
+                '1 Report': '#3498db',        # Blue - single report
+                '2 Reports': '#2ecc71',       # Green 
+                '3 Reports': '#f39c12',       # Orange
+                '4 Reports': '#e67e22',       # Dark orange
+                '5 Reports': '#e74c3c',       # Red
+                '6 Reports': '#8e44ad',       # Purple
+                '7 Reports': '#c0392b',       # Dark red
+                '8 Reports': '#7f8c8d',       # Dark gray
+                '9 Reports': '#d35400',       # Dark orange
+                '10+ Reports': '#2c3e50'       # Very dark blue
             }
-            colors = [color_map.get(cat, '#7f8c8d') for cat in status_counts['Category']]
+            colors = [color_map.get(cat, '#34495e') for cat in status_counts['Category']]            
         else:
             # Use qualitative color palette for other views
             colors = px.colors.qualitative.Set3[:len(status_counts)]
