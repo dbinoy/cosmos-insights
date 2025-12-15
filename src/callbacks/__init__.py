@@ -33,6 +33,7 @@ from src.callbacks.workflow_callbacks.workflow_data_table import register_workfl
 from src.callbacks.compliance_callbacks.compliance_filters import register_compliance_filter_callbacks
 from src.callbacks.compliance_callbacks.compliance_summary_cards import register_compliance_summary_cards_callbacks
 from src.callbacks.compliance_callbacks.compliance_violation_status import register_compliance_violation_status_callbacks
+from src.callbacks.compliance_callbacks.compliance_outstanding_issues import register_compliance_outstanding_issues_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
@@ -70,3 +71,4 @@ def register_all_callbacks(app):
     register_compliance_filter_callbacks(app)
     register_compliance_summary_cards_callbacks(app)
     register_compliance_violation_status_callbacks(app)
+    register_compliance_outstanding_issues_callbacks(app)

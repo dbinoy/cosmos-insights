@@ -192,3 +192,267 @@ def apply_compliance_filters(df, filter_selections):
         filtered_df = filtered_df[filtered_df['NumReportIds'].isin(num_list)]
     
     return filtered_df
+
+@monitor_performance("Outstanding Issues Classification")
+def classify_case_severity(df):
+    """
+    Classify compliance cases by severity level based on violation types and additional factors
+    
+    Returns DataFrame with additional columns:
+    - BaseSeverity: Base severity from violation type
+    - FinalSeverity: Final severity after applying multipliers
+    - SeverityReason: Reason for severity classification
+    - IsOutstanding: Boolean indicating if case is outstanding (unresolved)
+    """
+    if df.empty:
+        return df
+    
+    df_classified = df.copy()
+    
+    def get_base_severity_from_violations(violation_list):
+        """Classify base severity from violation types"""
+        if not isinstance(violation_list, list) or len(violation_list) == 0:
+            return "RESOLVED", "No violations"
+        
+        # Get first non-null violation
+        violation = None
+        for v in violation_list:
+            if v is not None and str(v).strip():
+                violation = v
+                break
+        
+        if not violation:
+            return "DATA_ISSUE", "Null violation data"
+        
+        # CRITICAL - Immediate Action Required
+        if violation in ['Citation', 'Citation: Unresolved', 'Combined Citation', 
+                        'Disciplinary Complaint', 'Disciplinary Complaint Upheld']:
+            return "CRITICAL", f"Active enforcement: {violation}"
+        
+        # HIGH - Urgent (Within 7 Days)
+        elif violation in ['Investigation Created', 'Escalated', 'Warning', 'Violation Override']:
+            return "HIGH", f"Investigation/escalation: {violation}"
+        
+        # MEDIUM - Standard Priority (Within 30 Days) 
+        elif violation in ['AOR/MLS Referral', 'Transferred to OM/DB', 'Modification']:
+            return "MEDIUM", f"Administrative action: {violation}"
+        
+        # LOW - Routine (Standard Timeline)
+        elif violation in ['Call', 'Chat', 'Left Voicemail']:
+            return "LOW", f"Communication activity: {violation}"
+        
+        # RESOLVED/CLOSED - No Action Required
+        elif violation in ['Corrected', 'Corrected Prior to Review', 'Citation - Dismissed by review panel',
+                          'Disciplinary Complaint Dismissed', 'No Violation', 'Duplicate', 
+                          'Aged Report', 'Unable to Verify', 'Withdrawn']:
+            return "RESOLVED", f"Case resolved: {violation}"
+        
+        # DATA ISSUES
+        elif violation in ['Null', None, ''] or str(violation).strip() == '':
+            return "DATA_ISSUE", "Missing violation data"
+        
+        else:
+            return "MEDIUM", f"Other violation: {violation}"
+    
+    def apply_severity_multipliers(base_severity, row):
+        """Apply multipliers based on case characteristics"""
+        severity_levels = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
+        level_names = {1: "LOW", 2: "MEDIUM", 3: "HIGH", 4: "CRITICAL"}
+        
+        if base_severity in ["RESOLVED", "DATA_ISSUE"]:
+            return base_severity, []
+        
+        current_level = severity_levels.get(base_severity, 2)
+        multipliers_applied = []
+        
+        # Unassigned cases: +1 severity level
+        if pd.isna(row.get('AssignedUser')) or str(row.get('AssignedUser', '')).strip() == '':
+            current_level = min(current_level + 1, 4)
+            multipliers_applied.append("Unassigned (+1)")
+        
+        # Age factor: Cases open > 10 days get +1 severity level
+        if 'CreatedOn' in row and pd.notna(row['CreatedOn']):
+            try:
+                created_date = pd.to_datetime(row['CreatedOn'])
+                days_open = (pd.Timestamp.now() - created_date).days
+                if days_open > 10:
+                    current_level = min(current_level + 1, 4)
+                    multipliers_applied.append(f"Aging {days_open} days (+1)")
+            except:
+                pass
+        
+        final_severity = level_names.get(current_level, base_severity)
+        return final_severity, multipliers_applied
+    
+    def is_case_outstanding(row):
+        """Determine if case is outstanding (unresolved)"""
+        # Check disposition first
+        disposition = row.get('Disposition', '')
+        if disposition and str(disposition).lower() in ['closed', 'resolved', 'complete']:
+            return False
+        
+        # Check status
+        status = row.get('Status', '')
+        if status and str(status).lower() in ['closed', 'resolved', 'complete']:
+            return False
+        
+        # Check violation types for resolved cases
+        violation_list = row.get('ViolationName', [])
+        if isinstance(violation_list, list) and len(violation_list) > 0:
+            first_violation = violation_list[0] if violation_list[0] is not None else None
+            if first_violation in ['Corrected', 'Corrected Prior to Review', 'Citation - Dismissed by review panel',
+                                 'Disciplinary Complaint Dismissed', 'No Violation', 'Duplicate', 
+                                 'Aged Report', 'Unable to Verify', 'Withdrawn']:
+                return False
+        
+        # If none of the above, consider it outstanding
+        return True
+    
+    # Apply classifications
+    severity_data = df_classified.apply(
+        lambda row: get_base_severity_from_violations(row.get('ViolationName', [])), axis=1
+    )
+    
+    df_classified['BaseSeverity'] = [s[0] for s in severity_data]
+    df_classified['BaseSeverityReason'] = [s[1] for s in severity_data]
+    
+    # Apply multipliers
+    final_severity_data = df_classified.apply(
+        lambda row: apply_severity_multipliers(row['BaseSeverity'], row), axis=1
+    )
+    
+    df_classified['FinalSeverity'] = [s[0] for s in final_severity_data]
+    df_classified['SeverityMultipliers'] = [s[1] for s in final_severity_data]
+    
+    # Create comprehensive severity reason
+    df_classified['SeverityReason'] = df_classified.apply(
+        lambda row: f"{row['BaseSeverityReason']}" + 
+                   (f" | Multipliers: {', '.join(row['SeverityMultipliers'])}" if row['SeverityMultipliers'] else ""), 
+        axis=1
+    )
+    
+    # Determine outstanding status
+    df_classified['IsOutstanding'] = df_classified.apply(is_case_outstanding, axis=1)
+    
+    # Calculate days open
+    df_classified['DaysOpen'] = df_classified.apply(
+        lambda row: (pd.Timestamp.now() - pd.to_datetime(row['CreatedOn'])).days 
+        if pd.notna(row.get('CreatedOn')) else 0, axis=1
+    )
+    
+    return df_classified
+
+@monitor_performance("Outstanding Issues Data Preparation")
+def prepare_outstanding_issues_data(df, view_state="severity"):
+    """
+    Prepare outstanding issues data based on view state
+    Only includes cases that are truly outstanding (unresolved)
+    """
+    if df.empty:
+        return pd.DataFrame(), {}
+    
+    # First classify all cases
+    classified_df = classify_case_severity(df)
+    
+    # Filter to only outstanding cases
+    outstanding_df = classified_df[classified_df['IsOutstanding'] == True].copy()
+    
+    if outstanding_df.empty:
+        return pd.DataFrame(), {'total_cases': 0, 'outstanding_cases': 0}
+    
+    # Prepare data based on view state
+    if view_state == "severity":
+        # Group by final severity level
+        status_counts = outstanding_df['FinalSeverity'].value_counts().reset_index()
+        status_counts.columns = ['Category', 'Count']
+        
+        # Ensure proper ordering (CRITICAL -> HIGH -> MEDIUM -> LOW -> DATA_ISSUE)
+        severity_order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'DATA_ISSUE']
+        status_counts['SortOrder'] = status_counts['Category'].map(
+            {sev: i for i, sev in enumerate(severity_order)}
+        ).fillna(99)
+        status_counts = status_counts.sort_values('SortOrder').drop('SortOrder', axis=1).reset_index(drop=True)
+        
+    elif view_state == "age":
+        # Group by age buckets
+        def categorize_age(days):
+            if days <= 7:
+                return "≤7 days (Fresh)"
+            elif days <= 30:
+                return "8-30 days (Recent)"
+            elif days <= 90:
+                return "31-90 days (Aging)"
+            else:
+                return ">90 days (Stale)"
+        
+        outstanding_df['AgeCategory'] = outstanding_df['DaysOpen'].apply(categorize_age)
+        status_counts = outstanding_df['AgeCategory'].value_counts().reset_index()
+        status_counts.columns = ['Category', 'Count']
+        
+        # Sort by age order
+        age_order = ["≤7 days (Fresh)", "8-30 days (Recent)", "31-90 days (Aging)", ">90 days (Stale)"]
+        status_counts['SortOrder'] = status_counts['Category'].map(
+            {age: i for i, age in enumerate(age_order)}
+        ).fillna(99)
+        status_counts = status_counts.sort_values('SortOrder').drop('SortOrder', axis=1).reset_index(drop=True)
+        
+    elif view_state == "assignment":
+        # Group by assignment status
+        def categorize_assignment(assigned_user):
+            if pd.isna(assigned_user) or str(assigned_user).strip() == '':
+                return "🚨 Unassigned"
+            else:
+                return f"👤 {str(assigned_user).strip()}"
+        
+        outstanding_df['AssignmentCategory'] = outstanding_df['AssignedUser'].apply(categorize_assignment)
+        status_counts = outstanding_df['AssignmentCategory'].value_counts().reset_index()
+        status_counts.columns = ['Category', 'Count']
+        
+        # Sort with unassigned first (highest priority)
+        status_counts['IsUnassigned'] = status_counts['Category'].str.contains('🚨 Unassigned')
+        status_counts = status_counts.sort_values(['IsUnassigned', 'Count'], ascending=[False, False]).drop('IsUnassigned', axis=1).reset_index(drop=True)
+        
+    elif view_state == "violation":
+        # Group by violation type (first violation)
+        def get_first_violation(violation_list):
+            if isinstance(violation_list, list) and len(violation_list) > 0:
+                return violation_list[0] if violation_list[0] is not None else "No Violation"
+            return "No Violation"
+        
+        outstanding_df['FirstViolation'] = outstanding_df['ViolationName'].apply(get_first_violation)
+        status_counts = outstanding_df['FirstViolation'].value_counts().reset_index()
+        status_counts.columns = ['Category', 'Count']
+        
+        # Sort by count descending
+        status_counts = status_counts.sort_values('Count', ascending=False).reset_index(drop=True)
+    
+    # Calculate summary stats
+    total_cases = len(df)
+    outstanding_cases = len(outstanding_df)
+    
+    # Severity breakdown
+    severity_breakdown = outstanding_df['FinalSeverity'].value_counts().to_dict()
+    
+    # Assignment stats
+    unassigned_count = len(outstanding_df[
+        outstanding_df['AssignedUser'].isna() | 
+        (outstanding_df['AssignedUser'].astype(str).str.strip() == '')
+    ])
+    
+    # Age stats
+    aging_count = len(outstanding_df[outstanding_df['DaysOpen'] > 30])
+    stale_count = len(outstanding_df[outstanding_df['DaysOpen'] > 90])
+    
+    summary_stats = {
+        'total_cases': total_cases,
+        'outstanding_cases': outstanding_cases,
+        'outstanding_percentage': (outstanding_cases / total_cases * 100) if total_cases > 0 else 0,
+        'critical_cases': severity_breakdown.get('CRITICAL', 0),
+        'high_cases': severity_breakdown.get('HIGH', 0),
+        'unassigned_cases': unassigned_count,
+        'aging_cases': aging_count,
+        'stale_cases': stale_count,
+        'avg_days_open': outstanding_df['DaysOpen'].mean() if not outstanding_df.empty else 0
+    }
+    
+    return status_counts, summary_stats
