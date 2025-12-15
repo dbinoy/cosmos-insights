@@ -93,22 +93,6 @@ def register_compliance_violation_status_callbacks(app):
             status_counts.columns = ['Category', 'Count']
             
         elif view_state == "report_count":
-            # Group by number of associated reports
-            # def categorize_report_count(count):
-            #     if pd.isna(count) or count == 0:
-            #         return "No Reports"
-            #     elif count == 1:
-            #         return "Single Report"
-            #     elif count <= 3:
-            #         return "2-3 Reports"
-            #     elif count <= 5:
-            #         return "4-5 Reports"
-            #     else:
-            #         return "6+ Reports"
-            
-            # df['ReportCountCategory'] = df['NumReportIds'].apply(categorize_report_count)
-            # status_counts = df['ReportCountCategory'].value_counts().reset_index()
-            # status_counts.columns = ['Category', 'Count']
             def get_report_count_label(count):
                 if pd.isna(count) or count == 0:
                     return "No Reports"
@@ -126,7 +110,6 @@ def register_compliance_violation_status_callbacks(app):
                 if label == "No Reports":
                     return '00'
                 else:
-                    # Extract the number from labels like "1 Report", "2 Reports", etc.
                     return str(int(label.split(' ')[0].replace('+', ''))).zfill(2)
             
             status_counts['SortKey'] = status_counts['Category'].apply(extract_report_number)
@@ -184,14 +167,6 @@ def register_compliance_violation_status_callbacks(app):
             }
             colors = [color_map.get(cat, '#7f8c8d') for cat in status_counts['Category']]
         elif view_state == "report_count":
-            # color_map = {
-            #     'No Reports': '#95a5a6',      # Gray
-            #     'Single Report': '#3498db',   # Blue
-            #     '2-3 Reports': '#f39c12',     # Orange
-            #     '4-5 Reports': '#e67e22',     # Dark orange
-            #     '6+ Reports': '#e74c3c'       # Red - complex cases
-            # }
-            # colors = [color_map.get(cat, '#7f8c8d') for cat in status_counts['Category']]
             color_map = {
                 'No Reports': '#95a5a6',      # Gray - no activity
                 '1 Report': '#3498db',        # Blue - single report
@@ -257,6 +232,61 @@ def register_compliance_violation_status_callbacks(app):
         
         return fig
     
+    @monitor_chart_performance("Enlarged Violation Status Chart")
+    def create_enlarged_violation_status_chart(original_figure):
+        """
+        Create an enlarged version of the violation status chart for modal display
+        Following the exact workflow pattern
+        """
+        if not original_figure:
+            return html.Div("No chart data available", className="text-center p-4")
+        
+        try:
+            enlarged_fig = copy.deepcopy(original_figure)
+            enlarged_fig['layout'].update({
+                'height': 600,
+                'margin': {'l': 80, 'r': 80, 't': 100, 'b': 120},
+                'title': {
+                    **enlarged_fig['layout'].get('title', {}),
+                    'font': {'size': 20, 'color': '#2c3e50'}
+                },
+                'legend': {
+                    **enlarged_fig['layout'].get('legend', {}),
+                    'font': {'size': 13}
+                }
+            })
+            
+            # Update pie chart for better visibility
+            if 'data' in enlarged_fig and enlarged_fig['data']:
+                for trace in enlarged_fig['data']:
+                    if trace.get('type') == 'pie':
+                        trace.update({
+                            'textfont': {'size': 13},
+                            'marker': {
+                                **trace.get('marker', {}),
+                                'line': {'color': 'white', 'width': 3}
+                            }
+                        })
+            
+            return dcc.Graph(
+                figure=enlarged_fig,
+                config={
+                    'displayModeBar': True,
+                    'modeBarButtonsToRemove': ['pan2d', 'lasso2d'],
+                    'displaylogo': False,
+                    'toImageButtonOptions': {
+                        'format': 'png',
+                        'filename': 'compliance_violation_status_chart',
+                        'height': 600,
+                        'width': 1200,
+                        'scale': 1
+                    }
+                },
+                style={'height': '600px'}
+            )
+        except Exception as e:
+            return html.Div(f"Error displaying chart: {str(e)}", className="text-center p-4 text-danger")
+            
     def create_violation_details_table(status_counts, view_state, df):
         """Create detailed breakdown table for modal display"""
         if status_counts.empty:
@@ -590,4 +620,42 @@ def register_compliance_violation_status_callbacks(app):
             
             return fig, error_insights
     
-    print("✅ Compliance violation status callbacks registered")
+    @callback(
+        [
+            Output("compliance-chart-modal", "is_open", allow_duplicate=True),
+            Output("compliance-modal-chart-content", "children", allow_duplicate=True)
+        ],
+        [
+            Input("compliance-violation-status-chart-wrapper", "n_clicks"),
+            Input("compliance-chart-modal", "is_open")
+        ],
+        [
+            State("compliance-violation-status-chart", "figure"),
+            State("compliance-chart-modal", "is_open")
+        ],
+        prevent_initial_call=True
+    )
+    def toggle_violation_status_chart_modal(wrapper_clicks, modal_is_open, chart_figure, is_open_state):
+        """Toggle enlarged violation status chart modal - exact workflow pattern"""
+        triggered_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else None
+        
+        if triggered_id == "compliance-violation-status-chart-wrapper" and wrapper_clicks and not is_open_state:
+            enlarged_chart = create_enlarged_violation_status_chart(chart_figure)
+            return True, enlarged_chart
+        
+        return no_update, no_update
+        
+    @callback(
+        Output("compliance-violation-details-modal", "is_open", allow_duplicate=True),
+        [Input("compliance-violation-details-close-btn", "n_clicks")],
+        [State("compliance-violation-details-modal", "is_open")],
+        prevent_initial_call=True
+    )
+    def close_violation_details_modal(close_clicks, is_open):
+        """Close the violation details modal when close button is clicked"""
+        if close_clicks and is_open:
+            # print("📊 Closing violation details modal via close button")
+            return False
+        return no_update
+
+    # print("✅ Compliance violation status callbacks registered")
