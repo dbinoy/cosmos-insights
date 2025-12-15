@@ -456,3 +456,245 @@ def prepare_outstanding_issues_data(df, view_state="severity"):
     }
     
     return status_counts, summary_stats
+
+@monitor_performance("Event History Processing")
+def process_case_events(df):
+    """
+    Process case events from merged case details to create event history
+    Based on the notebook's event processing and normalization logic
+    """
+    if df.empty or 'CaseEvents' not in df.columns:
+        return pd.DataFrame()
+    
+    history_records = []
+    
+    for idx, row in df.iterrows():
+        case_id = row['ID']
+        case_events = row.get('CaseEvents', [])
+        
+        if not isinstance(case_events, list):
+            continue
+            
+        # Process each event in the case events list
+        for event in case_events:
+            try:
+                # Extract event details
+                action_date = event.get('ActionDate', '')
+                object_type = event.get('ObjectType', '')
+                event_name = event.get('EventName', '')
+                detail_text = event.get('Detail', '')
+                
+                # Apply normalization to the detail text
+                normalized_detail = normalize_event_detail(detail_text)
+                
+                # Create EventItem as ObjectType + ' - ' + normalized detail
+                event_summary = f"{object_type.replace('Entity', '')} - {normalized_detail}"
+                
+                # Create history record
+                history_record = {
+                    'CaseID': case_id,
+                    'ActionDate': action_date,
+                    'ObjectType': object_type,
+                    'EventName': event_name,
+                    'Detail': detail_text[:100] + '...' if len(detail_text) > 100 else detail_text,
+                    'EventSummary': event_summary,
+                    'NormalizedDetail': normalized_detail
+                }
+                
+                history_records.append(history_record)
+                
+            except Exception as e:
+                continue
+    
+    if not history_records:
+        return pd.DataFrame()
+    
+    # Create the dataframe
+    event_history_df = pd.DataFrame(history_records)
+    
+    # Convert ActionDate to datetime
+    try:
+        event_history_df['ActionDate'] = pd.to_datetime(event_history_df['ActionDate'], errors='coerce')
+    except:
+        pass
+    
+    # Sort by ActionDate descending (most recent first)
+    event_history_df = event_history_df.sort_values('ActionDate', ascending=False).reset_index(drop=True)
+    
+    return event_history_df
+
+def normalize_event_detail(detail):
+    """
+    Normalize event detail text based on the notebook's normalization patterns
+    Simplified version focusing on the most common patterns
+    """
+    if not detail or pd.isna(detail):
+        return 'Unknown'
+    
+    # Remove extra whitespace and normalize
+    detail = detail.replace('\\"', '"').replace('\\/', '/')
+    normalized = re.sub(r'\s+', ' ', detail.strip())
+    
+    # HTML tag scenarios - if any HTML tags present, it's a case note update
+    html_patterns = [
+        r'<p[^>]*>.*?</p>', r'<div[^>]*>.*?</div>', r'<h[1-6][^>]*>.*?</h[1-6]>',
+        r'<span[^>]*>.*?</span>', r'<strong[^>]*>.*?</strong>', r'<br\s*/?>', 
+        r'&[a-zA-Z0-9#]+;'
+    ]
+    
+    for pattern in html_patterns:
+        if re.search(pattern, normalized, re.IGNORECASE | re.DOTALL):
+            return 'Case Note updated'
+    
+    # Case and investigation status changes (key patterns from notebook)
+    status_patterns = [
+        (r'.*[Cc]ase [Cc]losed.*', 'Case Closed'),
+        (r'.*[Cc]ase [Cc]reated.*', 'Case Created'),
+        (r'.*[Cc]ase [Uu]pdated.*', 'Case Updated'),
+        (r'.*[Cc]ase [Rr]eopened.*', 'Case Reopened'),
+        (r'.*[Ii]nvestigation.*status.*change*', 'Investigation Status Changed'),
+        (r'.*[Ii]nvestigation.*[Mm]arked.*', 'Marked for Investigation'),
+        (r'.*[Cc]itation.*[Nn]otice.*[Cc]reated.*', 'Citation Notice Created'),
+        (r'.*[Ww]arning.*[Nn]otice.*[Cc]reated.*', 'Warning Notice Created'),
+        (r'.*[Ee]mail.*[Nn]otice.*[Cc]reated.*', 'Email Notice Created'),
+        (r'.*[Ii]nvoice.*[Cc]reated.*', 'Invoice Created'),
+        (r'.*[Pp]ayment.*[Cc]reated.*', 'Payment Created'),
+        (r'.*[Aa]ssociated report.*with.*case.*', 'Report Associated'),
+        (r'.*[Rr]eport.*[Uu]pdated.*', 'Report Updated'),
+        (r'.*[Cc]all.*[Cc]ompliance.*', 'Call Compliance'),
+        (r'.*[Cc]hat.*[Cc]ompliance.*', 'Chat Compliance'),
+        (r'.*From:.*,To:.*', 'Assignment Changed'),
+        (r'.*[Cc]ase [Mm]ember changed.*', 'Case Member Changed')
+    ]
+    
+    # Apply status patterns
+    for pattern, replacement in status_patterns:
+        if re.match(pattern, normalized, re.IGNORECASE):
+            return replacement
+    
+    # Remove IDs and clean up
+    id_cleanup = [
+        (r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', ''),
+        (r'case: \d+', ''), (r'Case \d+', ''), (r'\b\d{3,}\b', ''),
+        (r'\$\d+(?:\.\d{2})?', '$[Amount]'), (r'\([^)]*\)', ''),
+        (r'\s+', ' ')
+    ]
+    
+    for pattern, replacement in id_cleanup:
+        normalized = re.sub(pattern, replacement, normalized, flags=re.IGNORECASE)
+    
+    # Final cleanup
+    normalized = re.sub(r'^[-\s,:.]+|[-\s,:.]+$', '', normalized.strip())
+    
+    return normalized if normalized and len(normalized) > 1 else 'Other Activity'
+
+def extract_lifecycle_stages(event_summary):
+    """
+    Extract case lifecycle stages from event summaries based on notebook analysis
+    """
+    if not event_summary:
+        return 'Other'
+    
+    # Stage mapping based on notebook patterns
+    if 'Case Note updated' in event_summary or 'CaseNote -' in event_summary:
+        return 'Note Update'
+    elif 'Case review' in event_summary.lower():
+        return 'Review Status Change'
+    elif 'Investigation Status Changed' in event_summary:
+        return 'Investigation Status Change'
+    elif 'Marked for Investigation' in event_summary:
+        return 'Investigation Start'
+    elif 'Assignment Changed' in event_summary or 'Case Member Changed' in event_summary:
+        return 'Assignment Change'
+    elif 'Case Closed' in event_summary:
+        return 'Case Closure'
+    elif 'Case Created' in event_summary:
+        return 'Case Creation'
+    elif 'Case Reopened' in event_summary:
+        return 'Case Reopening'
+    elif 'Case Updated' in event_summary:
+        return 'Case Update'
+    elif 'Invoice' in event_summary or 'Payment' in event_summary:
+        return 'Financial Activity'
+    elif 'Notice Created' in event_summary:
+        return 'Notice Creation'
+    elif 'Report' in event_summary:
+        return 'Report Activity'
+    elif 'Call Compliance' in event_summary or 'Chat Compliance' in event_summary:
+        return 'Communication'
+    else:
+        return 'Other'
+
+@monitor_performance("Recent Activities Data Preparation")
+def prepare_recent_activities_data(df, timeframe="30d", activity_type="all"):
+    """
+    Prepare recent activities data for visualization
+    
+    Parameters:
+    df: Merged case details dataframe
+    timeframe: "7d", "30d", "90d", "6m"
+    activity_type: "all", "investigations", "communications", "notices", etc.
+    """
+    if df.empty:
+        return pd.DataFrame(), {}
+    
+    # Process case events to get event history
+    event_history_df = process_case_events(df)
+    
+    if event_history_df.empty:
+        return pd.DataFrame(), {'total_activities': 0, 'date_range': ''}
+    
+    # Filter by timeframe
+    end_date = pd.Timestamp.now()
+    
+    timeframe_days = {
+        '7d': 7, '30d': 30, '90d': 90, '6m': 180
+    }
+    
+    days = timeframe_days.get(timeframe, 30)
+    start_date = end_date - pd.Timedelta(days=days)
+    
+    # Filter events within timeframe
+    recent_events = event_history_df[
+        (event_history_df['ActionDate'] >= start_date) &
+        (event_history_df['ActionDate'] <= end_date)
+    ].copy()
+    
+    if recent_events.empty:
+        return pd.DataFrame(), {
+            'total_activities': 0, 'date_range': f'{start_date.date()} to {end_date.date()}',
+            'timeframe_label': f'Last {days} days'
+        }
+    
+    # Add lifecycle stages
+    recent_events['LifecycleStage'] = recent_events['EventSummary'].apply(extract_lifecycle_stages)
+    
+    # Filter by activity type if specified
+    if activity_type != "all":
+        activity_filters = {
+            'investigations': ['Investigation Start', 'Investigation Status Change'],
+            'communications': ['Communication'],
+            'notices': ['Notice Creation'],
+            'case_management': ['Case Creation', 'Case Update', 'Case Closure', 'Case Reopening'],
+            'financial': ['Financial Activity'],
+            'reports': ['Report Activity']
+        }
+        
+        if activity_type in activity_filters:
+            recent_events = recent_events[
+                recent_events['LifecycleStage'].isin(activity_filters[activity_type])
+            ]
+    
+    # Prepare summary statistics
+    summary_stats = {
+        'total_activities': len(recent_events),
+        'unique_cases': recent_events['CaseID'].nunique(),
+        'date_range': f'{start_date.date()} to {end_date.date()}',
+        'timeframe_label': f'Last {days} days',
+        'daily_average': len(recent_events) / days,
+        'most_active_day': recent_events['ActionDate'].dt.date.value_counts().index[0] if not recent_events.empty else None,
+        'stage_breakdown': recent_events['LifecycleStage'].value_counts().to_dict()
+    }
+    
+    return recent_events, summary_stats
+
