@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
-from src.utils.compliance_data import get_compliance_base_data, apply_compliance_filters, prepare_recent_activities_data
+from src.utils.compliance_data import get_compliance_base_data, apply_compliance_filters, prepare_recent_activities_data, get_case_flow_with_lifecycle_stages
 from src.utils.performance import monitor_performance, monitor_chart_performance
 import time
 import copy
@@ -59,23 +59,29 @@ def register_compliance_recent_activities_callbacks(app):
             )
             
         elif view_state == "activity_type":
-            # Activity type breakdown
+            # Activity type breakdown using exact notebook lifecycle stages
             type_counts = recent_events['LifecycleStage'].value_counts().reset_index()
             type_counts.columns = ['ActivityType', 'Count']
             
-            # Color mapping for different activity types
+            # Color mapping for different activity types based on notebook stages
             color_map = {
-                'Case Creation': '#2ecc71',
-                'Case Update': '#3498db', 
-                'Case Closure': '#e74c3c',
-                'Investigation Start': '#f39c12',
-                'Investigation Status Change': '#e67e22',
-                'Notice Creation': '#9b59b6',
-                'Financial Activity': '#27ae60',
-                'Communication': '#16a085',
-                'Report Activity': '#8e44ad',
-                'Assignment Change': '#2c3e50',
-                'Note Update': '#95a5a6'
+                'Note_Update': '#95a5a6',
+                'Case_Creation': '#2ecc71',
+                'Case_Update': '#3498db', 
+                'Case_Closure': '#e74c3c',
+                'Case_Reopening': '#f39c12',
+                'Investigation_Start': '#f39c12',
+                'Investigation_Status_Change': '#e67e22',
+                'Review_Status_Change': '#9b59b6',
+                'Notice_Creation': '#8e44ad',
+                'Invoice_Creation': '#27ae60',
+                'Payment_Record_Creation': '#16a085',
+                'Payment_Record_Update': '#16a085',
+                'Report_Association': '#34495e',
+                'Report_Update': '#2c3e50',
+                'Assignee_Change': '#7f8c8d',
+                'Member_Change': '#95a5a6',
+                'Other': '#bdc3c7'
             }
             
             colors = [color_map.get(act, '#7f8c8d') for act in type_counts['ActivityType']]
@@ -98,7 +104,7 @@ def register_compliance_recent_activities_callbacks(app):
                 xaxis_title="Number of Activities",
                 yaxis_title="",
                 height=400,
-                margin={'l': 120, 'r': 50, 't': 80, 'b': 50}
+                margin={'l': 150, 'r': 50, 't': 80, 'b': 50}
             )
             
         elif view_state == "volume":
@@ -301,12 +307,14 @@ def register_compliance_recent_activities_callbacks(app):
             
             table_rows = []
             for i, row in recent_sample.iterrows():
-                # Color coding based on lifecycle stage
+                # Color coding based on lifecycle stage from notebook
                 stage_colors = {
-                    'Case Creation': 'table-success',
-                    'Case Closure': 'table-danger',
-                    'Investigation Start': 'table-warning',
-                    'Notice Creation': 'table-info'
+                    'Case_Creation': 'table-success',
+                    'Case_Closure': 'table-danger',
+                    'Investigation_Start': 'table-warning',
+                    'Investigation_Status_Change': 'table-warning',
+                    'Notice_Creation': 'table-info',
+                    'Review_Status_Change': 'table-info'
                 }
                 
                 row_class = stage_colors.get(row['LifecycleStage'], '')
@@ -363,19 +371,25 @@ def register_compliance_recent_activities_callbacks(app):
             ], className="text-center p-4")
     
     def get_stage_icon(stage):
-        """Get icon for lifecycle stage"""
+        """Get icon for lifecycle stage - using exact notebook stages"""
         icons = {
-            'Case Creation': '🆕',
-            'Case Update': '✏️',
-            'Case Closure': '✅',
-            'Investigation Start': '🔍',
-            'Investigation Status Change': '🔄',
-            'Notice Creation': '📢',
-            'Financial Activity': '💰',
-            'Communication': '💬',
-            'Report Activity': '📋',
-            'Assignment Change': '👥',
-            'Note Update': '📝'
+            'Note_Update': '📝',
+            'Case_Creation': '🆕',
+            'Case_Update': '✏️',
+            'Case_Closure': '✅',
+            'Case_Reopening': '🔄',
+            'Investigation_Start': '🔍',
+            'Investigation_Status_Change': '🔬',
+            'Review_Status_Change': '📋',
+            'Notice_Creation': '📢',
+            'Invoice_Creation': '💰',
+            'Payment_Record_Creation': '💳',
+            'Payment_Record_Update': '💳',
+            'Report_Association': '📊',
+            'Report_Update': '📈',
+            'Assignee_Change': '👥',
+            'Member_Change': '👤',
+            'Other': '📌'
         }
         return icons.get(stage, '📌')
     
@@ -405,7 +419,7 @@ def register_compliance_recent_activities_callbacks(app):
             ], className="mb-2")
         )
         
-        # Most common activity type
+        # Most common activity type using notebook stages
         if not recent_events.empty:
             top_activity = recent_events['LifecycleStage'].value_counts().iloc[0]
             top_activity_type = recent_events['LifecycleStage'].value_counts().index[0]
@@ -418,9 +432,9 @@ def register_compliance_recent_activities_callbacks(app):
                 ], className="mb-2")
             )
         
-        # Investigation activity
+        # Investigation activity using notebook stages
         investigation_activities = recent_events[
-            recent_events['LifecycleStage'].isin(['Investigation Start', 'Investigation Status Change'])
+            recent_events['LifecycleStage'].isin(['Investigation_Start', 'Investigation_Status_Change'])
         ]
         if not investigation_activities.empty:
             inv_count = len(investigation_activities)
@@ -432,14 +446,25 @@ def register_compliance_recent_activities_callbacks(app):
                 ], className="mb-2")
             )
         
-        # Case closure activity
-        closure_activities = recent_events[recent_events['LifecycleStage'] == 'Case Closure']
+        # Case closure activity using notebook stages
+        closure_activities = recent_events[recent_events['LifecycleStage'] == 'Case_Closure']
         if not closure_activities.empty:
             closure_count = len(closure_activities)
             insights.append(
                 html.Div([
                     html.Span("✅ ", style={'fontSize': '16px'}),
                     html.Span(f"**Case Resolutions**: {closure_count:,} cases closed recently", style={'fontSize': '13px'})
+                ], className="mb-2")
+            )
+        
+        # Notice creation activity using notebook stages
+        notice_activities = recent_events[recent_events['LifecycleStage'] == 'Notice_Creation']
+        if not notice_activities.empty:
+            notice_count = len(notice_activities)
+            insights.append(
+                html.Div([
+                    html.Span("📢 ", style={'fontSize': '16px'}),
+                    html.Span(f"**Notice Activity**: {notice_count:,} notices created", style={'fontSize': '13px'})
                 ], className="mb-2")
             )
         
@@ -505,7 +530,7 @@ def register_compliance_recent_activities_callbacks(app):
         if details_btn_clicks:
             if not is_open:
                 try:
-                    # Get fresh data
+                    # Get filtered data - now much faster since heavy processing is cached
                     base_data = get_compliance_base_data()
                     filtered_data = apply_compliance_filters(base_data, filter_selections or {})
                     recent_events, summary_stats = prepare_recent_activities_data(filtered_data, timeframe)
@@ -527,7 +552,7 @@ def register_compliance_recent_activities_callbacks(app):
         
         return no_update, no_update
     
-    # Main chart and insights callback
+    # Main chart and insights callback - NOW MUCH FASTER
     @callback(
         [Output("compliance-recent-activities-chart", "figure"),
          Output("compliance-recent-activities-insights", "children")],
@@ -538,14 +563,14 @@ def register_compliance_recent_activities_callbacks(app):
     )
     @monitor_performance("Recent Activities Chart Update")
     def update_recent_activities_chart(filter_selections, view_state, timeframe):
-        """Update recent activities chart and insights based on filters, view state, and timeframe"""
+        """Update recent activities chart and insights - now using cached processing"""
         
         try:
             # Get filter selections or use defaults
             if not filter_selections:
                 filter_selections = {}
             
-            # Get base data using shared utility
+            # Get base data using shared utility - cached and fast
             base_data = get_compliance_base_data()
             
             if base_data.empty:
@@ -566,7 +591,7 @@ def register_compliance_recent_activities_callbacks(app):
             # Apply filters using shared utility
             filtered_data = apply_compliance_filters(base_data, filter_selections)
             
-            # Prepare recent activities data based on timeframe
+            # Prepare recent activities data - now uses cached event history processing
             recent_events, summary_stats = prepare_recent_activities_data(filtered_data, timeframe or "30d")
             
             # Create chart
