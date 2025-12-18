@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 import json
 from datetime import datetime, timedelta
 from src.utils.db import run_queries
@@ -546,47 +547,230 @@ def normalize_event_detail(detail):
         if re.search(pattern, normalized, re.IGNORECASE | re.DOTALL):
             return 'Case Note updated'
     
+    hyperlink_patterns = [
+        r'^\s*<a\s+href=\\?"[^"]*\\?"[^>]*>(.*?)<\\?/?a>\s*$',
+        r'^\s*<a\s+href="[^"]*"[^>]*>(.*?)</a>\s*$',
+        r'^\s*<a\s+href=[^>]*>(.*?)</?a>\s*$',
+    ]
+    
+    for pattern in hyperlink_patterns:
+        hyperlink_match = re.match(pattern, normalized, re.IGNORECASE | re.DOTALL)
+        if hyperlink_match:
+            link_text = hyperlink_match.group(1).strip()
+            link_text = re.sub(r'&[a-zA-Z0-9]+;', '', link_text) 
+            link_text = re.sub(r'<[^>]+>', '', link_text) 
+            return link_text if link_text else 'Link'
+            
     # Case and investigation status changes (key patterns from notebook)
-    status_patterns = [
+    case_status_patterns = [
         (r'.*[Cc]ase [Cc]losed.*', 'Case Closed'),
         (r'.*[Cc]ase [Cc]reated.*', 'Case Created'),
         (r'.*[Cc]ase [Uu]pdated.*', 'Case Updated'),
         (r'.*[Cc]ase [Rr]eopened.*', 'Case Reopened'),
+        (r'.*[Cc]ase.*unlinked.*', 'Case Unlinked'),
+        (r'.*[Cc]ase.*linked.*', 'Case Linked'),
+        (r'.*[Cc]ase [Rr]eview [Ss]tatus changed.*', 'Case Review Status Changed'),
+        (r'.*[Cc]ase [Rr]eview [Uu]pdated.*', 'Case Review Updated'),
+        (r'.*[Ii]nvestigation.*relocat.*', 'Investigation Relocated'),
+        (r'.*[Ii]nvestigatio.*[Mm]arked.*', 'Marked For Investigation'),
         (r'.*[Ii]nvestigation.*status.*change*', 'Investigation Status Changed'),
-        (r'.*[Ii]nvestigation.*[Mm]arked.*', 'Marked for Investigation'),
+        (r'.*[Ii]nvestigation [Uu]pdated.*', 'Investigation Status Changed'),
+        (r'.*[Nn]otice.*[Dd]efinition.*[Uu]pdated.*', 'NoticeDefinition Updated'),
         (r'.*[Cc]itation.*[Nn]otice.*[Cc]reated.*', 'Citation Notice Created'),
         (r'.*[Ww]arning.*[Nn]otice.*[Cc]reated.*', 'Warning Notice Created'),
         (r'.*[Ee]mail.*[Nn]otice.*[Cc]reated.*', 'Email Notice Created'),
+        (r'.*[Ii]nquiry.*[Nn]otice.*[Cc]reated.*', 'Inquiry Notice Created'),
+        (r'.*[Ii]ncoming.*[Ee]mail.*[Nn]otice.*[Cc]reated.*', 'Incoming Email Notice Created'),
+        (r'.*NoticeType.*Incoming Email.*[Cc]reated.*', 'Incoming Email Notice Created'),
+        (r'.*NoticeType\.Incoming Email.*[Cc]reated.*', 'Incoming Email Notice Created'),
+        (r'.*[Oo]ther.*[Nn]otice.*[Cc]reated.*', 'Other Notice Created'),
+        (r'.*NoticeType.*Other.*[Cc]reated.*', 'Other Notice Created'),
+        (r'.*NoticeType\.Other.*[Cc]reated.*', 'Other Notice Created'),
+        (r'.*[Nn]otice.*[Tt]ranscript.*[Cc]reated.*', 'Notice Transcript Created'),
+        (r'.*[Oo]ff.*[Ss]ystem.*[Ee]mail.*[Nn]otice.*[Cc]reated.*', 'Off System Email Notice Created'),
+        (r'.*[Rr]evised.*[Cc]itation.*[Nn]otice.*[Cc]reated.*', 'Revised Citation Notice Created'),
+        (r'.*[Rr]evised.*[Ii]nquiry.*[Nn]otice.*[Cc]reated.*', 'Revised Inquiry Notice Created'),
+        (r'.*[Rr]evised.*[Ww]arning.*[Nn]otice.*[Cc]reated.*', 'Revised Warning Notice Created'),        
         (r'.*[Ii]nvoice.*[Cc]reated.*', 'Invoice Created'),
+        (r'.*[Ii]nvoice.*[Ss]tatus.*[Cc]hanged.*', 'Invoice Status Changed'),
         (r'.*[Pp]ayment.*[Cc]reated.*', 'Payment Created'),
         (r'.*[Aa]ssociated report.*with.*case.*', 'Report Associated'),
         (r'.*[Rr]eport.*[Uu]pdated.*', 'Report Updated'),
+        (r'.*[Dd]isposition.*[Cc]hanged.*', 'Report Disposition Changed'),
+        (r'.*[Rr]eason changed.*', 'Report Reason Changed'),
         (r'.*[Cc]all.*[Cc]ompliance.*', 'Call Compliance'),
         (r'.*[Cc]hat.*[Cc]ompliance.*', 'Chat Compliance'),
-        (r'.*From:.*,To:.*', 'Assignment Changed'),
-        (r'.*[Cc]ase [Mm]ember changed.*', 'Case Member Changed')
+        (r'.*[Vv]oicemail.*[Cc]ompliance.*', 'Voicemail Compliance'),
+        (r'.*[Cc]itation [Rr]evision.*', 'Citation Revised'),
+        (r'.*[Cc]ombined [Cc]itation.*', 'Citation Combined'),
+        (r'.*[Dd]isciplinary.*[Cc]omplaint.*', 'Disciplinary Complaint'),
+        (r'.*[Gg]eneral.*[Cc]itation.*', 'General Citation'),
+        (r'.*[Gg]eneral.*[Ii]nquiry.*', 'General Inquiry'),
+        (r'.*[Gg]eneral.*[Ww]arning.*', 'General Warning'),
+        (r'.*[Ll]isting.*[Mm]odification.*', 'Listing Modified'),
+        (r'^[Aa][Nn]$', 'Testing'),
+        (r'^\\n$', 'Testing'),
+        (r'^[Cc]1 check$', 'C1 Check'),
+        (r'.*[Tt]est.*', 'Testing'),
+        (r'.*[Zz]he.*test.*', 'Testing'),
+        (r'.*[Nn]ot.*[Aa]pplicable.*', 'Not Applicable')
     ]
     
     # Apply status patterns
-    for pattern, replacement in status_patterns:
+    for pattern, replacement in case_status_patterns:
         if re.match(pattern, normalized, re.IGNORECASE):
             return replacement
     
     # Remove IDs and clean up
-    id_cleanup = [
+    id_cleanup_patterns = [
         (r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', ''),
-        (r'case: \d+', ''), (r'Case \d+', ''), (r'\b\d{3,}\b', ''),
-        (r'\$\d+(?:\.\d{2})?', '$[Amount]'), (r'\([^)]*\)', ''),
-        (r'\s+', ' ')
+        (r'[a-f0-9]{6,}-[a-f0-9-]{10,}', ''),
+        (r'\([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\)', ''),
+        (r'case: \d+', ''),
+        (r'Case \d+', ''),
+        (r'from \d+', 'from case'),
+        (r'Report \d+', 'Report'),
+        (r'Login: [A-Za-z0-9]*', 'Login:'),
+        (r'License: [A-Za-z0-9]*', 'License:'),
+        (r'for \d{6,}', 'for listing'),
+        (r'listing \d{6,}', 'listing'),
+        (r'\$\d+(?:\.\d{2})?', '$[Amount]'),
+        (r'\b\d{3,}\b', ''),
+        (r'\[ID\]', ''),
+        (r'\(\s*\)', ''),
+        (r'\(\s*-+\s*\)', ''),
+        (r'\([^)]*\)', ''),  
+        (r'-+', '-'),
+        (r'\s+', ' '),
+    ]
+
+    for pattern, replacement in id_cleanup_patterns:
+        normalized = re.sub(pattern, replacement, normalized, flags=re.IGNORECASE)
+
+    truncation_patterns = [
+        (r'7\.8 Failure to Disclose Known Additional Property Owner.*', 'Failure To Disclose'),
+        (r'Investigation of 11\.5\(e\) Branding in Media.*', 'Investigation Status Changed'),
+        (r'Investigation of 12\.12 Unauthorized Distribution of MLS.*', 'Investigation Status Changed'),
+        (r'Investigation of 4\.5 Failure of Participant to Notify.*', 'Investigation Status Changed'),
+        (r'Investigation of 5\.1\.6 Failure to Comply with.*', 'Investigation Status Changed'),
+        (r'Investigation of 7\.12 Withdrawal of Listing Prior to.*', 'Investigation Status Changed'),
+        (r'Investigation of 7\.8 Failure to Disclose Known Additional.*', 'Investigation Status Changed'),
+        (r'Investigation of.*\.\.\.$', 'Investigation Status Changed'),
+        (r'Investigation of.*: Marked as.*', 'Investigation Status Changed'),
+        (r'Case Member changed from Name:.*Login:.*License:.*Name:.*', 'Case Member Changed'),
+        (r'Case Member changed from Name:.*Login:.*Li\.\.\.', 'Case Member Changed'),
+        (r'Case Member changed from Name:.*Login:.*Lic\.\.\.', 'Case Member Changed'),
+        (r'Case Member changed from Name:.*Login:.*Lice\.\.\.', 'Case Member Changed'),
+    ]
+
+    for pattern, replacement in truncation_patterns:
+        if re.match(pattern, normalized, re.IGNORECASE):
+            return replacement
+        
+    assignment_patterns = [
+        (r'From:.*,To:.*', 'Case Assignment Changed'),
+        (r'From:,To:.*', 'Case Assignment Changed'),
+        (r'Case Member changed from.*to.*', 'Case Member Changed'),
+        (r'Case Member changed.*', 'Case Member Changed'),
+        (r'ListingId changed from.*to.*', 'ListingId Changed'),
+        (r'ListingId changed.*', 'ListingId Changed'),
     ]
     
-    for pattern, replacement in id_cleanup:
-        normalized = re.sub(pattern, replacement, normalized, flags=re.IGNORECASE)
+    for pattern, replacement in assignment_patterns:
+        if re.match(pattern, normalized, re.IGNORECASE):
+            return replacement
+        
+    rule_violation_patterns = [
+        (r'.*Admin.*Fee.*Charged.*', 'Admin Fee Charged'),
+        (r'.*Citation.*Corrective Action Required.*', 'Citation - Corrective Action Required'),
+        (r'.*Citation.*NO Corrective Action Required.*', 'Citation - No Corrective Action Required'),
+        
+        # Rule 10.x patterns
+        (r'.*10\.1.*', 'Failure to Follow  Requirements for Coming Soon '),
+        (r'.*10\.2.*', 'Failure to Timely Report'),
+        
+        # Rule 11.x patterns
+        (r'.*11\.5\.1.*', 'Mandatory Submission Of Photograph'),
+        (r'.*11\.5a.*', 'Improper Media Content'),
+        (r'.*11\.5b.*', 'Third Party Photo'),
+        (r'.*11\.5c.*', 'Misrepresentation In Media'),
+        (r'.*11\.5d.*[Ww]atermark.*', 'Double Watermarks'),
+        (r'.*11\.5d.*[Aa]uthorization.*', 'Use Of Media Without Authorization'),
+        (r'.*11\.5e.*', 'Branding In Media'),
+        (r'.*11\.5\(e\).*', 'Branding In Media'),  # Handle parenthetical version
+
+        # Rule 12.x patterns
+        (r'.*12\.10.*', 'Misleading Advertising'),
+        (r'.*12\.11.*', 'Unauthorized Use Of MLS Information'),
+        (r'.*12\.12.*', 'Unauthorized Use Of MLS Information'),  # Consolidate with 12.11
+        (r'.*12\.15.*', 'Unauthorized Reproduction Of Confidential Fields'),
+        (r'.*12\.22.*', 'Email Address Required'),
+        (r'.*12\.5.*', 'Misuse Of Remarks'),
+        (r'.*12\.7.*', 'Unauthorized Use Of Term'),
+        (r'.*12\.8.*[Aa]dvertisement.*', 'Unauthorized Advertisement'),
+        (r'.*12\.8.*[Cc]ontent.*', 'Unauthorized Listing Content'),
+        (r'.*12\.9.*', 'Inadequate Informational Notice'),
+        
+        # Rule 13.x patterns
+        (r'.*13\.2.*', 'Unauthorized Sharing Of Lockbox Key'),
+        (r'.*13\.7.*', 'Unauthorized Entrance Into Property'),
+        (r'.*13\.9.*', 'Failure To Timely Remove Lockbox'),
+
+        # Rule 14.x patterns
+        (r'.*14\.4.*[Aa]uto [Ss]old.*', 'Failure To Correct Auto Sold'),
+        (r'.*14\.4.*[Vv]iolation.*', 'Failure To Correct Violation'),
+        (r'.*14\.5.*', 'Modification Of Information'),
+
+        # Rule 4.x patterns
+        (r'.*4\.3.*', 'Failure To Notify Of Termination'),
+        (r'.*4\.5.*', 'Failure To Notify Of Termination'),
+
+        # Rule 5.x patterns
+        (r'.*5\.1\.6.*', 'Citation Corrective Action Required'),  # Consolidate with citation
+        
+        # Rule 7.x patterns
+        (r'.*7\.11.*[Aa]uthorization.*', 'Failure To Obtain Authorization For Changes To Listing'),
+        (r'.*7\.11.*[Cc]hange.*', 'Failure To Change Listing Information'),
+        (r'.*7\.12.*', 'Failure To Change Listing Information'),  # Consolidate withdrawal
+        (r'.*7\.15.*', 'No Offers Of Compensation'),
+        (r'.*7\.16.*', 'Disclosure Of Compensation'),
+        (r'.*7\.18.*', 'Failure To Comply With Auction Listing Requirements'),
+        (r'.*7\.2.*', 'Duplicate Listing Entry'),
+        (r'.*7\.20.*', 'Failure To Disclose Interest In Subject'),
+        (r'.*7\.3.*', 'Prohibited Co-Listing'),
+        (r'.*7\.6.*', 'Improper Classification Of Property Type'),
+        (r'.*7\.8.*[Aa]uthorization.*', 'Failure To Disclose Additional Property Owner'),
+        (r'.*7\.8.*[Rr]egister.*', 'Failure To Register Property In MLS'),
+        (r'.*7\.8.*[Dd]isclose.*', 'Failure To Disclose Additional Property Owner'),
+        (r'.*7\.9.*[Oo]ne.*', 'Citation - One Property'),
+        (r'.*7\.9.*[Oo]NE.*', 'Citation - One Property'),
+        (r'.*7\.9.*[Mm]ultiple.*', 'Citation - Multiple Properties'),
+        (r'.*7\.9.*RLA.*', 'Requesting RLA'),
+        
+        # Rule 8.x patterns
+        (r'.*8\.1.*', 'Failure To Obtain Seller Authorization'),
+        (r'.*8\.2.*[Ll]isting.*', 'Failure To Provide Listing Agreement'),
+        (r'.*8\.2.*[Dd]ocumentation.*', 'Failure To Provide Written Documentation'),
+        (r'.*8\.3.*[Aa]uto [Ss]old.*', 'Auto Sold'),
+        (r'.*8\.3.*[Ll]isting [Ss]tatus.*', 'Display Of Inaccurate Listing Status'),
+        (r'.*8\.3.*[Aa]ccurate [Ii]nformation.*', 'Failure To Input Accurate Information'),
+
+        # Rule 9.x patterns
+        (r'.*9\.1.*', 'Failure to follow showing instructions'),
+        (r'.*9\.3.*', 'Misrepresenting availability to show'),
+    ]
     
-    # Final cleanup
-    normalized = re.sub(r'^[-\s,:.]+|[-\s,:.]+$', '', normalized.strip())
+    # Apply rule violation patterns
+    for pattern, replacement in rule_violation_patterns:
+        if re.match(pattern, normalized, re.IGNORECASE):
+            return replacement        
     
-    return normalized if normalized and len(normalized) > 1 else 'Other Activity'
+    # Final cleanup 
+    normalized = re.sub(r'\s+', ' ', normalized).strip()  # Remove extra spaces, clean up punctuation
+    normalized = re.sub(r'^[-\s,:.]+|[-\s,:.]+$', '', normalized)  # Remove leading/trailing punctuation
+    normalized = re.sub(r'\s*-\s*-\s*', ' ', normalized)  # Clean up double dashes
+
+    return normalized if normalized and len(normalized) > 1 else 'Unknown Activity'
 
 def extract_lifecycle_stages(event_summary):
     """
@@ -604,8 +788,10 @@ def extract_lifecycle_stages(event_summary):
         return 'Investigation Status Change'
     elif 'Marked for Investigation' in event_summary:
         return 'Investigation Start'
-    elif 'Assignment Changed' in event_summary or 'Case Member Changed' in event_summary:
+    elif 'Assignment Changed' in event_summary:
         return 'Assignment Change'
+    elif 'Case Member Changed' in event_summary:
+        return 'Member Change'    
     elif 'Case Closed' in event_summary:
         return 'Case Closure'
     elif 'Case Created' in event_summary:
