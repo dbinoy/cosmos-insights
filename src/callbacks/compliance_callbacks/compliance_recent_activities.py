@@ -348,8 +348,42 @@ def register_compliance_recent_activities_callbacks(app):
                 row_class = stage_colors.get(row['LifecycleStage'], '')
                 
                 cells = [
-                    html.Td(row['CaseNumber'], style={'fontSize': '11px', 'fontFamily': 'monospace'}),
-                    html.Td(row['EventSummary'], style={'fontSize': '12px', 'maxWidth': '300px'}),                    
+                    html.Td(row['CaseNumber'], style={'fontSize': '12px', 'fontFamily': 'monospace', 'fontWeight': 'bold'}),
+                    # html.Td(row['EventSummary'], style={'fontSize': '12px', 'maxWidth': '300px'}),         
+                    html.Td([
+                        html.Div([
+                            html.Span(
+                                row['EventSummary'],
+                                id=f"event-summary-{i}",
+                                style={
+                                    'fontSize': '12px',
+                                    'cursor': 'help',
+                                    'borderBottom': '1px dotted #007bff',
+                                    'color': '#007bff',
+                                    'position': 'relative'
+                                }
+                            ),
+                            html.Span(
+                                " 📄",  # Document icon for "full details"
+                                style={
+                                    'fontSize': '10px',
+                                    'opacity': '0.8',
+                                    'marginLeft': '4px'
+                                }
+                            ),                            
+                            dbc.Tooltip(
+                                html.Div([
+                                    html.Span(
+                                        row.get('Detail', ''),
+                                        style={'fontSize': '11px', 'lineHeight': '1.4', 'fontStyle': 'italic'}
+                                    )
+                                ], style={'maxWidth': '500px', 'textAlign': 'left'}),
+                                target=f"event-summary-{i}",
+                                placement="top",
+                                style={'maxWidth': '450px'}
+                            )
+                        ])
+                    ], style={'maxWidth': '300px'}),                    #  Event Summary with tooltip      
                     html.Td([
                         html.Span(get_stage_icon(row['LifecycleStage']), style={'marginRight': '8px'}),
                         html.Span(row['LifecycleStage'], style={'fontWeight': 'bold' if i < 10 else 'normal'})
