@@ -591,7 +591,7 @@ def get_case_flow_with_lifecycle_stages():
         
         # Define stage patterns based on EventSummary - EXACT COPY from notebook
         stage_patterns = {
-            'Note_Update': [
+            'Note Update': [
                 'CaseNote - Admin Fee Charged',
                 'CaseNote - Auto sold',
                 'CaseNote - Branding in Media',
@@ -656,56 +656,56 @@ def get_case_flow_with_lifecycle_stages():
                 'CaseNote - Voicemail compliance',
                 'CaseNote - testing'
             ],
-            'Review_Status_Change': [
+            'Review Status Change': [
                 'CaseReview - Case review status changed',
                 'CaseReview - Case review updated'
             ],
-            'Investigation_Status_Change': [
+            'Investigation Status Change': [
                 'CaseViolation - Investigation status changed'
             ],
-            'Investigation_Start': [
+            'Investigation Start': [
                 'CaseViolation - Marked for investigation'
             ],
-            'Assignee_Change': [
+            'Assignee Change': [
                 'ComplianceCase - Assignment changed from one agent to another'
             ],
-            'Case_Closure': [
+            'Case Closure': [
                 'ComplianceCase - Case Closed'
             ],
-            'Case_Creation': [
+            'Case Creation': [
                 'ComplianceCase - Case Created'
             ],
-            'Member_Change': [
+            'Member Change': [
                 'ComplianceCase - Case Member changed'
             ],
-            'Case_Reopening': [
+            'Case Reopening': [
                 'ComplianceCase - Case Reopened'
             ],
-            'Case_Update': [
+            'Case Update': [
                 'ComplianceCase - Case Updated'
             ],
-            'Listing_Change': [
+            'Listing Change': [
                 'ComplianceCase - ListingId changed'
             ],
-            'Test_Stage': [
+            'Test Stage': [
                 'ComplianceCase - testing'
             ],
-            'Invoice_Creation': [
+            'Invoice Creation': [
                 'Invoice - Invoice created'
             ],
-            'Invoice_Link': [
+            'Invoice Link': [
                 'Invoice - Invoice link'
             ],
-            'Invoice_Status_Change': [
+            'Invoice Status Change': [
                 'Invoice - Invoice status changed'
             ],
-            'Case_Link': [
+            'Case Link': [
                 'LinkedCase - Case linked'
             ],
-            'Case_Unlink': [
+            'Case Unlink': [
                 'LinkedCase - Case unlinked'
             ],
-            'Notice_Creation': [
+            'Notice Creation': [
                 'NoticeDefinition - Citation notice created',
                 'NoticeDefinition - Email Notice Created',
                 'NoticeDefinition - Incoming Email notice created',
@@ -716,25 +716,25 @@ def get_case_flow_with_lifecycle_stages():
                 'NoticeDefinition - Revised Warning Notice Created',
                 'NoticeDefinition - Warning Notice Created'
             ],
-            'Payment_Invoice_Creation': [
+            'Payment Invoice Creation': [
                 'Payment - Invoice created'
             ],
-            'Payment_Record_Creation': [
+            'Payment Record Creation': [
                 'Payment - Payment record created'
             ],
-            'Payment_Record_Update': [
+            'Payment Record Update': [
                 'Payment - Payment record updated'
             ],
-            'Report_Association': [
+            'Report Association': [
                 'Report - Associated report with the case'
             ],
-            'Report_Update': [
+            'Report Update': [
                 'Report - Report Updated'
             ],
-            'Report_Disposition_Change': [
+            'Report Disposition Change': [
                 'Report - Report disposition changed'
             ],
-            'Report_Reason_Change': [
+            'Report Reason Change': [
                 'Report - Report reason changed'
             ]
         }    
@@ -809,86 +809,86 @@ def get_case_progression_df():
 
         # Factual stage analysis functions
         def analyze_note_updates(lifecycle_stages):
-            """Count Note_Update stages and extract types"""
-            note_stages = [s for s in lifecycle_stages if s == 'Note_Update']
+            """Count Note Update stages and extract types"""
+            note_stages = [s for s in lifecycle_stages if s == 'Note Update']
             return len(note_stages)
         
         def analyze_review_activity(lifecycle_stages):
             """Analyze review status changes"""
             return {
-                'HasReviewActivity': 'Review_Status_Change' in lifecycle_stages,
-                'ReviewCount': lifecycle_stages.count('Review_Status_Change')
+                'HasReviewActivity': 'Review Status Change' in lifecycle_stages,
+                'ReviewCount': lifecycle_stages.count('Review Status Change')
             }
         
         def analyze_investigation_activity(lifecycle_stages):
             """Analyze investigation stages"""
-            has_investigation_start = 'Investigation_Start' in lifecycle_stages
-            has_investigation_change = 'Investigation_Status_Change' in lifecycle_stages
+            has_investigation_start = 'Investigation Start' in lifecycle_stages
+            has_investigation_change = 'Investigation Status Change' in lifecycle_stages
             return {
                 'HasInvestigationStart': has_investigation_start,
                 'HasInvestigationChange': has_investigation_change,
-                'InvestigationStartCount': lifecycle_stages.count('Investigation_Start'),
-                'InvestigationChangeCount': lifecycle_stages.count('Investigation_Status_Change')
+                'InvestigationStartCount': lifecycle_stages.count('Investigation Start'),
+                'InvestigationChangeCount': lifecycle_stages.count('Investigation Status Change')
             }
         
         def analyze_assignment_changes(lifecycle_stages):
             """Analyze assignment and member changes"""
             return {
-                'HasAssigneeChange': 'Assignee_Change' in lifecycle_stages,
-                'HasMemberChange': 'Member_Change' in lifecycle_stages,
-                'AssigneeChangeCount': lifecycle_stages.count('Assignee_Change'),
-                'MemberChangeCount': lifecycle_stages.count('Member_Change')
+                'HasAssigneeChange': 'Assignee Change' in lifecycle_stages,
+                'HasMemberChange': 'Member Change' in lifecycle_stages,
+                'AssigneeChangeCount': lifecycle_stages.count('Assignee Change'),
+                'MemberChangeCount': lifecycle_stages.count('Member Change')
             }
         
         def analyze_case_milestones(lifecycle_stages):
             """Analyze general case milestones"""
             return {
-                'HasCaseCreation': 'Case_Creation' in lifecycle_stages,
-                'HasCaseUpdate': 'Case_Update' in lifecycle_stages,
-                'HasCaseReopening': 'Case_Reopening' in lifecycle_stages,
-                'HasCaseClosure': 'Case_Closure' in lifecycle_stages,
-                'HasListingChange': 'Listing_Change' in lifecycle_stages,
-                'CaseUpdateCount': lifecycle_stages.count('Case_Update')
+                'HasCaseCreation': 'Case Creation' in lifecycle_stages,
+                'HasCaseUpdate': 'Case Update' in lifecycle_stages,
+                'HasCaseReopening': 'Case Reopening' in lifecycle_stages,
+                'HasCaseClosure': 'Case Closure' in lifecycle_stages,
+                'HasListingChange': 'Listing Change' in lifecycle_stages,
+                'CaseUpdateCount': lifecycle_stages.count('Case Update')
             }
         
         def analyze_financial_activity(lifecycle_stages):
             """Analyze invoice and payment activity"""
             return {
-                'HasInvoiceCreation': 'Invoice_Creation' in lifecycle_stages,
-                'HasInvoiceLink': 'Invoice_Link' in lifecycle_stages,
-                'HasInvoiceStatusChange': 'Invoice_Status_Change' in lifecycle_stages,
-                'HasPaymentInvoiceCreation': 'Payment_Invoice_Creation' in lifecycle_stages,
-                'HasPaymentRecordCreation': 'Payment_Record_Creation' in lifecycle_stages,
-                'HasPaymentRecordUpdate': 'Payment_Record_Update' in lifecycle_stages,
-                'InvoiceCreationCount': lifecycle_stages.count('Invoice_Creation'),
-                'PaymentRecordCount': lifecycle_stages.count('Payment_Record_Creation') + lifecycle_stages.count('Payment_Record_Update')
+                'HasInvoiceCreation': 'Invoice Creation' in lifecycle_stages,
+                'HasInvoiceLink': 'Invoice Link' in lifecycle_stages,
+                'HasInvoiceStatusChange': 'Invoice Status Change' in lifecycle_stages,
+                'HasPaymentInvoiceCreation': 'Payment Invoice Creation' in lifecycle_stages,
+                'HasPaymentRecordCreation': 'Payment Record Creation' in lifecycle_stages,
+                'HasPaymentRecordUpdate': 'Payment Record Update' in lifecycle_stages,
+                'InvoiceCreationCount': lifecycle_stages.count('Invoice Creation'),
+                'PaymentRecordCount': lifecycle_stages.count('Payment Record Creation') + lifecycle_stages.count('Payment Record Update')
             }
         
         def analyze_case_linking(lifecycle_stages):
             """Analyze case linking activity"""
             return {
-                'HasCaseLink': 'Case_Link' in lifecycle_stages,
-                'HasCaseUnlink': 'Case_Unlink' in lifecycle_stages,
-                'CaseLinkCount': lifecycle_stages.count('Case_Link'),
-                'CaseUnlinkCount': lifecycle_stages.count('Case_Unlink')
+                'HasCaseLink': 'Case Link' in lifecycle_stages,
+                'HasCaseUnlink': 'Case Unlink' in lifecycle_stages,
+                'CaseLinkCount': lifecycle_stages.count('Case Link'),
+                'CaseUnlinkCount': lifecycle_stages.count('Case Unlink')
             }
         
         def analyze_report_activity(lifecycle_stages):
             """Analyze report-related activity"""
             return {
-                'HasReportAssociation': 'Report_Association' in lifecycle_stages,
-                'HasReportUpdate': 'Report_Update' in lifecycle_stages,
-                'HasReportDispositionChange': 'Report_Disposition_Change' in lifecycle_stages,
-                'HasReportReasonChange': 'Report_Reason_Change' in lifecycle_stages,
-                'ReportAssociationCount': lifecycle_stages.count('Report_Association'),
-                'ReportUpdateCount': lifecycle_stages.count('Report_Update')
+                'HasReportAssociation': 'Report Association' in lifecycle_stages,
+                'HasReportUpdate': 'Report Update' in lifecycle_stages,
+                'HasReportDispositionChange': 'Report Disposition Change' in lifecycle_stages,
+                'HasReportReasonChange': 'Report Reason Change' in lifecycle_stages,
+                'ReportAssociationCount': lifecycle_stages.count('Report Association'),
+                'ReportUpdateCount': lifecycle_stages.count('Report Update')
             }
         
         def analyze_notice_creation(lifecycle_stages):
             """Analyze notice creation activity"""
             return {
-                'HasNoticeCreation': 'Notice_Creation' in lifecycle_stages,
-                'NoticeCreationCount': lifecycle_stages.count('Notice_Creation')
+                'HasNoticeCreation': 'Notice Creation' in lifecycle_stages,
+                'NoticeCreationCount': lifecycle_stages.count('Notice Creation')
             }
 
         # Apply analysis functions using pandas operations
@@ -987,7 +987,6 @@ def get_case_progression_df():
     except Exception as e:
         print(f"❌ Error creating case progression: {e}")
         return pd.DataFrame()
-
 
 def invalidate_compliance_cache():
     """Manually invalidate the cache if needed"""
@@ -1386,12 +1385,24 @@ def prepare_recent_activities_data(df, timeframe="30d", activity_type="all"):
     # Filter by activity type if specified (LifecycleStage is now available)
     if activity_type != "all":
         activity_filters = {
-            'investigations': ['Investigation_Start', 'Investigation_Status_Change'],
-            'communications': ['Note_Update'],  # Communication patterns are in Note_Update
-            'notices': ['Notice_Creation'],
-            'case_management': ['Case_Creation', 'Case_Update', 'Case_Closure', 'Case_Reopening'],
-            'financial': ['Invoice_Creation', 'Invoice_Status_Change', 'Payment_Invoice_Creation', 'Payment_Record_Creation', 'Payment_Record_Update'],
-            'reports': ['Report_Association', 'Report_Update', 'Report_Disposition_Change', 'Report_Reason_Change']
+            'investigations': ['Investigation Start', 'Investigation Status Change'],  
+            'communications': ['Note Update'],  
+            'notices': ['Notice Creation'],
+            'case_management': [
+                'Case Creation', 'Case Update', 'Case Closure', 'Case Reopening', 
+                'Case Link', 'Case Unlink'
+            ],  
+            'financial': [
+                'Invoice Creation', 'Invoice Link', 'Invoice Status Change', 
+                'Payment Invoice Creation', 'Payment Record Creation', 'Payment Record Update'
+            ],  
+            'reports': [
+                'Report Association', 'Report Update', 'Report Disposition Change', 'Report Reason Change'
+            ],  
+            'assignments': ['Assignee Change', 'Member Change'],  
+            'listings': ['Listing Change'],  
+            'reviews': ['Review Status Change'],  # Added new category
+            'testing': ['Test Stage']  
         }
         
         if activity_type in activity_filters:

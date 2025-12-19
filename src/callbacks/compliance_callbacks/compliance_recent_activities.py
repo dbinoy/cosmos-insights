@@ -65,22 +65,31 @@ def register_compliance_recent_activities_callbacks(app):
             
             # Color mapping for different activity types based on notebook stages
             color_map = {
-                'Note_Update': '#95a5a6',
-                'Case_Creation': '#2ecc71',
-                'Case_Update': '#3498db', 
-                'Case_Closure': '#e74c3c',
-                'Case_Reopening': '#f39c12',
-                'Investigation_Start': '#f39c12',
-                'Investigation_Status_Change': '#e67e22',
-                'Review_Status_Change': '#9b59b6',
-                'Notice_Creation': '#8e44ad',
-                'Invoice_Creation': '#27ae60',
-                'Payment_Record_Creation': '#16a085',
-                'Payment_Record_Update': '#16a085',
-                'Report_Association': '#34495e',
-                'Report_Update': '#2c3e50',
-                'Assignee_Change': '#7f8c8d',
-                'Member_Change': '#95a5a6',
+                'Note Update': '#95a5a6',
+                'Case Creation': '#2ecc71',
+                'Case Update': '#3498db', 
+                'Case Closure': '#e74c3c',
+                'Case Reopening': '#f39c12',
+                'Investigation Start': '#f39c12',
+                'Investigation Status Change': '#e67e22',  
+                'Review Status Change': '#9b59b6',
+                'Notice Creation': '#8e44ad',
+                'Invoice Creation': '#27ae60',
+                'Invoice Link': '#27ae60',  
+                'Invoice Status Change': '#27ae60',
+                'Payment Invoice Creation': '#16a085',  
+                'Payment Record Creation': '#16a085',
+                'Payment Record Update': '#16a085',
+                'Report Association': '#34495e',
+                'Report Update': '#2c3e50',
+                'Report Disposition Change': '#2c3e50',  
+                'Report Reason Change': '#2c3e50',  
+                'Assignee Change': '#7f8c8d',
+                'Member Change': '#95a5a6',
+                'Case Link': '#9b59b6',  
+                'Case Unlink': '#9b59b6',  
+                'Listing Change': '#e67e22',  
+                'Test Stage': '#bdc3c7',  
                 'Other': '#bdc3c7'
             }
             
@@ -153,8 +162,8 @@ def register_compliance_recent_activities_callbacks(app):
             
         elif view_state == "case_activity":
             # Case-level activity distribution
-            case_activities = recent_events.groupby('CaseID').size().reset_index()
-            case_activities.columns = ['CaseID', 'ActivityCount']
+            case_activities = recent_events.groupby('CaseNumber').size().reset_index()
+            case_activities.columns = ['CaseNumber', 'ActivityCount']
             
             # Create distribution buckets
             def categorize_activity_count(count):
@@ -309,33 +318,52 @@ def register_compliance_recent_activities_callbacks(app):
             for i, row in recent_sample.iterrows():
                 # Color coding based on lifecycle stage from notebook
                 stage_colors = {
-                    'Case_Creation': 'table-success',
-                    'Case_Closure': 'table-danger',
-                    'Investigation_Start': 'table-warning',
-                    'Investigation_Status_Change': 'table-warning',
-                    'Notice_Creation': 'table-info',
-                    'Review_Status_Change': 'table-info'
+                    'Case Creation': 'table-success',
+                    'Case Closure': 'table-danger',
+                    'Case Reopening': 'table-warning',
+                    'Case Update': 'table-primary',
+                    'Investigation Start': 'table-warning',
+                    'Investigation Status Change': 'table-warning',  
+                    'Notice Creation': 'table-info',
+                    'Review Status Change': 'table-info',
+                    'Invoice Creation': 'table-success',
+                    'Invoice Link': 'table-success',  
+                    'Invoice Status Change': 'table-success',  
+                    'Payment Invoice Creation': 'table-success',  
+                    'Payment Record Creation': 'table-success',
+                    'Payment Record Update': 'table-success',
+                    'Case Link': 'table-primary',  
+                    'Case Unlink': 'table-secondary',  
+                    'Listing Change': 'table-warning',  
+                    'Test Stage': 'table-light',  
+                    'Report Association': 'table-info',
+                    'Report Update': 'table-info',
+                    'Report Disposition Change': 'table-info',  
+                    'Report Reason Change': 'table-info',  
+                    'Assignee Change': 'table-secondary',
+                    'Member Change': 'table-secondary',
+                    'Note Update': 'table-light'  
                 }
                 
                 row_class = stage_colors.get(row['LifecycleStage'], '')
                 
                 cells = [
-                    html.Td(row['FormattedDate'], style={'fontSize': '12px'}),
+                    html.Td(row['CaseNumber'], style={'fontSize': '11px', 'fontFamily': 'monospace'}),
+                    html.Td(row['EventSummary'], style={'fontSize': '12px', 'maxWidth': '300px'}),                    
                     html.Td([
                         html.Span(get_stage_icon(row['LifecycleStage']), style={'marginRight': '8px'}),
                         html.Span(row['LifecycleStage'], style={'fontWeight': 'bold' if i < 10 else 'normal'})
                     ]),
-                    html.Td(row['EventSummary'], style={'fontSize': '12px', 'maxWidth': '300px'}),
-                    html.Td(row['CaseID'][:8] + '...', style={'fontSize': '11px', 'fontFamily': 'monospace'})
+                    html.Td(row['FormattedDate'], style={'fontSize': '12px'})                    
                 ]
                 
                 table_rows.append(html.Tr(cells, className=row_class))
             
             headers = [
-                html.Th("Date & Time", style={'width': '20%'}),
+                html.Th("Case Number", style={'width': '15%'}),                
+                html.Th("Event", style={'width': '40%'}),
                 html.Th("Activity Type", style={'width': '25%'}),
-                html.Th("Event Summary", style={'width': '40%'}),
-                html.Th("Case ID", style={'width': '15%'})
+                html.Th("Date & Time", style={'width': '20%'})                
             ]
             
             return html.Div([
@@ -373,22 +401,31 @@ def register_compliance_recent_activities_callbacks(app):
     def get_stage_icon(stage):
         """Get icon for lifecycle stage - using exact notebook stages"""
         icons = {
-            'Note_Update': '📝',
-            'Case_Creation': '🆕',
-            'Case_Update': '✏️',
-            'Case_Closure': '✅',
-            'Case_Reopening': '🔄',
-            'Investigation_Start': '🔍',
-            'Investigation_Status_Change': '🔬',
-            'Review_Status_Change': '📋',
-            'Notice_Creation': '📢',
-            'Invoice_Creation': '💰',
-            'Payment_Record_Creation': '💳',
-            'Payment_Record_Update': '💳',
-            'Report_Association': '📊',
-            'Report_Update': '📈',
-            'Assignee_Change': '👥',
-            'Member_Change': '👤',
+            'Note Update': '📝',
+            'Case Creation': '🆕',
+            'Case Update': '✏️',
+            'Case Closure': '✅',
+            'Case Reopening': '🔄',
+            'Investigation Start': '🔍',
+            'Investigation Status Change': '🔬',  
+            'Review Status Change': '📋',
+            'Notice Creation': '📢',
+            'Invoice Creation': '💰',
+            'Invoice Link': '🔗',  
+            'Invoice Status Change': '💱',  
+            'Payment Invoice Creation': '💳',  
+            'Payment Record Creation': '💳',
+            'Payment Record Update': '💳',
+            'Report Association': '📊',
+            'Report Update': '📈',
+            'Report Disposition Change': '⚖️',  
+            'Report Reason Change': '📝',  
+            'Assignee Change': '👥',
+            'Member Change': '👤',
+            'Case Link': '🔗',  
+            'Case Unlink': '🔓',  
+            'Listing Change': '🏠',  
+            'Test Stage': '🧪',  
             'Other': '📌'
         }
         return icons.get(stage, '📌')
@@ -438,7 +475,7 @@ def register_compliance_recent_activities_callbacks(app):
         ]
         if not investigation_activities.empty:
             inv_count = len(investigation_activities)
-            inv_cases = investigation_activities['CaseID'].nunique()
+            inv_cases = investigation_activities['CaseNumber'].nunique()
             insights.append(
                 html.Div([
                     html.Span("🔍 ", style={'fontSize': '16px'}),
@@ -447,7 +484,7 @@ def register_compliance_recent_activities_callbacks(app):
             )
         
         # Case closure activity using notebook stages
-        closure_activities = recent_events[recent_events['LifecycleStage'] == 'Case_Closure']
+        closure_activities = recent_events[recent_events['LifecycleStage'] == 'Case Closure']
         if not closure_activities.empty:
             closure_count = len(closure_activities)
             insights.append(
@@ -458,7 +495,7 @@ def register_compliance_recent_activities_callbacks(app):
             )
         
         # Notice creation activity using notebook stages
-        notice_activities = recent_events[recent_events['LifecycleStage'] == 'Notice_Creation']
+        notice_activities = recent_events[recent_events['LifecycleStage'] == 'Notice Creation']
         if not notice_activities.empty:
             notice_count = len(notice_activities)
             insights.append(
