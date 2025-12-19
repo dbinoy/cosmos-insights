@@ -435,7 +435,90 @@ def create_normalized_detail_text(detail):
     
     # Return cleaned result or fallback
     return normalized if normalized and len(normalized) > 1 else 'Unknown'
-
+ 
+def prepare_html_content(content):
+    """Clean and prepare HTML content for rendering in Dash components"""
+    if pd.isna(content) or str(content).strip() == '':
+        return 'No content available'
+    
+    # Convert to string
+    html_content = str(content)
+    
+    # Decode HTML entities first
+    html_entities = {
+        '&amp;': '&',
+        '&nbsp;': ' ',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&apos;': "'",
+        '&#39;': "'",
+        '&ndash;': '–',
+        '&mdash;': '—',
+        '&hellip;': '…',
+        '&copy;': '©',
+        '&reg;': '®',
+        '&trade;': '™'
+    }
+    
+    for entity, char in html_entities.items():
+        html_content = html_content.replace(entity, char)
+    
+    # Handle span tags - preserve content but remove the tags
+    # This handles both <span> and <span class="something" style="..."> variants
+    html_content = re.sub(r'<span[^>]*>(.*?)</span>', r'\1', html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Handle other formatting tags and convert to markdown equivalents
+    # Line breaks and paragraphs
+    html_content = re.sub(r'<br\s*/?>', '\n', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<p\s*/?>', '\n', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'</p>', '\n', html_content, flags=re.IGNORECASE)
+    
+    # Bold formatting - handle both <strong> and <b> tags with any attributes
+    html_content = re.sub(r'<strong[^>]*>(.*?)</strong>', r'**\1**', html_content, flags=re.IGNORECASE | re.DOTALL)
+    html_content = re.sub(r'<b[^>]*>(.*?)</b>', r'**\1**', html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Italic formatting - handle both <em> and <i> tags with any attributes
+    html_content = re.sub(r'<em[^>]*>(.*?)</em>', r'*\1*', html_content, flags=re.IGNORECASE | re.DOTALL)
+    html_content = re.sub(r'<i[^>]*>(.*?)</i>', r'*\1*', html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Handle div tags - preserve content but remove the tags (convert to line breaks)
+    html_content = re.sub(r'<div[^>]*>', '\n', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'</div>', '\n', html_content, flags=re.IGNORECASE)
+    
+    # Handle other common tags
+    html_content = re.sub(r'<u[^>]*>(.*?)</u>', r'\1', html_content, flags=re.IGNORECASE | re.DOTALL)  # Underline (remove formatting)
+    html_content = re.sub(r'<strike[^>]*>(.*?)</strike>', r'~~\1~~', html_content, flags=re.IGNORECASE | re.DOTALL)  # Strikethrough
+    html_content = re.sub(r'<del[^>]*>(.*?)</del>', r'~~\1~~', html_content, flags=re.IGNORECASE | re.DOTALL)  # Delete
+    
+    # Handle list items
+    html_content = re.sub(r'<li[^>]*>', '• ', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'</li>', '\n', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<ul[^>]*>|</ul>', '', html_content, flags=re.IGNORECASE)
+    html_content = re.sub(r'<ol[^>]*>|</ol>', '', html_content, flags=re.IGNORECASE)
+    
+    # Handle headings - convert to markdown
+    for i in range(1, 7):
+        html_content = re.sub(rf'<h{i}[^>]*>(.*?)</h{i}>', rf'{"#" * i} \1\n', html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Handle links - preserve text but remove link formatting
+    html_content = re.sub(r'<a[^>]*href=["\']([^"\']*)["\'][^>]*>(.*?)</a>', r'\2 (\1)', html_content, flags=re.IGNORECASE | re.DOTALL)
+    html_content = re.sub(r'<a[^>]*>(.*?)</a>', r'\1', html_content, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Remove any remaining HTML tags (catch-all for unknown tags)
+    html_content = re.sub(r'<[^>]+>', '', html_content)
+    
+    # Clean up excessive whitespace and newlines
+    html_content = re.sub(r'\n\s*\n+', '\n\n', html_content)  # Replace multiple newlines with double newline
+    html_content = re.sub(r'^\s+|\s+$', '', html_content)  # Strip leading/trailing whitespace
+    html_content = re.sub(r' +', ' ', html_content)  # Replace multiple spaces with single space
+    
+    # Limit length for tooltip display
+    if len(html_content) > 500:
+        html_content = html_content[:500] + "..."
+    
+    return html_content 
+ 
 @lru_cache(maxsize=1)
 @monitor_performance("Event History Creation")
 def get_event_history():
@@ -476,7 +559,7 @@ def get_event_history():
                     event_name = event.get('EventName', '')
                     detail_text = event.get('Detail', '')
                     
-                    # Apply normalization to the detail text - EXACT NOTEBOOK FUNCTION
+                    # Apply normalization to the detail text 
                     normalized_detail = create_normalized_detail_text(detail_text)
                     
                     # Create EventItem as ObjectType + ' - ' + normalized detail
@@ -488,7 +571,7 @@ def get_event_history():
                         'ActionDate': action_date,
                         'ObjectType': object_type,
                         'EventName': event_name,
-                        'Detail': detail_text if len(detail_text) < 100 else detail_text[:97] + '...',
+                        'Detail': prepare_html_content(detail_text),
                         'EventSummary': event_summary
                     }
                     

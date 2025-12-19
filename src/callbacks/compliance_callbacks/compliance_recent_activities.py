@@ -1,13 +1,10 @@
 from dash import callback, ctx, dcc, html, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 import pandas as pd
-import re
 import plotly.graph_objects as go
 import plotly.express as px
-from datetime import datetime, timedelta
-from src.utils.compliance_data import get_compliance_base_data, apply_compliance_filters, prepare_recent_activities_data, get_case_flow_with_lifecycle_stages
+from src.utils.compliance_data import get_compliance_base_data, apply_compliance_filters, prepare_recent_activities_data
 from src.utils.performance import monitor_performance, monitor_chart_performance
-import time
 import copy
 
 def register_compliance_recent_activities_callbacks(app):
@@ -260,55 +257,7 @@ def register_compliance_recent_activities_callbacks(app):
             )
         except Exception as e:
             return html.Div(f"Error displaying chart: {str(e)}", className="text-center p-4 text-danger")
-    
-    def prepare_html_content(content):
-        """Clean and prepare HTML content for rendering in Dash components"""
-        if pd.isna(content) or str(content).strip() == '':
-            return 'No content available'
-        
-        # Convert to string
-        html_content = str(content)
-        
-        # Decode HTML entities first
-        html_entities = {
-            '&amp;': '&',
-            '&nbsp;': ' ',
-            '&lt;': '<',
-            '&gt;': '>',
-            '&quot;': '"',
-            '&apos;': "'",
-            '&#39;': "'",
-            '&ndash;': '–',
-            '&mdash;': '—',
-            '&hellip;': '…'
-        }
-        
-        for entity, char in html_entities.items():
-            html_content = html_content.replace(entity, char)
-        
-        # Remove HTML tags but preserve formatting structure
-        # Replace common HTML tags with plain text equivalents
-        html_content = re.sub(r'<br\s*/?>', '\n', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'<p\s*/?>', '\n', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'</p>', '\n', html_content, flags=re.IGNORECASE)
-        html_content = re.sub(r'<strong>(.*?)</strong>', r'**\1**', html_content, flags=re.IGNORECASE | re.DOTALL)
-        html_content = re.sub(r'<b>(.*?)</b>', r'**\1**', html_content, flags=re.IGNORECASE | re.DOTALL)
-        html_content = re.sub(r'<em>(.*?)</em>', r'*\1*', html_content, flags=re.IGNORECASE | re.DOTALL)
-        html_content = re.sub(r'<i>(.*?)</i>', r'*\1*', html_content, flags=re.IGNORECASE | re.DOTALL)
-        
-        # Remove any remaining HTML tags
-        html_content = re.sub(r'<[^>]+>', '', html_content)
-        
-        # Clean up excessive whitespace and newlines
-        html_content = re.sub(r'\n\s*\n', '\n\n', html_content)  # Replace multiple newlines with double newline
-        html_content = re.sub(r'^\s+|\s+$', '', html_content)  # Strip leading/trailing whitespace
-        
-        # Limit length for tooltip display
-        if len(html_content) > 500:
-            html_content = html_content[:500] + "..."
-        
-        return html_content    
-            
+               
     def create_recent_activities_details_table(recent_events, summary_stats, view_state, timeframe):
         """Create detailed breakdown table for modal display"""
         if recent_events.empty:
@@ -423,7 +372,7 @@ def register_compliance_recent_activities_callbacks(app):
                                 html.Div([   
                                     html.Div([
                                         dcc.Markdown(
-                                            prepare_html_content(row.get('Description', '')),
+                                            row.get('Description', ''),
                                             dangerously_allow_html=True,
                                             style={
                                                 'fontSize': '12px', 
@@ -472,7 +421,7 @@ def register_compliance_recent_activities_callbacks(app):
                                 html.Div([
                                     html.Div([
                                         dcc.Markdown(
-                                            prepare_html_content(row.get('Detail', '')),
+                                            row.get('Detail', ''),
                                             dangerously_allow_html=True,
                                             style={
                                                 'fontSize': '12px', 
