@@ -546,7 +546,7 @@ def get_case_flow():
         
         # Merge event history with case details for complete context
         case_flow_df = event_history_df.merge(
-            merged_case_df[['ID', 'CaseNumber', 'MemberName', 'CreatedOn', 'ClosedOn', 
+            merged_case_df[['ID', 'CaseNumber', 'Description', 'MemberName', 'CreatedOn', 'ClosedOn', 
                            'Disposition', 'Status', 'ViolationName', 'NumReportIds']],
             left_on='CaseID', right_on='ID', how='left'
         )

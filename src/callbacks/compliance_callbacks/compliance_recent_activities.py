@@ -348,8 +348,52 @@ def register_compliance_recent_activities_callbacks(app):
                 row_class = stage_colors.get(row['LifecycleStage'], '')
                 
                 cells = [
-                    html.Td(row['CaseNumber'], style={'fontSize': '12px', 'fontFamily': 'monospace', 'fontWeight': 'bold'}),
-                    # html.Td(row['EventSummary'], style={'fontSize': '12px', 'maxWidth': '300px'}),         
+                    html.Td([
+                        html.Div([
+                            html.Span(
+                                row['CaseNumber'], 
+                                id=f"case-number-{i}",
+                                style={
+                                    'fontSize': '12px', 
+                                    'fontFamily': 'monospace', 
+                                    'fontWeight': 'bold',
+                                    'cursor': 'help',
+                                    'borderBottom': '1px dotted #28a745',
+                                    'color': '#28a745'
+                                }
+                            ),
+                            html.Span(
+                                " 📋", 
+                                style={
+                                    'fontSize': '10px',
+                                    'opacity': '0.7',
+                                    'marginLeft': '4px'
+                                }
+                            ),
+                            dbc.Tooltip(
+                                html.Div([
+                                    html.Span(
+                                        row.get('Description', ''),
+                                        style={
+                                            'fontSize': '12px', 
+                                            'lineHeight': '1.5',
+                                            'color': '#495057'
+                                        }
+                                    )
+                                ], style={
+                                    'maxWidth': '400px', 
+                                    'textAlign': 'left',
+                                    'padding': '12px',
+                                    'backgroundColor': '#f8f9fa',
+                                    'border': '1px solid #28a745',
+                                    'borderRadius': '6px'
+                                }),
+                                target=f"case-number-{i}",
+                                placement="top",
+                                style={'maxWidth': '450px'}
+                            )
+                        ])
+                    ]),                    
                     html.Td([
                         html.Div([
                             html.Span(
@@ -364,7 +408,7 @@ def register_compliance_recent_activities_callbacks(app):
                                 }
                             ),
                             html.Span(
-                                " 📄",  # Document icon for "full details"
+                                " 📄",  
                                 style={
                                     'fontSize': '10px',
                                     'opacity': '0.8',
@@ -383,7 +427,7 @@ def register_compliance_recent_activities_callbacks(app):
                                 style={'maxWidth': '450px'}
                             )
                         ])
-                    ], style={'maxWidth': '300px'}),                    #  Event Summary with tooltip      
+                    ], style={'maxWidth': '300px'}),                    
                     html.Td([
                         html.Span(get_stage_icon(row['LifecycleStage']), style={'marginRight': '8px'}),
                         html.Span(row['LifecycleStage'], style={'fontWeight': 'bold' if i < 10 else 'normal'})
