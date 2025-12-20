@@ -9,16 +9,7 @@ def get_recent_activities_layout():
                 dbc.Row([
                     dbc.Col([
                         html.H5("Recent Activities", className="mb-0"),
-                    ], width=3),
-                    dbc.Col([
-                        # View selection buttons
-                        dbc.ButtonGroup([
-                            dbc.Button("Timeline", id="activities-timeline-view-btn", size="sm", outline=True, active=True),
-                            dbc.Button("Activity Type", id="activities-type-view-btn", size="sm", outline=True),
-                            dbc.Button("Daily Volume", id="activities-volume-view-btn", size="sm", outline=True),
-                            dbc.Button("Case Activity", id="activities-case-view-btn", size="sm", outline=True)
-                        ], size="sm")
-                    ], width=6, style={"textAlign": "right"}),
+                    ], width=4),
                     dbc.Col([
                         # Timeframe dropdown
                         dcc.Dropdown(
@@ -33,7 +24,22 @@ def get_recent_activities_layout():
                             clearable=False,
                             className="form-select-sm"
                         )
-                    ], width=3)
+                    ], width=4),                    
+                    dbc.Col([
+                        # View selection dropdown (replacing buttons)
+                        dcc.Dropdown(
+                            id="compliance-activities-view-dropdown",
+                            options=[
+                                {"label": "Timeline View", "value": "timeline"},
+                                {"label": "Activity Type", "value": "activity_type"},
+                                {"label": "Daily Volume", "value": "volume"},
+                                {"label": "Case Activity", "value": "case_activity"}
+                            ],
+                            value="timeline",
+                            clearable=False,
+                            className="form-select-sm"
+                        )
+                    ], width=4)
                 ])
             ]),
             dbc.CardBody([

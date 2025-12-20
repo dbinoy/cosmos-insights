@@ -614,37 +614,47 @@ def register_compliance_recent_activities_callbacks(app):
         return html.Div(insights, className="insights-container")
     
     # View state toggle callbacks
+    # @callback(
+    #     [Output("compliance-recent-activities-view-state", "data"),
+    #      Output("activities-timeline-view-btn", "active"),
+    #      Output("activities-type-view-btn", "active"),
+    #      Output("activities-volume-view-btn", "active"),
+    #      Output("activities-case-view-btn", "active")],
+    #     [Input("activities-timeline-view-btn", "n_clicks"),
+    #      Input("activities-type-view-btn", "n_clicks"),
+    #      Input("activities-volume-view-btn", "n_clicks"),
+    #      Input("activities-case-view-btn", "n_clicks")],
+    #     prevent_initial_call=True
+    # )
+    # def toggle_recent_activities_view(timeline_clicks, type_clicks, volume_clicks, case_clicks):
+    #     """Toggle between different recent activities analysis views"""
+    #     triggered = ctx.triggered
+    #     if not triggered:
+    #         return "timeline", True, False, False, False
+            
+    #     triggered_id = triggered[0]['prop_id'].split('.')[0]
+        
+    #     if triggered_id == "activities-timeline-view-btn":
+    #         return "timeline", True, False, False, False
+    #     elif triggered_id == "activities-type-view-btn":
+    #         return "activity_type", False, True, False, False
+    #     elif triggered_id == "activities-volume-view-btn":
+    #         return "volume", False, False, True, False
+    #     elif triggered_id == "activities-case-view-btn":
+    #         return "case_activity", False, False, False, True
+        
+    #     return "timeline", True, False, False, False
+    
+    # View state callback 
     @callback(
-        [Output("compliance-recent-activities-view-state", "data"),
-         Output("activities-timeline-view-btn", "active"),
-         Output("activities-type-view-btn", "active"),
-         Output("activities-volume-view-btn", "active"),
-         Output("activities-case-view-btn", "active")],
-        [Input("activities-timeline-view-btn", "n_clicks"),
-         Input("activities-type-view-btn", "n_clicks"),
-         Input("activities-volume-view-btn", "n_clicks"),
-         Input("activities-case-view-btn", "n_clicks")],
+        Output("compliance-recent-activities-view-state", "data"),
+        [Input("compliance-activities-view-dropdown", "value")],
         prevent_initial_call=True
     )
-    def toggle_recent_activities_view(timeline_clicks, type_clicks, volume_clicks, case_clicks):
-        """Toggle between different recent activities analysis views"""
-        triggered = ctx.triggered
-        if not triggered:
-            return "timeline", True, False, False, False
-            
-        triggered_id = triggered[0]['prop_id'].split('.')[0]
+    def update_recent_activities_view_state(selected_view):
+        """Update recent activities view state from dropdown selection"""
+        return selected_view or "timeline"
         
-        if triggered_id == "activities-timeline-view-btn":
-            return "timeline", True, False, False, False
-        elif triggered_id == "activities-type-view-btn":
-            return "activity_type", False, True, False, False
-        elif triggered_id == "activities-volume-view-btn":
-            return "volume", False, False, True, False
-        elif triggered_id == "activities-case-view-btn":
-            return "case_activity", False, False, False, True
-        
-        return "timeline", True, False, False, False
-    
     # Details modal callback
     @callback(
         [Output("compliance-activities-details-modal", "is_open"),
@@ -684,7 +694,7 @@ def register_compliance_recent_activities_callbacks(app):
         
         return no_update, no_update
     
-    # Main chart and insights callback - NOW MUCH FASTER
+    # Main chart and insights callback 
     @callback(
         [Output("compliance-recent-activities-chart", "figure"),
          Output("compliance-recent-activities-insights", "children")],
@@ -798,4 +808,5 @@ def register_compliance_recent_activities_callbacks(app):
             return False
         return no_update
 
-    print("✅ Compliance recent activities callbacks registered")
+    
+    # print("✅ Compliance recent activities callbacks registered")
