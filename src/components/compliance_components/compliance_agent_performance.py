@@ -45,7 +45,9 @@ def get_agent_performance_layout():
                     dcc.Loading([
                         dcc.Graph(id="compliance-agent-performance-chart")
                     ], type="dot")
-                ], style={"cursor": "pointer"}),
+                ], 
+                id="compliance-agent-performance-chart-wrapper",
+                style={"cursor": "pointer"}),
                 
                 html.Hr(),
                 

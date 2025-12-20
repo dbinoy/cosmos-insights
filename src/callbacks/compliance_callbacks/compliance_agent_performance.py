@@ -613,13 +613,34 @@ def register_compliance_agent_performance_callbacks(app):
             return fig, error_insights
     
     # Chart modal callback
+    # @callback(
+    #     [
+    #         Output("compliance-chart-modal", "is_open", allow_duplicate=True),
+    #         Output("compliance-modal-chart-content", "children", allow_duplicate=True)
+    #     ],
+    #     [
+    #         Input("compliance-agent-performance-chart", "clickData")
+    #     ],
+    #     [
+    #         State("compliance-agent-performance-chart", "figure"),
+    #         State("compliance-chart-modal", "is_open")
+    #     ],
+    #     prevent_initial_call=True
+    # )
+    # def toggle_agent_performance_chart_modal(click_data, chart_figure, is_open_state):
+    #     """Toggle enlarged agent performance chart modal when chart is clicked"""
+    #     if click_data and not is_open_state:
+    #         enlarged_chart = create_enlarged_agent_performance_chart(chart_figure)
+    #         return True, enlarged_chart
+        
+    #     return no_update, no_update
     @callback(
         [
             Output("compliance-chart-modal", "is_open", allow_duplicate=True),
             Output("compliance-modal-chart-content", "children", allow_duplicate=True)
         ],
         [
-            Input("compliance-agent-performance-chart", "clickData")
+            Input("compliance-agent-performance-chart-wrapper", "n_clicks")  
         ],
         [
             State("compliance-agent-performance-chart", "figure"),
@@ -627,12 +648,13 @@ def register_compliance_agent_performance_callbacks(app):
         ],
         prevent_initial_call=True
     )
-    def toggle_agent_performance_chart_modal(click_data, chart_figure, is_open_state):
-        """Toggle enlarged agent performance chart modal when chart is clicked"""
-        if click_data and not is_open_state:
+    def toggle_agent_performance_chart_modal(wrapper_clicks, chart_figure, is_open_state):
+        """Toggle enlarged agent performance chart modal on chart wrapper click"""
+        
+        if wrapper_clicks and not is_open_state and chart_figure:
             enlarged_chart = create_enlarged_agent_performance_chart(chart_figure)
             return True, enlarged_chart
         
-        return no_update, no_update
+        return no_update, no_update    
 
     print("✅ Compliance agent performance callbacks registered")

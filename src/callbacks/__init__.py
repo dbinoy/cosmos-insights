@@ -36,6 +36,7 @@ from src.callbacks.compliance_callbacks.compliance_violation_status import regis
 from src.callbacks.compliance_callbacks.compliance_outstanding_issues import register_compliance_outstanding_issues_callbacks
 from src.callbacks.compliance_callbacks.compliance_recent_activities import register_compliance_recent_activities_callbacks
 from src.callbacks.compliance_callbacks.compliance_agent_performance import register_compliance_agent_performance_callbacks
+from src.callbacks.compliance_callbacks.compliance_violation_trends import register_compliance_violation_trends_callbacks
 
 def register_all_callbacks(app):
     register_training_filter_callbacks(app)
@@ -76,3 +77,4 @@ def register_all_callbacks(app):
     register_compliance_outstanding_issues_callbacks(app)
     register_compliance_recent_activities_callbacks(app)
     register_compliance_agent_performance_callbacks(app)
+    register_compliance_violation_trends_callbacks(app)
