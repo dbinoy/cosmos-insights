@@ -32,38 +32,51 @@ def register_compliance_incident_analysis_callbacks(app):
             return fig
         
         if view_type == "category":
-            
-            # Count by violation category
+            # Count by violation category and sort in descending order
             category_counts = filtered_df['ViolationCategory'].value_counts().reset_index()
             category_counts.columns = ['Category', 'Count']
             
-            # Create horizontal bar chart
+            # Create vertical bar chart
             colors = px.colors.qualitative.Set1[:len(category_counts)]
             
             fig = go.Figure(data=[go.Bar(
-                y=category_counts['Category'],
-                x=category_counts['Count'],
-                orientation='h',
+                x=category_counts['Category'],
+                y=category_counts['Count'],
                 marker=dict(color=colors, line=dict(color='white', width=1)),
-                hovertemplate="<b>%{y}</b><br>Cases: %{x}<br>Percentage: %{customdata:.1f}%<extra></extra>",
+                hovertemplate="<b>%{x}</b><br>Cases: %{y}<br>Percentage: %{customdata:.1f}%<extra></extra>",
                 customdata=category_counts['Count'] / category_counts['Count'].sum() * 100,
                 text=category_counts['Count'],
-                textposition='inside'
+                textposition='outside',
+                textfont=dict(size=12, color='black')
             )])
+            
+            # Ensure text labels are always visible
+            max_count = category_counts['Count'].max()
+            fig.update_traces(
+                textposition='outside',
+                cliponaxis=False
+            )
             
             fig.update_layout(
                 title={
                     'text': f"Compliance Incidents by Category ({category_counts['Count'].sum():,} Total Cases)",
                     'x': 0.5, 'xanchor': 'center'
                 },
-                xaxis_title="Number of Cases",
-                yaxis_title="",
+                xaxis_title="Violation Categories",
+                yaxis_title="Number of Cases",
                 height=400,
-                margin={'l': 200, 'r': 50, 't': 80, 'b': 50}
+                margin={'l': 50, 'r': 50, 't': 80, 'b': 120},
+                xaxis=dict(
+                    tickangle=-45,
+                    automargin=True
+                ),
+                yaxis=dict(
+                    range=[0, max_count * 1.15]  # Add extra space for text labels
+                )
             )
             
         elif view_type == "rule":
-            # Count by detailed rule category
+            # Count by detailed rule category and sort in descending order
             rule_counts = filtered_df['DetailedRuleCategory'].value_counts().reset_index()
             rule_counts.columns = ['RuleCategory', 'Count']
             
@@ -97,36 +110,51 @@ def register_compliance_incident_analysis_callbacks(app):
                     height=400
                 )
             else:
-                # Use horizontal bar chart for many categories
+                # Use vertical bar chart for many categories
                 colors = px.colors.qualitative.Set3[:len(rule_counts)]
                 
+                max_count = rule_counts['Count'].max()
+                
                 fig = go.Figure(data=[go.Bar(
-                    y=rule_counts['RuleCategory'],
-                    x=rule_counts['Count'],
-                    orientation='h',
+                    x=rule_counts['RuleCategory'],
+                    y=rule_counts['Count'],
                     marker=dict(color=colors, line=dict(color='white', width=1)),
-                    hovertemplate="<b>%{y}</b><br>Cases: %{x}<extra></extra>",
+                    hovertemplate="<b>%{x}</b><br>Cases: %{y}<extra></extra>",
                     text=rule_counts['Count'],
-                    textposition='inside'
+                    textposition='outside',
+                    textfont=dict(size=10, color='black')
                 )])
+                
+                # Ensure text labels are always visible
+                fig.update_traces(
+                    textposition='outside',
+                    cliponaxis=False
+                )
                 
                 fig.update_layout(
                     title={
                         'text': f"Incidents by Rule Type ({rule_counts['Count'].sum():,} Cases)",
                         'x': 0.5, 'xanchor': 'center'
                     },
-                    xaxis_title="Number of Cases",
-                    yaxis_title="",
+                    xaxis_title="Rule Categories",
+                    yaxis_title="Number of Cases",
                     height=400,
-                    margin={'l': 250, 'r': 50, 't': 80, 'b': 50}
+                    margin={'l': 50, 'r': 50, 't': 80, 'b': 150},
+                    xaxis=dict(
+                        tickangle=-45,
+                        automargin=True,
+                        tickfont=dict(size=9)
+                    ),
+                    yaxis=dict(
+                        range=[0, max_count * 1.15]  # Add extra space for text labels
+                    )
                 )
             
         elif view_type == "disposition":
-            # Analyze by case disposition/resolution patterns
+            # Analyze by case disposition/resolution patterns (keep as vertical already)
             disposition_counts = filtered_df['Disposition'].value_counts().reset_index()
             disposition_counts.columns = ['Disposition', 'Count']
             
-            # Create stacked bar chart to show disposition distribution
             # Color mapping for different dispositions
             disposition_colors = {
                 'Citation': '#dc3545',  # Red - serious
@@ -140,6 +168,7 @@ def register_compliance_incident_analysis_callbacks(app):
             
             # Assign colors
             colors = [disposition_colors.get(disp, '#6c757d') for disp in disposition_counts['Disposition']]
+            max_count = disposition_counts['Count'].max()
             
             fig = go.Figure(data=[go.Bar(
                 x=disposition_counts['Disposition'],
@@ -148,8 +177,15 @@ def register_compliance_incident_analysis_callbacks(app):
                 hovertemplate="<b>%{x}</b><br>Cases: %{y}<br>Percentage: %{customdata:.1f}%<extra></extra>",
                 customdata=disposition_counts['Count'] / disposition_counts['Count'].sum() * 100,
                 text=disposition_counts['Count'],
-                textposition='outside'
+                textposition='outside',
+                textfont=dict(size=12, color='black')
             )])
+            
+            # Ensure text labels are always visible
+            fig.update_traces(
+                textposition='outside',
+                cliponaxis=False
+            )
             
             fig.update_layout(
                 title={
@@ -158,37 +194,56 @@ def register_compliance_incident_analysis_callbacks(app):
                 },
                 xaxis_title="Disposition Type",
                 yaxis_title="Number of Cases",
-                height=400
+                height=400,
+                margin={'l': 50, 'r': 50, 't': 80, 'b': 100},
+                yaxis=dict(
+                    range=[0, max_count * 1.15]  # Add extra space for text labels
+                )
             )
             
         elif view_type == "violation":
-            # Get top 15 most frequent violations
-            violation_counts = filtered_df['FirstViolation'].value_counts().reset_index()
+            # Get top 15 most frequent violations and sort in descending order
+            violation_counts = filtered_df['FirstViolation'].value_counts().head(15).reset_index()
             violation_counts.columns = ['Violation', 'Count']
             
-            # Create horizontal bar chart
+            # Create vertical bar chart
             colors = px.colors.sequential.Blues_r[:len(violation_counts)]
+            max_count = violation_counts['Count'].max()
             
             fig = go.Figure(data=[go.Bar(
-                y=violation_counts['Violation'],
-                x=violation_counts['Count'],
-                orientation='h',
+                x=violation_counts['Violation'],
+                y=violation_counts['Count'],
                 marker=dict(color=colors, line=dict(color='white', width=1)),
-                hovertemplate="<b>%{y}</b><br>Cases: %{x}<br>Percentage: %{customdata:.1f}%<extra></extra>",
+                hovertemplate="<b>%{x}</b><br>Cases: %{y}<br>Percentage: %{customdata:.1f}%<extra></extra>",
                 customdata=violation_counts['Count'] / filtered_df.shape[0] * 100,
                 text=violation_counts['Count'],
-                textposition='inside'
+                textposition='outside',
+                textfont=dict(size=10, color='black')
             )])
+            
+            # Ensure text labels are always visible
+            fig.update_traces(
+                textposition='outside',
+                cliponaxis=False
+            )
             
             fig.update_layout(
                 title={
-                    'text': f"Top 15 Most Frequent Violations ({violation_counts['Count'].sum():,} Cases)",
+                    'text': f"Top 15 Most Common Violations ({violation_counts['Count'].sum():,} Cases)",
                     'x': 0.5, 'xanchor': 'center'
                 },
-                xaxis_title="Number of Cases",
-                yaxis_title="",
+                xaxis_title="Violation Types",
+                yaxis_title="Number of Cases",
                 height=400,
-                margin={'l': 300, 'r': 50, 't': 80, 'b': 50}
+                margin={'l': 50, 'r': 50, 't': 80, 'b': 200},
+                xaxis=dict(
+                    tickangle=-45,
+                    automargin=True,
+                    tickfont=dict(size=8)
+                ),
+                yaxis=dict(
+                    range=[0, max_count * 1.15]  # Add extra space for text labels
+                )
             )
         
         # Common layout updates
@@ -196,11 +251,11 @@ def register_compliance_incident_analysis_callbacks(app):
             plot_bgcolor='white',
             paper_bgcolor='white',
             font={'color': '#2c3e50'},
-            margin={'t': 80, 'b': 50}
+            showlegend=False if view_type != "rule" or len(rule_counts) > 8 else True
         )
         
         return fig
-    
+   
     @monitor_chart_performance("Enlarged Incident Analysis Chart")
     def create_enlarged_incident_analysis_chart(original_figure):
         """Create an enlarged version of the incident analysis chart for modal display"""
@@ -208,37 +263,54 @@ def register_compliance_incident_analysis_callbacks(app):
         if not original_figure or 'data' not in original_figure:
             return {}
         
-        # Create enlarged version with updated layout
         enlarged_fig = copy.deepcopy(original_figure)
+        
+        original_margin = enlarged_fig['layout'].get('margin', {})
+        original_bottom = original_margin.get('b', 50)
+        
+        if original_bottom >= 150:  # Violation charts with long labels
+            enlarged_margins = {'l': 80, 'r': 80, 't': 120, 'b': 250}
+        elif original_bottom >= 120:  # Category charts with angled labels  
+            enlarged_margins = {'l': 80, 'r': 80, 't': 120, 'b': 150}
+        else:  # Disposition and pie charts
+            enlarged_margins = {'l': 80, 'r': 80, 't': 120, 'b': 100}
         
         # Update layout for modal display
         enlarged_fig['layout'].update({
-            'height': 600,  # Larger height for modal
-            'margin': {'l': 80, 'r': 80, 't': 100, 'b': 70},
+            'height': 650,  # Larger height for modal
+            'margin': enlarged_margins,
             'title': {
                 'text': enlarged_fig['layout'].get('title', {}).get('text', 'Incident Analysis'),
                 'x': 0.5,
                 'xanchor': 'center',
-                'font': {'size': 18, 'color': '#2c3e50'}
+                'font': {'size': 20, 'color': '#2c3e50'}
             },
             'xaxis': {
-                'title': {**enlarged_fig['layout'].get('xaxis', {}).get('title', {}), 'font': {'size': 14}},
-                'tickfont': {'size': 12}
+                **enlarged_fig['layout'].get('xaxis', {}),
+                'title': {
+                    **enlarged_fig['layout'].get('xaxis', {}).get('title', {}), 
+                    'font': {'size': 16}
+                },
+                'tickfont': {'size': 13}
             },
             'yaxis': {
-                'title': {**enlarged_fig['layout'].get('yaxis', {}).get('title', {}), 'font': {'size': 14}},
-                'tickfont': {'size': 12}
+                **enlarged_fig['layout'].get('yaxis', {}),
+                'title': {
+                    **enlarged_fig['layout'].get('yaxis', {}).get('title', {}), 
+                    'font': {'size': 16}
+                },
+                'tickfont': {'size': 13}
             }
         })
         
-        # Adjust margins for different chart types
-        if 'margin' in enlarged_fig['layout']:
-            current_margin = enlarged_fig['layout']['margin']
-            if current_margin.get('l', 0) > 200:  # Horizontal bar charts need more left margin
-                enlarged_fig['layout']['margin']['l'] = max(current_margin['l'] + 50, 350)
+        # Adjust text labels for better visibility in enlarged view
+        if 'data' in enlarged_fig and enlarged_fig['data']:
+            for trace in enlarged_fig['data']:
+                if 'textfont' in trace:
+                    trace['textfont'].update({'size': 14, 'color': 'black'})
         
         return enlarged_fig
-    
+   
     @monitor_performance("Incident Analysis Insights Generation")
     def generate_incident_analysis_insights(filtered_df, view_type):
         """Generate insights for incident analysis"""
