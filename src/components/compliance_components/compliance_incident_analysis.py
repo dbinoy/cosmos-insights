@@ -17,8 +17,8 @@ def get_incident_analysis_layout():
                             options=[
                                 {"label": "By Category", "value": "category"},
                                 {"label": "By Rule Type", "value": "rule"},
-                                {"label": "By Disposition", "value": "disposition"},
-                                {"label": "By Frequency", "value": "frequency"}
+                                {"label": "By Violation", "value": "violation"},
+                                {"label": "By Disposition", "value": "disposition"}                             
                             ],
                             value="category",
                             clearable=False,

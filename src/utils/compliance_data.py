@@ -11,6 +11,379 @@ _compliance_data_cache = {}
 _cache_timestamp = None
 _cache_duration_minutes = 60  # Cache for 60 minutes
 
+def categorize_rule_violation(rule_list):
+    """Categorize violations by business-meaningful rule categories based on actual rule content"""
+    if not isinstance(rule_list, list) or len(rule_list) == 0:
+        return "Administrative & Process"
+    
+    # Get first rule number/title
+    first_rule = rule_list[0] if rule_list[0] is not None else ""
+    if not first_rule:
+        return "Administrative & Process"
+    
+    rule_str = str(first_rule).upper()
+    
+    # Citation and General Categories (most common patterns)
+    if any(keyword in rule_str for keyword in ['GENERAL', 'CITATION', 'WARNING', 'INQUIRY', 'COMBINED', 'DISCIPLINARY']):
+        if 'DISCIPLINARY' in rule_str:
+            return "Disciplinary Actions"
+        elif 'COMBINED' in rule_str:
+            return "Combined Violations"
+        elif 'CITATION' in rule_str and 'GENERAL' in rule_str:
+            return "General Citations"
+        elif 'WARNING' in rule_str:
+            return "Warnings & Inquiries"
+        elif 'INQUIRY' in rule_str:
+            return "Warnings & Inquiries"
+        elif '1%' in rule_str or 'CITATION' in rule_str:
+            return "Standard Citations"
+        else:
+            return "General Compliance"
+    
+    # Communication Categories
+    if any(keyword in rule_str for keyword in ['CALL', 'CHAT', 'VOICEMAIL']):
+        return "Customer Service & Communication"
+    
+    # Listing Management (7.x rules)
+    if rule_str.startswith('7.') or 'LISTING' in rule_str:
+        if any(keyword in rule_str for keyword in ['DUPLICATE', 'CO-LISTING', 'PROHIBITED']):
+            return "Listing Registration & Setup"
+        elif any(keyword in rule_str for keyword in ['COMPENSATION', 'COMMISSION', 'DISCLOSURE']):
+            return "Commission & Disclosure"
+        elif any(keyword in rule_str for keyword in ['AUTHORIZATION', 'PERMISSION', 'AGREEMENT']):
+            return "Authorization & Documentation"
+        elif any(keyword in rule_str for keyword in ['WITHDRAWAL', 'EXPIRATION', 'RENEWAL', 'STATUS']):
+            return "Listing Status Management"
+        elif any(keyword in rule_str for keyword in ['CLASSIFICATION', 'TYPE', 'REO', 'AUCTION']):
+            return "Property Classification"
+        else:
+            return "Listing Management"
+    
+    # Documentation and Authorization (8.x rules)
+    if rule_str.startswith('8.') or any(keyword in rule_str for keyword in ['DOCUMENTATION', 'AGREEMENT', 'AUTHORIZATION']):
+        if 'AUTO SOLD' in rule_str:
+            return "Auto Sold & Status Updates"
+        elif any(keyword in rule_str for keyword in ['INACCURATE', 'INCOMPLETE', 'ACCURATE INFORMATION']):
+            return "Data Accuracy & Integrity"
+        else:
+            return "Authorization & Documentation"
+    
+    # Showing and Access (9.x rules)
+    if rule_str.startswith('9.') or any(keyword in rule_str for keyword in ['SHOWING', 'INSPECT', 'BUYER AGREEMENT']):
+        return "Property Showing & Access"
+    
+    # Status Changes and Reporting (10.x rules)
+    if rule_str.startswith('10.') or any(keyword in rule_str for keyword in ['COMING SOON', 'STATUS CHANGE', 'TIMELY REPORT']):
+        return "Status Reporting & Timing"
+    
+    # Media and Photography (11.x rules)
+    if rule_str.startswith('11.') or any(keyword in rule_str for keyword in ['PHOTO', 'MEDIA', 'RENDERING', 'WATERMARK', 'BRANDING']):
+        if any(keyword in rule_str for keyword in ['BRANDING', 'WATERMARK']):
+            return "Media Branding & Attribution"
+        elif any(keyword in rule_str for keyword in ['THIRD-PARTY', 'AUTHORIZATION', 'PERMISSION']):
+            return "Media Authorization & Rights"
+        elif any(keyword in rule_str for keyword in ['CONTENT', 'MISREPRESENTATION', 'UNTRUTHFULNESS']):
+            return "Media Content Standards"
+        else:
+            return "Photography & Media"
+    
+    # MLS Usage and Advertising (12.x rules)
+    if rule_str.startswith('12.') or any(keyword in rule_str for keyword in ['MLS', 'ADVERTISING', 'UNAUTHORIZED USE', 'DISTRIBUTION']):
+        if any(keyword in rule_str for keyword in ['REMARKS', 'PUBLIC REMARKS', 'OTHER REMARKS']):
+            return "MLS Remarks & Comments"
+        elif any(keyword in rule_str for keyword in ['NEIGHBORHOOD MARKET', 'ADVERTISEMENT OF LISTING']):
+            return "Marketing & Advertising"
+        elif any(keyword in rule_str for keyword in ['UNAUTHORIZED USE', 'UNAUTHORIZED DISTRIBUTION', 'PASSCODES']):
+            return "MLS Data Security & Usage"
+        elif any(keyword in rule_str for keyword in ['FALSE', 'MISLEADING', 'INFORMATIONAL NOTICE']):
+            return "Advertising Standards"
+        elif 'EMAIL' in rule_str:
+            return "Contact Information Management"
+        else:
+            return "MLS Usage & Compliance"
+    
+    # Lockbox and Property Access (13.x rules)
+    if rule_str.startswith('13.') or any(keyword in rule_str for keyword in ['LOCKBOX', 'PROPERTY ACCESS', 'ENTRANCE']):
+        return "Lockbox & Property Security"
+    
+    # Corrections and Compliance (14.x rules)
+    if rule_str.startswith('14.') or any(keyword in rule_str for keyword in ['FAILURE TO CORRECT', 'MODIFICATION']):
+        return "Compliance & Corrections"
+    
+    # Membership and Participation (4.x, 5.x rules)
+    if rule_str.startswith(('4.', '5.')) or any(keyword in rule_str for keyword in ['PARTICIPANT', 'SUBSCRIBER', 'TERMINATION', 'ADDITION', 'LICENSEE']):
+        if 'CERTIFICATION' in rule_str or 'NONUSE' in rule_str:
+            return "Fee Management & Certification"
+        else:
+            return "Membership & User Management"
+    
+    # Technology and Internet Usage (19.x rules)
+    if rule_str.startswith('19.') or any(keyword in rule_str for keyword in ['INTERNET', 'IDX', 'VOW']):
+        return "Internet & Technology Compliance"
+    
+    # DRE/OREA and Legal (regulatory compliance)
+    if any(keyword in rule_str for keyword in ['DRE', 'OREA', 'ADVERSE ACTION']):
+        return "Regulatory Compliance"
+    
+    # Not Applicable or Administrative
+    if 'NOT APPLICABLE' in rule_str or 'N/A' in rule_str:
+        return "Administrative & Process"
+    
+    # Special handling for "Other" in rule titles
+    if 'OTHER' in rule_str:
+        if 'REMARKS' in rule_str or 'MEDIA' in rule_str:
+            return "MLS Remarks & Comments"
+        else:
+            return "Miscellaneous Violations"
+    
+    # Modification-related
+    if 'MODIFICATION' in rule_str:
+        return "Data Modifications & Updates"
+    
+    # Default fallback - use rule number pattern if available
+    if rule_str.startswith(('0', '99')):
+        return "General Compliance"
+    
+    # Final fallback for truly unknown categories
+    return "Uncategorized Violations"
+ 
+def categorize_detailed_rule(rule_list):
+    """Detailed rule categorization based on specific rule families and content"""
+    if not isinstance(rule_list, list) or len(rule_list) == 0:
+        return "Administrative"
+    
+    first_rule = str(rule_list[0]) if rule_list[0] is not None else ""
+    if not first_rule:
+        return "Administrative"
+    
+    rule_str = first_rule.upper()
+    
+    # General and Citation Categories (0.x and special codes)
+    if rule_str.startswith('0') or any(keyword in rule_str for keyword in ['GENERAL', '1% CITATION']):
+        if 'DISCIPLINARY' in rule_str:
+            return "Disciplinary Complaints"
+        elif 'COMBINED' in rule_str:
+            return "Combined Citations"
+        elif 'WARNING' in rule_str:
+            return "General Warnings"
+        elif 'INQUIRY' in rule_str:
+            return "General Inquiries"
+        elif 'CITATION' in rule_str and 'AGENT BASED' in rule_str:
+            return "Agent-Based Citations"
+        elif 'CITATION' in rule_str or '1%' in rule_str:
+            return "Standard Citations"
+        else:
+            return "General Compliance"
+    
+    # Communication Categories
+    if any(keyword in rule_str for keyword in ['CALL', 'CHAT', 'VOICEMAIL']):
+        return "Customer Service Communications"
+    
+    # Membership and Participation (4.x, 5.x)
+    elif first_rule.startswith('4.3'):
+        return "4.3 - Clerical User Management"
+    elif first_rule.startswith('4.5'):
+        return "4.5 - Licensee Management"
+    elif first_rule.startswith('5.1.6'):
+        return "5.1.6 - Nonuse Certification & Fees"
+    elif first_rule.startswith(('4.', '5.')):
+        return "4-5.x - Membership Rules"
+    
+    # Listing Management (7.x) - Comprehensive breakdown
+    elif first_rule.startswith('7.2'):
+        return "7.2 - Duplicate Listings & Disclosure"
+    elif first_rule.startswith('7.3'):
+        return "7.3 - Co-Listing Restrictions"
+    elif first_rule.startswith('7.6'):
+        return "7.6 - Property Type Classification"
+    elif first_rule.startswith('7.8'):
+        return "7.8 - MLS Registration & Owner Info"
+    elif first_rule.startswith('7.9'):
+        if 'RLA' in rule_str:
+            return "7.9 - RLA Requests"
+        else:
+            return "7.9 - Citation Processing"
+    elif first_rule.startswith('7.11'):
+        return "7.11 - Authorization & Updates"
+    elif first_rule.startswith('7.12'):
+        return "7.12 - Listing Withdrawal"
+    elif first_rule.startswith('7.15'):
+        return "7.15 - Compensation Offers"
+    elif first_rule.startswith('7.16'):
+        return "7.16 - Compensation Disclosure"
+    elif first_rule.startswith('7.18'):
+        if 'AUCTION' in rule_str:
+            return "7.18.1 - Auction Requirements"
+        elif 'CONSTRUCTION' in rule_str:
+            return "7.18.4 - New Construction"
+        else:
+            return "7.18 - Special Listing Types"
+    elif first_rule.startswith('7.20'):
+        return "7.20 - Interest Disclosure"
+    elif first_rule.startswith('7.22'):
+        return "7.22 - Listing Renewal & Expiration"
+    elif first_rule.startswith('7.25'):
+        return "7.25 - Dual/Variable Commission"
+    elif first_rule.startswith('7.27'):
+        return "7.27 - REO Status Disclosure"
+    elif first_rule.startswith('7.9.1'):
+        return "7.9.1 - No-Cooperation Listings"
+    elif first_rule.startswith('7.'):
+        return "7.x - Other Listing Rules"
+    
+    # Documentation & Authorization (8.x)
+    elif first_rule.startswith('8.1'):
+        return "8.1 - Seller Authorization"
+    elif first_rule.startswith('8.2'):
+        return "8.2 - Documentation Requests"
+    elif first_rule.startswith('8.3'):
+        if 'AUTO SOLD' in rule_str:
+            return "8.3 - Auto Sold Issues"
+        elif 'CONCESSIONS' in rule_str:
+            return "8.3 - Concessions & Accuracy"
+        elif 'INACCURATE' in rule_str or 'INCOMPLETE' in rule_str:
+            return "8.3 - Information Accuracy"
+        else:
+            return "8.3 - Data Input & Status"
+    elif first_rule.startswith('8.'):
+        return "8.x - Documentation Rules"
+    
+    # Showing & Access (9.x)
+    elif first_rule.startswith('9.1'):
+        return "9.1 - Showing Instructions & Agreements"
+    elif first_rule.startswith('9.3'):
+        return "9.3 - Availability & Coming Soon"
+    elif first_rule.startswith('9.9'):
+        return "9.9 - Physical Presence Requirements"
+    elif first_rule.startswith('9.'):
+        return "9.x - Showing Rules"
+    
+    # Status Changes & Reporting (10.x)
+    elif first_rule.startswith('10.1'):
+        return "10.1 - Coming Soon Requirements"
+    elif first_rule.startswith('10.2'):
+        return "10.2 - Status Change Reporting"
+    elif first_rule.startswith('10.4'):
+        return "10.4 - Cancellation Reporting"
+    elif first_rule.startswith('10.5'):
+        return "10.5 - Seller Refusal Reporting"
+    elif first_rule.startswith('10.'):
+        return "10.x - Status & Reporting Rules"
+    
+    # Media & Photography (11.x)
+    elif first_rule.startswith('11.5.1'):
+        return "11.5.1 - Mandatory Photos"
+    elif first_rule.startswith('11.5a'):
+        return "11.5a - Media Content Standards"
+    elif first_rule.startswith('11.5b'):
+        return "11.5b - Third-Party Photos"
+    elif first_rule.startswith('11.5c'):
+        return "11.5c - Media Truthfulness"
+    elif first_rule.startswith('11.5d'):
+        if 'WATERMARK' in rule_str:
+            return "11.5d - Watermark Issues"
+        else:
+            return "11.5d - Media Authorization"
+    elif first_rule.startswith('11.5e'):
+        return "11.5e - Media Branding"
+    elif first_rule.startswith('11.'):
+        return "11.x - Media Rules"
+    
+    # MLS Usage & Advertising (12.x)
+    elif first_rule.startswith('12.1'):
+        if 'DRE' in rule_str or 'OREA' in rule_str:
+            return "12.1 - Regulatory Notifications"
+        else:
+            return "12.1 - False Advertising Standards"
+    elif first_rule.startswith('12.5.1'):
+        return "12.5.1 - Other Remarks Misuse"
+    elif first_rule.startswith('12.5'):
+        return "12.5 - Public Remarks Standards"
+    elif first_rule.startswith('12.7'):
+        return "12.7 - 'Sold' Term Usage"
+    elif first_rule.startswith('12.8.1'):
+        return "12.8.1 - Neighborhood Market Reports"
+    elif first_rule.startswith('12.8'):
+        return "12.8 - Unauthorized Listing Ads"
+    elif first_rule.startswith('12.9'):
+        return "12.9 - Informational Notices"
+    elif first_rule.startswith('12.11'):
+        return "12.11 - Unauthorized MLS Use"
+    elif first_rule.startswith('12.12'):
+        if 'CLERICAL' in rule_str:
+            return "12.12.1 - Clerical User Access"
+        else:
+            return "12.12 - MLS Data Distribution"
+    elif first_rule.startswith('12.15'):
+        if 'CONFIDENTIAL' in rule_str:
+            return "12.15.2 - Confidential Fields"
+        elif 'COMPILATION' in rule_str:
+            return "12.15.4 - Data Compilation"
+        else:
+            return "12.15 - MLS Reproduction"
+    elif first_rule.startswith('12.22'):
+        return "12.22 - Email Requirements"
+    elif first_rule.startswith('12.'):
+        return "12.x - MLS Usage Rules"
+    
+    # Lockbox & Security (13.x)
+    elif first_rule.startswith('13.2'):
+        return "13.2 - Lockbox Key Sharing"
+    elif first_rule.startswith('13.4'):
+        return "13.4 - Lockbox Key Accountability"
+    elif first_rule.startswith('13.5'):
+        return "13.5 - Lockbox Placement Permission"
+    elif first_rule.startswith('13.6'):
+        return "13.6 - Lockbox Requirements"
+    elif first_rule.startswith('13.7'):
+        if 'SHOWING' in rule_str:
+            return "13.7b - Showing Instructions"
+        else:
+            return "13.7 - Unauthorized Property Entry"
+    elif first_rule.startswith('13.8'):
+        return "13.8 - Lost/Stolen Key Reporting"
+    elif first_rule.startswith('13.9'):
+        return "13.9 - Lockbox Removal"
+    elif first_rule.startswith('13.'):
+        return "13.x - Lockbox Rules"
+    
+    # Compliance & Corrections (14.x)
+    elif first_rule.startswith('14.4'):
+        if 'AUTO SOLD' in rule_str:
+            return "14.4 - Auto Sold Corrections"
+        else:
+            return "14.4 - Violation Corrections"
+    elif first_rule.startswith('14.5'):
+        return "14.5 - Information Modifications"
+    elif first_rule.startswith('14.'):
+        return "14.x - Compliance Rules"
+    
+    # Internet & Technology (19.x)
+    elif first_rule.startswith('19.2'):
+        return "19.2 - IDX Rule Violations"
+    elif first_rule.startswith('19.3'):
+        return "19.3 - VOW Rule Violations"
+    elif first_rule.startswith('19.'):
+        return "19.x - Internet Rules"
+    
+    # Special cases
+    elif first_rule.startswith('99.'):
+        return "99.x - Test/Development Rules"
+    elif 'LISTING' in rule_str and 'MODIFICATION' in rule_str:
+        return "Listing Modifications"
+    elif 'NOT APPLICABLE' in rule_str:
+        return "Not Applicable"
+    
+    # Final fallback
+    else:
+        return "Uncategorized Rules"
+
+def get_first_violation(violation_list):
+    """Get first violation from list"""
+    if isinstance(violation_list, list) and len(violation_list) > 0:
+        return violation_list[0] if violation_list[0] is not None else "Other"
+    return "Other" 
+
 @lru_cache(maxsize=1)
 def get_compliance_base_data():
     """
@@ -104,7 +477,11 @@ def get_compliance_base_data():
         for col in date_columns:
             if col in merged_df.columns:
                 merged_df[col] = pd.to_datetime(merged_df[col], errors='coerce')
-        
+            
+        merged_df['ViolationCategory'] = merged_df['RuleNumber'].apply(categorize_rule_violation)
+        merged_df['DetailedRuleCategory'] = merged_df['RuleNumber'].apply(categorize_detailed_rule)
+        merged_df['FirstViolation'] = merged_df['ViolationName'].apply(get_first_violation)
+
         # Cache the processed result
         _compliance_data_cache['merged_df'] = merged_df
         _cache_timestamp = current_time
