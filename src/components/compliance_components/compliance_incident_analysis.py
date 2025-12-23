@@ -28,6 +28,22 @@ def get_incident_analysis_layout():
                 ])
             ]),
             dbc.CardBody([
+                # Details button row
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button([
+                                html.I(className="fas fa-list me-2"),
+                                "View Details"
+                            ], 
+                            id="compliance-incident-details-btn",
+                            color="outline-primary", 
+                            size="sm",
+                            style={'whiteSpace': 'nowrap'})
+                        ], className="d-flex justify-content-end mb-2")
+                    ], width=12)
+                ]),
+                
                 # Chart wrapper for modal functionality
                 html.Div([
                     dcc.Loading([
@@ -42,5 +58,32 @@ def get_incident_analysis_layout():
                 # Insights section
                 html.Div(id="compliance-incident-analysis-insights", className="insights-container")
             ])
-        ], className="mb-4 h-100")
+        ], className="mb-4 h-100"),
+        
+        # Incident Analysis Details Modal
+        dbc.Modal([
+            dbc.ModalHeader([
+                dbc.ModalTitle([
+                    html.I(className="fas fa-chart-bar me-2"),
+                    "Incident Analysis Details"
+                ], id="compliance-incident-details-modal-title")
+            ]),
+            dbc.ModalBody([
+                html.Div(id="compliance-incident-details-content")
+            ]),
+            dbc.ModalFooter([
+                dbc.Button(
+                    "Close", 
+                    id="compliance-incident-details-close-btn", 
+                    className="ms-auto",
+                    n_clicks=0
+                )
+            ])
+        ],
+        id="compliance-incident-details-modal",
+        is_open=False,
+        size="xl",
+        backdrop=True,
+        scrollable=True,
+        centered=True)
     ])

@@ -610,12 +610,260 @@ def register_compliance_incident_analysis_callbacks(app):
         
         return html.Div(insights, className="insights-container")
    
+    def create_case_number_cell(case_number, description, index):
+        """Create case number cell with tooltip for description"""
+        return html.Td([
+            html.Div([
+                html.Span(
+                    case_number, 
+                    id=f"incident-case-number-{index}",
+                    style={
+                        'fontSize': '12px', 
+                        'fontFamily': 'monospace', 
+                        'fontWeight': 'bold',
+                        'cursor': 'help',
+                        'borderBottom': '1px dotted #28a745',
+                        'color': '#28a745'
+                    }
+                ),
+                html.Span(
+                    " 📋", 
+                    style={
+                        'fontSize': '10px',
+                        'opacity': '0.7',
+                        'marginLeft': '4px'
+                    }
+                ),
+                dbc.Tooltip(
+                    html.Div([
+                        html.Div([
+                            html.Strong("Case Description:", className="me-2"),
+                            html.Span(description if description and description.strip() else "No description available")
+                        ], style={
+                            'fontSize': '12px', 
+                            'lineHeight': '1.5',
+                            'color': '#495057',
+                            'margin': '0'
+                        })
+                    ], style={
+                        'maxWidth': '400px', 
+                        'textAlign': 'left',
+                        'padding': '12px',
+                        'backgroundColor': '#f8f9fa',
+                        'border': '1px solid #28a745',
+                        'borderRadius': '6px'
+                    }),
+                    target=f"incident-case-number-{index}",
+                    placement="top",
+                    style={'maxWidth': '450px'}
+                )
+            ])
+        ])
+
+    @monitor_performance("Incident Analysis Details Table Creation")
+    def create_incident_analysis_details_table(filtered_df, view_type):
+        """Create detailed breakdown table for modal display"""
+        if filtered_df.empty:
+            return html.Div([
+                html.H4("No Incident Data", className="text-info mb-3"),
+                html.P("No compliance incidents found for the selected filters.", className="text-muted")
+            ], className="text-center p-4")
+        
+        try:
+            # Get latest 50 cases by CreatedOn
+            latest_cases = filtered_df.nlargest(50, 'CreatedOn').copy()
+            
+            # Summary metrics
+            total_cases = len(filtered_df)
+            showing_count = len(latest_cases)
+            
+            # Create summary cards
+            summary_cards = dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6("📊 Total Cases", className="text-primary mb-1"),
+                            html.H4(f"{total_cases:,}", className="mb-0")
+                        ], className="text-center py-2")
+                    ], className="border-primary")
+                ], width=3),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6("📋 Showing Latest", className="text-info mb-1"),
+                            html.H4(f"{showing_count}", className="mb-0")
+                        ], className="text-center py-2")
+                    ], className="border-info")
+                ], width=3),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6("🎯 View Type", className="text-success mb-1"),
+                            html.H6(f"By {view_type.title()}", className="mb-0")
+                        ], className="text-center py-2")
+                    ], className="border-success")
+                ], width=3),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6("📅 Date Range", className="text-warning mb-1"),
+                            html.H6(f"{latest_cases['CreatedOn'].min().strftime('%m/%d/%Y')}", className="mb-0", style={'fontSize': '12px'})
+                        ], className="text-center py-2")
+                    ], className="border-warning")
+                ], width=3)
+            ], className="mb-4")
+            
+            # Prepare data based on view type
+            table_data = latest_cases.copy()
+            table_data['FormattedDate'] = table_data['CreatedOn'].dt.strftime('%m/%d/%Y')
+            
+            # Define columns based on view type
+            if view_type == "category":
+                headers = [
+                    html.Th("Case Number", style={'width': '20%'}),
+                    html.Th("Rule Number", style={'width': '15%'}),
+                    html.Th("Rule Title", style={'width': '35%'}),
+                    html.Th("Violation Category", style={'width': '20%'}),
+                    html.Th("Created", style={'width': '10%'})
+                ]
+                
+                def get_row_data(row, i):
+                    # Get first rule number and title for display
+                    rule_number = row['RuleNumber'][0] if isinstance(row['RuleNumber'], list) and row['RuleNumber'] else 'N/A'
+                    rule_title = row['RuleTitle'][0] if isinstance(row['RuleTitle'], list) and row['RuleTitle'] else 'N/A'
+                    violation_category = row.get('ViolationCategory', 'Unknown')
+                    
+                    return [
+                        create_case_number_cell(row['CaseNumber'], row.get('Description', ''), i),
+                        html.Td(rule_number, style={'fontSize': '12px', 'fontFamily': 'monospace'}),
+                        html.Td(rule_title, style={'fontSize': '12px'}),
+                        html.Td(violation_category, style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                        html.Td(row['FormattedDate'], style={'fontSize': '11px'})
+                    ]
+            
+            elif view_type == "rule":
+                headers = [
+                    html.Th("Case Number", style={'width': '20%'}),
+                    html.Th("Rule Number", style={'width': '15%'}),
+                    html.Th("Rule Title", style={'width': '35%'}),
+                    html.Th("Detailed Rule Category", style={'width': '20%'}),
+                    html.Th("Created", style={'width': '10%'})
+                ]
+                
+                def get_row_data(row, i):
+                    rule_number = row['RuleNumber'][0] if isinstance(row['RuleNumber'], list) and row['RuleNumber'] else 'N/A'
+                    rule_title = row['RuleTitle'][0] if isinstance(row['RuleTitle'], list) and row['RuleTitle'] else 'N/A'
+                    detailed_rule_category = row.get('DetailedRuleCategory', 'Unknown')
+                    
+                    return [
+                        create_case_number_cell(row['CaseNumber'], row.get('Description', ''), i),
+                        html.Td(rule_number, style={'fontSize': '12px', 'fontFamily': 'monospace'}),
+                        html.Td(rule_title, style={'fontSize': '12px'}),
+                        html.Td(detailed_rule_category, style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                        html.Td(row['FormattedDate'], style={'fontSize': '11px'})
+                    ]
+            
+            elif view_type == "violation":
+                headers = [
+                    html.Th("Case Number", style={'width': '20%'}),
+                    html.Th("Rule Number", style={'width': '15%'}),
+                    html.Th("Rule Title", style={'width': '25%'}),
+                    html.Th("Violation Name", style={'width': '30%'}),
+                    html.Th("Created", style={'width': '10%'})
+                ]
+                
+                def get_row_data(row, i):
+                    rule_number = row['RuleNumber'][0] if isinstance(row['RuleNumber'], list) and row['RuleNumber'] else 'N/A'
+                    rule_title = row['RuleTitle'][0] if isinstance(row['RuleTitle'], list) and row['RuleTitle'] else 'N/A'
+                    # Get first violation name for display
+                    first_violation = row.get('FirstViolation', 'Unknown')
+                    
+                    return [
+                        create_case_number_cell(row['CaseNumber'], row.get('Description', ''), i),
+                        html.Td(rule_number, style={'fontSize': '12px', 'fontFamily': 'monospace'}),
+                        html.Td(rule_title, style={'fontSize': '12px'}),
+                        html.Td(first_violation, style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                        html.Td(row['FormattedDate'], style={'fontSize': '11px'})
+                    ]
+            
+            elif view_type == "disposition":
+                headers = [
+                    html.Th("Case Number", style={'width': '25%'}),
+                    html.Th("Disposition", style={'width': '20%'}),
+                    html.Th("Status", style={'width': '15%'}),
+                    html.Th("Assigned User", style={'width': '25%'}),
+                    html.Th("Created", style={'width': '15%'})
+                ]
+                
+                def get_row_data(row, i):
+                    disposition = row.get('Disposition', 'Unknown')
+                    status = row.get('Status', 'Unknown')
+                    assigned_user = row.get('AssignedUser', 'Unassigned')
+                    
+                    # Color coding for disposition
+                    disposition_colors = {
+                        'Citation': 'text-danger',
+                        'Warning': 'text-warning',
+                        'Corrected': 'text-success',
+                        'No Violation': 'text-secondary',
+                        'Investigation': 'text-primary',
+                        'Duplicate': 'text-info',
+                        'Withdrawn': 'text-muted'
+                    }
+                    disposition_class = disposition_colors.get(disposition, 'text-dark')
+                    
+                    return [
+                        create_case_number_cell(row['CaseNumber'], row.get('Description', ''), i),
+                        html.Td(disposition, className=disposition_class, style={'fontSize': '12px', 'fontWeight': 'bold'}),
+                        html.Td(status, style={'fontSize': '12px'}),
+                        html.Td(assigned_user, style={'fontSize': '12px'}),
+                        html.Td(row['FormattedDate'], style={'fontSize': '11px'})
+                    ]
+            
+            # Create table rows
+            table_rows = []
+            for i, (_, row) in enumerate(table_data.iterrows()):
+                cells = get_row_data(row, i)
+                table_rows.append(html.Tr(cells, className=""))
+            
+            return html.Div([
+                html.H4(f"Incident Analysis Details - {view_type.title()} View", className="mb-3 text-primary"),
+                
+                # Summary cards
+                summary_cards,
+                
+                html.P([
+                    html.Span([
+                        html.I(className="fas fa-calendar me-2"),
+                        f"Latest {showing_count} incidents from {total_cases:,} total cases"
+                    ], className="me-4"),
+                    html.Span([
+                        html.I(className="fas fa-filter me-2"),
+                        f"Filtered by {view_type} analysis"
+                    ])
+                ], className="text-muted mb-4"),
+                
+                html.Table([
+                    html.Thead([
+                        html.Tr(headers, style={'backgroundColor': '#f8f9fa', 'fontWeight': 'bold'})
+                    ]),
+                    html.Tbody(table_rows)
+                ], className="table table-hover table-striped table-sm"),
+                
+            ], className="p-3")
+            
+        except Exception as e:
+            return html.Div([
+                html.H4("Error Creating Incident Details", className="text-danger mb-3"),
+                html.P(f"Unable to generate detailed breakdown: {str(e)}", className="text-muted")
+            ], className="text-center p-4")
+
     # Main callback for updating chart and insights
     @callback(
         [Output("compliance-incident-analysis-chart", "figure"),
-         Output("compliance-incident-analysis-insights", "children")],
+        Output("compliance-incident-analysis-insights", "children")],
         [Input("compliance-filtered-query-store", "data"),
-         Input("compliance-incident-view-dropdown", "value")],
+        Input("compliance-incident-view-dropdown", "value")],
         prevent_initial_call=False
     )
     @monitor_performance("Incident Analysis Chart Update")
@@ -627,7 +875,19 @@ def register_compliance_incident_analysis_callbacks(app):
             base_df = get_compliance_base_data()
             
             if base_df.empty:
-                return {}, html.Div("No compliance data available")
+                fig = go.Figure()
+                fig.add_annotation(
+                    text="No compliance data available",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                    showarrow=False,
+                    font=dict(size=14, color="gray")
+                )
+                fig.update_layout(
+                    title={'text': "Incident Analysis - No Data", 'x': 0.5, 'xanchor': 'center'},
+                    height=400
+                )
+                return fig, html.Div("No data available")
             
             # Apply filters if any
             if filter_selections:
@@ -643,8 +903,28 @@ def register_compliance_incident_analysis_callbacks(app):
             
         except Exception as e:
             print(f"Error updating incident analysis: {e}")
-            return {}, html.Div(f"Error: {str(e)}", className="text-danger")
-    
+            
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Error loading data: {str(e)}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False,
+                font=dict(size=14, color="red")
+            )
+            fig.update_layout(
+                title={'text': "Incident Analysis - Error", 'x': 0.5, 'xanchor': 'center'},
+                height=400
+            )
+            
+            error_insights = html.Div([
+                html.Div([html.Span("❌ **Error**: Unable to load incident data", style={'fontSize': '13px'})], className="mb-2"),
+                html.Div([html.Span("🔧 **Issue**: Data processing error occurred", style={'fontSize': '13px'})], className="mb-2"),
+                html.Div([html.Span("🔄 **Action**: Try refreshing or adjusting filters", style={'fontSize': '13px'})], className="mb-2")
+            ], className="insights-container")
+            
+            return fig, error_insights
+   
     # Chart modal callback for enlarged view
     @callback(
         [
@@ -684,4 +964,67 @@ def register_compliance_incident_analysis_callbacks(app):
         
         return no_update, no_update
 
+    @callback(
+        [Output("compliance-incident-details-modal", "is_open"),
+        Output("compliance-incident-details-content", "children")],
+        [Input("compliance-incident-details-btn", "n_clicks")],
+        [State("compliance-incident-details-modal", "is_open"),
+        State("compliance-filtered-query-store", "data"),
+        State("compliance-incident-view-dropdown", "value")],
+        prevent_initial_call=True
+    )
+    @monitor_performance("Incident Analysis Details Modal Toggle")
+    def toggle_incident_details_modal(details_btn_clicks, is_open, filter_selections, view_type):
+        """Handle opening of incident analysis details modal"""
+        if details_btn_clicks:
+            if not is_open:
+                try:
+                    # Get filtered data
+                    base_data = get_compliance_base_data()
+                    
+                    if base_data.empty:
+                        error_content = html.Div([
+                            html.H4("No Data Available", className="text-warning mb-3"),
+                            html.P("No compliance data is currently available for analysis.", className="text-muted")
+                        ], className="text-center p-4")
+                        return True, error_content
+                    
+                    filtered_data = apply_compliance_filters(base_data, filter_selections or {})
+                    
+                    if filtered_data.empty:
+                        error_content = html.Div([
+                            html.H4("No Matching Data", className="text-info mb-3"),
+                            html.P("No incidents match the current filter criteria.", className="text-muted")
+                        ], className="text-center p-4")
+                        return True, error_content
+                    
+                    # Create detailed table
+                    detailed_table = create_incident_analysis_details_table(filtered_data, view_type or "category")
+                    
+                    return True, detailed_table
+                    
+                except Exception as e:
+                    print(f"❌ Error generating incident analysis details: {e}")
+                    error_content = html.Div([
+                        html.H4("Error Loading Incident Details", className="text-danger mb-3"),
+                        html.P(f"Unable to load detailed breakdown: {str(e)}", className="text-muted")
+                    ], className="text-center p-4")
+                    return True, error_content
+            else:
+                return False, no_update
+        
+        return no_update, no_update
+
+    @callback(
+        Output("compliance-incident-details-modal", "is_open", allow_duplicate=True),
+        [Input("compliance-incident-details-close-btn", "n_clicks")],
+        [State("compliance-incident-details-modal", "is_open")],
+        prevent_initial_call=True
+    )
+    def close_incident_details_modal(close_clicks, is_open):
+        """Close the incident details modal when close button is clicked"""
+        if close_clicks and is_open:
+            return False
+        return no_update
+    
     # print("✅ Compliance incident analysis callbacks registered")
