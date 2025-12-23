@@ -72,24 +72,24 @@ def create_compliance_dashboard_layout():
         ]),
 
         # Charts Section - Row 4: Resolution Metrics & Rule Violations
-        dbc.Row([
-            dbc.Col([
-                html.Div(get_resolution_metrics_layout(), id="compliance-resolution-metrics-container")
-            ], width=6, lg=6),
-            dbc.Col([
-                html.Div(get_rule_violations_layout(), id="compliance-rule-violations-container")
-            ], width=6, lg=6)
-        ]),
+        # dbc.Row([
+        #     dbc.Col([
+        #         html.Div(get_resolution_metrics_layout(), id="compliance-resolution-metrics-container")
+        #     ], width=6, lg=6),
+        #     dbc.Col([
+        #         html.Div(get_rule_violations_layout(), id="compliance-rule-violations-container")
+        #     ], width=6, lg=6)
+        # ]),
 
         # Charts Section - Row 5: Office Performance & Risk Assessment
-        dbc.Row([
-            dbc.Col([
-                html.Div(get_office_performance_layout(), id="compliance-office-performance-container")
-            ], width=6, lg=6),
-            dbc.Col([
-                html.Div(get_risk_assessment_layout(), id="compliance-risk-assessment-container")
-            ], width=6, lg=6)
-        ]),
+        # dbc.Row([
+        #     dbc.Col([
+        #         html.Div(get_office_performance_layout(), id="compliance-office-performance-container")
+        #     ], width=6, lg=6),
+        #     dbc.Col([
+        #         html.Div(get_risk_assessment_layout(), id="compliance-risk-assessment-container")
+        #     ], width=6, lg=6)
+        # ]),
 
         # Data Table Section
         get_data_table_layout(),
