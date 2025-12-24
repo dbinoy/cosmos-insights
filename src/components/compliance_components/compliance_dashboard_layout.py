@@ -21,7 +21,7 @@ def create_compliance_dashboard_layout():
 
         dbc.Row([
             dbc.Col([
-                html.H2("Compliance Dashboard (Under Construction)", className="mb-1"),
+                html.H2("Compliance Dashboard", className="mb-1"),
                 html.P("Comprehensive insights into compliance reporting, investigations of violations and case management", 
                       className="text-muted mb-3")
             ], width=9),
