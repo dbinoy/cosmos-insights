@@ -8,12 +8,12 @@ def get_data_table_layout():
         dbc.CardHeader([
             dbc.Row([
                 dbc.Col([
-                    html.H5("Workflow Activity Details", className="mb-0")
+                    html.H5("Workflow Activity", className="mb-0")
                 ], width=2), 
                 dbc.Col([
                     dbc.Row([
                         dbc.Col([
-                            html.Label("Report Type:", className="form-label mb-0 text-end", 
+                            html.Label("Report:", className="form-label mb-0 text-end", 
                                      style={'lineHeight': '2.25rem'})  
                         ], width=3, className="text-end"),  
                         dbc.Col([

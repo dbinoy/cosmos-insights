@@ -13,10 +13,8 @@ from datetime import datetime, timedelta
 from src.utils.compliance_data import (
     get_compliance_base_data, 
     apply_compliance_filters,
-    classify_case_severity,
     get_event_history,
     get_case_flow_with_lifecycle_stages,
-    prepare_html_content
 )
 from src.utils.performance import monitor_performance, monitor_query_performance
 import json
@@ -45,119 +43,16 @@ def register_compliance_data_table_callbacks(app):
             # Get additional enriched data
             event_history_df = get_event_history()
             case_flow_df = get_case_flow_with_lifecycle_stages()
-            classified_df = classify_case_severity(base_df)
             
             return {
                 "case_details": base_df,
                 "event_history": event_history_df, 
                 "case_flow": case_flow_df,
-                "classified_cases": classified_df
             }
             
         except Exception as e:
             print(f"❌ Error getting compliance data table base data: {e}")
             return {}
-
-    def parse_list_field(field_value, default="N/A"):
-        """Parse list fields safely for display - handles numpy arrays and pandas Series"""
-        try:
-            # Handle None/NaN cases first
-            if field_value is None:
-                return default
-            
-            # Handle numpy arrays
-            if isinstance(field_value, np.ndarray):
-                if field_value.size == 0:
-                    return default
-                # Convert to list and process
-                field_list = field_value.tolist()
-                for item in field_list:
-                    if item is not None and str(item).strip():
-                        return str(item)
-                return default
-            
-            # Handle pandas Series (shouldn't happen but just in case)
-            if hasattr(field_value, 'iloc'):
-                if len(field_value) == 0:
-                    return default
-                for item in field_value:
-                    if item is not None and str(item).strip():
-                        return str(item)
-                return default
-            
-            # Use pandas isna for scalar values
-            if hasattr(pd, 'isna'):
-                try:
-                    if pd.isna(field_value):
-                        return default
-                except (ValueError, TypeError):
-                    # If pd.isna fails, continue with other checks
-                    pass
-            
-            # Handle regular lists
-            if isinstance(field_value, list):
-                if len(field_value) == 0:
-                    return default
-                # Get first non-null item
-                for item in field_value:
-                    if item is not None and str(item).strip():
-                        return str(item)
-                return default
-            
-            # Handle string values
-            if isinstance(field_value, str):
-                return field_value.strip() if field_value.strip() else default
-            
-            # Handle other types
-            if field_value:
-                return str(field_value)
-            else:
-                return default
-                
-        except Exception as e:
-            print(f"⚠️ Warning in parse_list_field: {e}, returning default")
-            return default
-
-    def format_currency_list(fee_list):
-        """Format citation fee list for display - handles numpy arrays"""
-        try:
-            # Handle None/NaN cases first
-            if fee_list is None:
-                return "$0.00"
-            
-            # Handle numpy arrays
-            if isinstance(fee_list, np.ndarray):
-                if fee_list.size == 0:
-                    return "$0.00"
-                fee_list = fee_list.tolist()
-            
-            # Handle pandas Series
-            if hasattr(fee_list, 'iloc'):
-                if len(fee_list) == 0:
-                    return "$0.00"
-                fee_list = fee_list.tolist()
-            
-            # Handle scalar values
-            if not isinstance(fee_list, list):
-                fee_list = [fee_list] if fee_list else []
-            
-            if len(fee_list) == 0:
-                return "$0.00"
-            
-            total = 0
-            for fee in fee_list:
-                if fee and str(fee).replace('$', '').replace(',', '').replace('.', '').replace('-', '').isdigit():
-                    try:
-                        clean_fee = float(str(fee).replace('$', '').replace(',', ''))
-                        total += clean_fee
-                    except (ValueError, TypeError):
-                        continue
-            
-            return f"${total:,.2f}" if total > 0 else "$0.00"
-            
-        except Exception as e:
-            print(f"⚠️ Warning in format_currency_list: {e}, returning $0.00")
-            return "$0.00"
 
     def safe_list_aggregation(series_of_lists):
         """Safely aggregate lists in a pandas series - handles numpy arrays"""
@@ -228,12 +123,12 @@ def register_compliance_data_table_callbacks(app):
         
         for key, data in base_data.items():
             if isinstance(data, pd.DataFrame) and not data.empty:
-                if key == "case_details" or key == "classified_cases":
+                if key == "case_details":
                     # Apply compliance filters to case data
                     filtered_data[key] = apply_compliance_filters(data.copy(), query_selections)
                 else:
                     # For event history and case flow, filter by matching case IDs
-                    if "case_details" in filtered_data and not filtered_data["case_details"].empty:
+                    if "case_details" in filtered_data.keys() and not filtered_data["case_details"].empty:
                         case_ids = set(filtered_data["case_details"]['ID'].tolist())
                         if 'CaseID' in data.columns:
                             filtered_data[key] = data[data['CaseID'].isin(case_ids)].copy()
@@ -257,49 +152,8 @@ def register_compliance_data_table_callbacks(app):
                 if df.empty:
                     return pd.DataFrame()
                 
-                # Select and format columns for case summary
-                report_df = df.copy()
-                
                 # Parse list columns for display with improved error handling
-                print(f"🔄 Processing {len(report_df)} rows for case_summary report")
-                
-                try:
-                    report_df['FirstRuleNumber'] = report_df['RuleNumber'].apply(parse_list_field)
-                    print("✅ Processed RuleNumber column")
-                except Exception as e:
-                    print(f"❌ Error processing RuleNumber: {e}")
-                    report_df['FirstRuleNumber'] = "N/A"
-                
-                try:
-                    report_df['FirstRuleTitle'] = report_df['RuleTitle'].apply(parse_list_field)
-                    print("✅ Processed RuleTitle column")
-                except Exception as e:
-                    print(f"❌ Error processing RuleTitle: {e}")
-                    report_df['FirstRuleTitle'] = "N/A"
-                
-                try:
-                    report_df['FirstViolation'] = report_df['ViolationName'].apply(parse_list_field)
-                    print("✅ Processed ViolationName column")
-                except Exception as e:
-                    print(f"❌ Error processing ViolationName: {e}")
-                    report_df['FirstViolation'] = "N/A"
-                
-                try:
-                    report_df['TotalCitationFee'] = report_df['CitationFee'].apply(format_currency_list)
-                    print("✅ Processed CitationFee column")
-                except Exception as e:
-                    print(f"❌ Error processing CitationFee: {e}")
-                    report_df['TotalCitationFee'] = "$0.00"
-                
-                # Format dates
-                try:
-                    report_df['CreatedDate'] = pd.to_datetime(report_df['CreatedOn'], errors='coerce').dt.strftime('%Y-%m-%d')
-                    report_df['ClosedDate'] = pd.to_datetime(report_df['ClosedOn'], errors='coerce').dt.strftime('%Y-%m-%d')
-                    print("✅ Processed date columns")
-                except Exception as e:
-                    print(f"❌ Error processing dates: {e}")
-                    report_df['CreatedDate'] = "N/A"
-                    report_df['ClosedDate'] = "N/A"
+                # print(f"🔄 Processing {len(df)} rows for case_summary report")
                 
                 # Select final columns with meaningful names
                 final_columns = {
@@ -317,8 +171,8 @@ def register_compliance_data_table_callbacks(app):
                 }
                 
                 # Select only existing columns
-                available_columns = [col for col in final_columns.keys() if col in report_df.columns]
-                report_df = report_df[available_columns].rename(columns={k: v for k, v in final_columns.items() if k in available_columns})
+                available_columns = [col for col in final_columns.keys() if col in df.columns]
+                report_df = df[available_columns].rename(columns={k: v for k, v in final_columns.items() if k in available_columns})
                 
                 print(f"✅ Generated case_summary report with {len(report_df)} rows and {len(report_df.columns)} columns")
                 return report_df

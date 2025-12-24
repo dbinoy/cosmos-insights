@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import re
 import json
 from datetime import datetime, timedelta
@@ -378,11 +379,106 @@ def categorize_detailed_rule(rule_list):
     else:
         return "Uncategorized Rules"
 
-def get_first_violation(violation_list):
-    """Get first violation from list"""
-    if isinstance(violation_list, list) and len(violation_list) > 0:
-        return violation_list[0] if violation_list[0] is not None else "Other"
-    return "Other" 
+def parse_list_field(field_value, default="N/A"):
+    """Parse list fields safely for display - handles numpy arrays and pandas Series"""
+    try:
+        # Handle None/NaN cases first
+        if field_value is None:
+            return default
+        
+        # Handle numpy arrays
+        if isinstance(field_value, np.ndarray):
+            if field_value.size == 0:
+                return default
+            # Convert to list and process
+            field_list = field_value.tolist()
+            for item in field_list:
+                if item is not None and str(item).strip():
+                    return str(item)
+            return default
+        
+        # Handle pandas Series (shouldn't happen but just in case)
+        if hasattr(field_value, 'iloc'):
+            if len(field_value) == 0:
+                return default
+            for item in field_value:
+                if item is not None and str(item).strip():
+                    return str(item)
+            return default
+        
+        # Use pandas isna for scalar values
+        if hasattr(pd, 'isna'):
+            try:
+                if pd.isna(field_value):
+                    return default
+            except (ValueError, TypeError):
+                # If pd.isna fails, continue with other checks
+                pass
+        
+        # Handle regular lists
+        if isinstance(field_value, list):
+            if len(field_value) == 0:
+                return default
+            # Get first non-null item
+            for item in field_value:
+                if item is not None and str(item).strip():
+                    return str(item)
+            return default
+        
+        # Handle string values
+        if isinstance(field_value, str):
+            return field_value.strip() if field_value.strip() else default
+        
+        # Handle other types
+        if field_value:
+            return str(field_value)
+        else:
+            return default
+            
+    except Exception as e:
+        print(f"⚠️ Warning in parse_list_field: {e}, returning default")
+        return default
+
+def format_currency_list(fee_list):
+    """Format citation fee list for display - handles numpy arrays"""
+    try:
+        # Handle None/NaN cases first
+        if fee_list is None:
+            return "$0.00"
+        
+        # Handle numpy arrays
+        if isinstance(fee_list, np.ndarray):
+            if fee_list.size == 0:
+                return "$0.00"
+            fee_list = fee_list.tolist()
+        
+        # Handle pandas Series
+        if hasattr(fee_list, 'iloc'):
+            if len(fee_list) == 0:
+                return "$0.00"
+            fee_list = fee_list.tolist()
+        
+        # Handle scalar values
+        if not isinstance(fee_list, list):
+            fee_list = [fee_list] if fee_list else []
+        
+        if len(fee_list) == 0:
+            return "$0.00"
+        
+        total = 0
+        for fee in fee_list:
+            if fee and str(fee).replace('$', '').replace(',', '').replace('.', '').replace('-', '').isdigit():
+                try:
+                    clean_fee = float(str(fee).replace('$', '').replace(',', ''))
+                    total += clean_fee
+                except (ValueError, TypeError):
+                    continue
+        
+        return f"${total:,.2f}" if total > 0 else "$0.00"
+        
+    except Exception as e:
+        print(f"⚠️ Warning in format_currency_list: {e}, returning $0.00")
+        return "$0.00"
 
 @lru_cache(maxsize=1)
 def get_compliance_base_data():
@@ -480,7 +576,10 @@ def get_compliance_base_data():
             
         merged_df['ViolationCategory'] = merged_df['RuleNumber'].apply(categorize_rule_violation)
         merged_df['DetailedRuleCategory'] = merged_df['RuleNumber'].apply(categorize_detailed_rule)
-        merged_df['FirstViolation'] = merged_df['ViolationName'].apply(get_first_violation)
+        merged_df['FirstViolation'] = merged_df['ViolationName'].apply(parse_list_field)
+        merged_df['FirstRuleNumber'] = merged_df['RuleNumber'].apply(parse_list_field)
+        merged_df['FirstRuleTitle'] = merged_df['RuleTitle'].apply(parse_list_field)
+        merged_df['TotalCitationFee'] = merged_df['CitationFee'].apply(format_currency_list)
 
         # Cache the processed result
         _compliance_data_cache['merged_df'] = merged_df
@@ -1751,12 +1850,8 @@ def prepare_outstanding_issues_data(df, view_state="severity"):
         
     elif view_state == "violation":
         # Group by violation type (first violation)
-        def get_first_violation(violation_list):
-            if isinstance(violation_list, list) and len(violation_list) > 0:
-                return violation_list[0] if violation_list[0] is not None else "No Violation"
-            return "No Violation"
-        
-        outstanding_df['FirstViolation'] = outstanding_df['ViolationName'].apply(get_first_violation)
+
+        outstanding_df['FirstViolation'] = outstanding_df['ViolationName'].apply(parse_list_field)
         status_counts = outstanding_df['FirstViolation'].value_counts().reset_index()
         status_counts.columns = ['Category', 'Count']
         
